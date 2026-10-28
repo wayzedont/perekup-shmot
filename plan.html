@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Дорожная карта «Перекупа»</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Ценник на холодной бумаге: прохладные сланцевые нейтрали, один горячий янтарный акцент.
+   Шрифты взяты из самой игры (Dela Gothic One + Golos Text), чтобы документ читался как часть продукта. */
+:root{
+  --paper:#eef0f2;
+  --card:#ffffff;
+  --card-2:#f6f8f9;
+  --ink:#14161a;
+  --ink-2:#474e55;
+  --ink-3:#79818a;
+  --line:#d9dee2;
+  --line-2:#c6ccd2;
+  --accent:#d7541b;
+  --accent-ink:#ffffff;
+  --accent-soft:#fae7dd;
+  --good:#0f7a4a;
+  --good-soft:#e0f0e7;
+  --bad:#c22f23;
+  --bad-soft:#fae3e0;
+  --warn:#8f6400;
+  --warn-soft:#f8eed6;
+  --shadow:0 1px 2px rgba(20,22,26,.06), 0 8px 24px -12px rgba(20,22,26,.18);
+
+  --f-disp:"Dela Gothic One","Golos Text",system-ui,sans-serif;
+  --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+
+  --measure:46rem;
+  --wide:58rem;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#111317;
+    --card:#191c21;
+    --card-2:#20242a;
+    --ink:#eceef0;
+    --ink-2:#b4bbc2;
+    --ink-3:#848c95;
+    --line:#2a2f36;
+    --line-2:#3a4149;
+    --accent:#ff8a4c;
+    --accent-ink:#201008;
+    --accent-soft:#33200f;
+    --good:#52c48d;
+    --good-soft:#15291f;
+    --bad:#f0746a;
+    --bad-soft:#2e1a19;
+    --warn:#dfa93f;
+    --warn-soft:#2b2312;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111317;
+  --card:#191c21;
+  --card-2:#20242a;
+  --ink:#eceef0;
+  --ink-2:#b4bbc2;
+  --ink-3:#848c95;
+  --line:#2a2f36;
+  --line-2:#3a4149;
+  --accent:#ff8a4c;
+  --accent-ink:#201008;
+  --accent-soft:#33200f;
+  --good:#52c48d;
+  --good-soft:#15291f;
+  --bad:#f0746a;
+  --bad-soft:#2e1a19;
+  --warn:#dfa93f;
+  --warn-soft:#2b2312;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:16px;
+  line-height:1.62;
+  margin:0;
+  -webkit-font-smoothing:antialiased;
+}
+.page{
+  max-width:var(--wide);
+  margin:0 auto;
+  padding:clamp(24px,5vw,64px) clamp(16px,4vw,40px) 96px;
+  display:flex;
+  flex-direction:column;
+  gap:clamp(40px,6vw,68px);
+}
+.col{max-width:var(--measure)}
+
+h1,h2,h3{text-wrap:balance;margin:0}
+h1{
+  font-family:var(--f-disp);
+  font-weight:400;
+  font-size:clamp(2rem,6vw,3.2rem);
+  line-height:1.04;
+  letter-spacing:-.015em;
+}
+h2{
+  font-family:var(--f-disp);
+  font-weight:400;
+  font-size:clamp(1.3rem,3.4vw,1.8rem);
+  line-height:1.18;
+  letter-spacing:-.01em;
+}
+h3{font-size:1.02rem;font-weight:700;line-height:1.35}
+h4{margin:0;font-size:.95rem;font-weight:700;line-height:1.4}
+p{margin:0}
+
+.eyebrow{
+  font-family:var(--f-mono);
+  font-size:.7rem;
+  font-weight:500;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+}
+.lede{font-size:clamp(1.02rem,2.2vw,1.18rem);color:var(--ink-2);line-height:1.55}
+.muted{color:var(--ink-3);font-size:.9rem;line-height:1.5}
+b,strong{font-weight:700;color:var(--ink)}
+code{
+  font-family:var(--f-mono);
+  font-size:.86em;
+  background:var(--card-2);
+  border:1px solid var(--line);
+  border-radius:5px;
+  padding:.08em .35em;
+  white-space:nowrap;
+}
+a{color:var(--accent)}
+a:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+/* ——— шапка ——— */
+header.hero{display:flex;flex-direction:column;gap:18px}
+.hero .meta{
+  display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline;
+  font-family:var(--f-mono);font-size:.74rem;letter-spacing:.06em;color:var(--ink-3);
+}
+.hero .meta b{color:var(--ink-2);font-weight:500}
+
+/* ——— ценник: единственный декоративный приём, используется один раз ——— */
+.tag{
+  position:relative;
+  background:var(--card);
+  border:1px solid var(--line-2);
+  border-radius:14px;
+  box-shadow:var(--shadow);
+  padding:clamp(20px,4vw,30px) clamp(20px,4vw,32px);
+  padding-left:clamp(44px,7vw,64px);
+  max-width:var(--wide);
+  display:grid;
+  gap:14px;
+}
+.tag::before{
+  content:"";
+  position:absolute;
+  left:clamp(16px,3vw,24px);
+  top:clamp(24px,4.4vw,34px);
+  width:13px;height:13px;
+  border-radius:50%;
+  border:2px solid var(--line-2);
+  background:var(--paper);
+}
+.tag::after{
+  content:"";
+  position:absolute;
+  left:clamp(22px,3.4vw,30px);
+  top:calc(clamp(24px,4.4vw,34px) + 26px);
+  bottom:clamp(20px,4vw,30px);
+  width:1px;
+  background:repeating-linear-gradient(to bottom,var(--line-2) 0 4px,transparent 4px 9px);
+}
+.stat{
+  font-family:var(--f-disp);
+  font-size:clamp(2.3rem,8vw,3.5rem);
+  line-height:1;
+  letter-spacing:-.02em;
+  color:var(--accent);
+  font-variant-numeric:tabular-nums;
+}
+.tag .say{font-size:1rem;color:var(--ink-2);max-width:40rem}
+
+/* ——— секции ——— */
+section{display:flex;flex-direction:column;gap:22px}
+.sec-head{display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+.rule{height:1px;background:var(--line);border:0;margin:0}
+
+.stack{display:flex;flex-direction:column;gap:16px}
+.cards{display:grid;gap:14px}
+@media (min-width:720px){.cards.two{grid-template-columns:1fr 1fr;align-items:start}}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:18px 20px;
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+  box-shadow:var(--shadow);
+}
+.card .muted{font-size:.92rem;color:var(--ink-2)}
+.card.flat{box-shadow:none;background:var(--card-2)}
+
+.verdict-h{
+  display:flex;align-items:center;gap:9px;
+  font-family:var(--f-mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+}
+.verdict-h.keep{color:var(--good)}
+.verdict-h.fix{color:var(--bad)}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+
+/* списки */
+.list{display:flex;flex-direction:column;gap:14px;margin:0;padding:0;list-style:none}
+.list > li{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start}
+.list .mk{
+  font-family:var(--f-mono);font-size:.74rem;font-weight:700;color:var(--ink-3);
+  line-height:1.7;min-width:1.4em;font-variant-numeric:tabular-nums;
+}
+.list .why{display:block;color:var(--ink-2);font-size:.94rem;margin-top:3px}
+.list .why em{font-style:normal;color:var(--accent);font-weight:600}
+
+.plain{margin:0;padding-left:1.15rem;display:flex;flex-direction:column;gap:7px}
+.plain li{padding-left:.15rem}
+.plain li::marker{color:var(--ink-3)}
+
+/* ——— таблицы ——— */
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;min-width:34rem;font-size:.92rem}
+caption{text-align:left;padding:14px 18px 0;font-size:.9rem;color:var(--ink-3)}
+th,td{text-align:left;padding:11px 18px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{
+  font-family:var(--f-mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;background:var(--card-2);white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-family:var(--f-mono);font-size:.86rem}
+td.n b{font-weight:700}
+.pos{color:var(--good)}
+.neg{color:var(--bad)}
+
+/* ——— чипы ——— */
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{
+  font-family:var(--f-mono);font-size:.72rem;letter-spacing:.04em;
+  border:1px solid var(--line-2);border-radius:999px;padding:4px 11px;color:var(--ink-2);
+  background:var(--card);
+}
+.chip.hot{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+.chip.ok{background:var(--good-soft);border-color:transparent;color:var(--good)}
+
+/* ——— этапы ——— */
+.stages{display:flex;flex-direction:column;gap:0}
+.stage{
+  display:grid;
+  grid-template-columns:3.1rem 1fr;
+  gap:0 18px;
+  padding:20px 0;
+  border-top:1px solid var(--line);
+}
+.stage:last-child{border-bottom:1px solid var(--line)}
+.stage .no{
+  font-family:var(--f-disp);
+  font-size:1.5rem;
+  line-height:1.1;
+  color:var(--accent);
+  font-variant-numeric:tabular-nums;
+}
+.stage .body{display:flex;flex-direction:column;gap:8px}
+.stage .ship{
+  font-family:var(--f-mono);font-size:.71rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+}
+
+/* ——— вопросы в конце ——— */
+.ask{
+  background:var(--accent-soft);
+  border-radius:12px;
+  padding:20px 22px;
+  display:flex;flex-direction:column;gap:12px;
+}
+.ask h2{color:var(--ink)}
+.ask .plain li::marker{color:var(--accent)}
+
+footer{color:var(--ink-3);font-size:.84rem;font-family:var(--f-mono);letter-spacing:.04em}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="hero">
+    <div class="eyebrow">Разбор прототипа и план работ</div>
+    <h1>Дорожная карта «Перекупа»</h1>
+    <p class="lede col">Прототип работает и в нём есть настоящая игра. Но информация в нём бесплатна, а значит риска нет — и поэтому деньги печатаются. Всё остальное в плане вращается вокруг этой одной починки.</p>
+    <div class="meta">
+      <span><b>Прототип:</b> shmot.html, 1 411 строк, 62 модели, 11 приложений</span>
+      <span><b>Коммит:</b> ad644f5</span>
+      <span><b>Режим:</b> жёсткий баланс</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Измерено в игре, а не на глаз</div>
+      <h2>Секонд печатает деньги, и вот почему</h2>
+    </div>
+    <div class="tag">
+      <div class="eyebrow">Одно утро понедельника, уровень 1</div>
+      <div class="stat">+17 120 ₽</div>
+      <p class="say">Осмотр вещи в секонде бесплатный, мгновенный и безлимитный. Я промотал игру до завоза, осмотрел все 63 вещи и купил только те, что выглядят оригиналом дешевле 55% рынка: <b>11 вещей за 19 780 ₽ при рыночной стоимости 36 900 ₽</b>. Купить то же самое вслепую дало бы +115 ₽ за вещь — то есть риск в игре заложен правильно, но игрок его не платит.</p>
+      <div class="chips">
+        <span class="chip">ROI 87% за утро</span>
+        <span class="chip">82% купленного — оригинал</span>
+        <span class="chip hot">повторяется каждый понедельник</span>
+      </div>
+    </div>
+    <div class="scroll col" style="max-width:var(--wide)">
+      <table>
+        <caption>Второе место, где ломается жёсткость: ликвидность почти не влияет на скорость продажи.</caption>
+        <thead>
+          <tr><th>Вещь выставлена по рынку</th><th class="n">Ликвидность</th><th class="n">Покупателей в день</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Ноунейм худи — мёртвый неликвид</td><td class="n">18%</td><td class="n">0,52</td></tr>
+          <tr><td>Адик олимпийка</td><td class="n">42%</td><td class="n">0,82</td></tr>
+          <tr><td>Адик Кампусы</td><td class="n">62%</td><td class="n">0,91</td></tr>
+          <tr><td>Стонник худи с патчем — ликвид</td><td class="n">63%</td><td class="n">0,58</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col muted">В тексте игры написано «неликвид будет висеть месяц». В формуле <code>buyP()</code> разница между мёртвой и горячей моделью — всего три раза, и её перебивает сегмент: люксовый ликвид продаётся медленнее масс-маркетного неликвида. Значит, главный навык, которого игра просит — ловить тренды — почти не вознаграждается. Хайп-радар и PRO-подписка существуют, но покупать их незачем.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Что я понял об игре</div>
+      <h2>Сильное и слабое</h2>
+    </div>
+    <div class="cards two">
+      <div class="card">
+        <div class="verdict-h keep"><span class="dot"></span>Сильное — не трогаю, углубляю</div>
+        <ul class="plain">
+          <li><b>Ось подлинности.</b> Скрытая правда, отдельно знание игрока, неточная информация («не понять»), и последствия с зубами: единица весит втрое, три жалобы — блок. Лучшая система в игре.</li>
+          <li><b>Заказы подписчиков.</b> Единственная механика, которая тянет игрока вперёд: конкретная модель, конкретный размер, срок и цена выше рынка.</li>
+          <li><b>Опыт только за отзывы.</b> Жёсткое, принципиальное правило. Благодаря ему честность влияет на прогресс, а не только на деньги.</li>
+          <li><b>Оболочка телефона.</b> Очередь баннеров, шторка за пальцем, свайпы, бейджи. Ощущается как настоящее устройство.</li>
+          <li><b>Информация как товар.</b> PRO-подписка продаёт не цифры, а предвидение. Очень умная идея, которую прототип сам же обесценил.</li>
+          <li><b>Характеры продавцов.</b> Мама, врун, кидала, магазин реплик — Авито выглядит населённым.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="verdict-h fix"><span class="dot"></span>Слабое — чиню</div>
+        <ul class="plain">
+          <li><b>Информация бесплатна.</b> Корень всего: осмотр не стоит ни денег, ни минуты.</li>
+          <li><b>Подработка выгоднее торговли.</b> Грузчик даёт 21–26 тыс. ₽ в неделю без риска при расходах 8,5 тыс. Клапан от тупика стоит как карьера.</li>
+          <li><b>Продажа пассивна.</b> Выставил цену и ждёшь. Никаких решений, кроме цены.</li>
+          <li><b>Всё разрешается таймерами.</b> Отзывы, выплаты, претензии приходят сами. Решений с ценой почти нет.</li>
+          <li><b>Обучение — стена из 13 сообщений Тимура.</b> В самих приложениях игрока не ведут.</li>
+          <li><b>Эндгейм пустой.</b> Шоурум — это +300 мест. Бренд — экран с текстом. После 8 уровня открывать нечего.</li>
+          <li><b>Нет причин зайти завтра.</b> Ни ритуала, ни коллекции, ни истории — только сама торговля.</li>
+          <li><b>Разброс в балансе 7×.</b> Капитал на 30-й день 80–600 тыс. Один раффл решает всё.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card flat col" style="max-width:var(--wide)">
+      <h3>Что сломано прямо в коде</h3>
+      <ul class="plain">
+        <li><b>Нет <code>&lt;meta charset="utf-8"&gt;</code>.</b> Открыл не там — весь русский текст превращается в «РџРµСЂРµРєСѓРї». Поймал на первом же запуске.</li>
+        <li><b>Сейв стирается при обновлении.</b> <code>if(S.v!==6) newGame()</code> — любая правка версии уничтожает прогресс. Для игры, в которую играют неделями, это приговор. Нужны миграции.</li>
+        <li><b>Перерисовка всего экрана каждую игровую минуту.</b> <code>render()</code> пересобирает весь HTML 60 раз в игровой час. Отсюда костыли с позицией прокрутки и потерей фокуса в полях ввода.</li>
+        <li><b>Мёртвый код:</b> <code>it.k=R()&lt;.97?'?':'?'</code>, ветка <code>kind==='orig'</code> недостижима, флаг <code>noPhish</code> нигде не ставится, поле <code>xp</code> у целей не начисляется.</li>
+        <li><b>Невозможно проверить баланс.</b> Логика сплетена с DOM, ГСЧ не сидируется — каждый прогон неповторим. Поэтому твои балансовые замеры и дают шум вместо данных.</li>
+      </ul>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Архитектура</div>
+      <h2>Чистое ядро, вокруг него телефон</h2>
+      <p class="lede">TypeScript и Vite, ноль внешних зависимостей в рантайме. Ядро не знает слова DOM: один и тот же код крутится в браузере и в Node. Именно это делает требование «проверяй баланс цифрами» выполнимым — сейчас оно невыполнимо в принципе.</p>
+    </div>
+    <div class="cards two">
+      <div class="card">
+        <h3>Пять решений, на которых всё держится</h3>
+        <ul class="plain">
+          <li><b>Ядро без DOM.</b> Всё идёт через <code>dispatch(команда)</code>. Логику можно тестировать и прогонять ботами.</li>
+          <li><b>Сидируемый ГСЧ.</b> Баг и балансовый прогон воспроизводятся по номеру сида.</li>
+          <li><b>Перерисовка по изменению,</b> а не по тику. Уйдут прыжки прокрутки и слетающий фокус, телефон перестанет греться.</li>
+          <li><b>Миграции сейвов.</b> Цепочка v1→v2→… Прогресс больше никогда не стирается обновлением.</li>
+          <li><b>Контент — это данные.</b> Модели, события, реплики в типизированных файлах. Правка баланса не трогает логику.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Почему именно так</h3>
+        <ul class="plain">
+          <li>Vite поднимает дев-сервер с доступом по Wi-Fi одной командой — ты открываешь игру с телефона сразу, без возни.</li>
+          <li>Сборка получается статическая: тот же билд потом заворачивается в Android-приложение через Capacitor.</li>
+          <li>Типы на состоянии игры — это то, что позволяет безопасно писать миграции и ботов.</li>
+          <li>Прототип останется в репозитории как <code>legacy/shmot.html</code> и справочник. Откатиться можно в любой момент.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Механики и экономика</div>
+      <h2>Что меняю и зачем</h2>
+      <p class="lede">Ты выбрал жёсткий режим. Жёсткость держится не на бедности игрока, а на том, что знание стоит денег, а риск нельзя выкупить.</p>
+    </div>
+    <ol class="list col" style="max-width:var(--wide)">
+      <li><span class="mk">А</span><span><b>Информация становится платной — это главная починка.</b> Осмотр занимает 10–15 игровых минут. В секонде за три часа до того, как разберут ликвид, успеваешь осмотреть 12–15 вещей из шестидесяти — и выбор, что именно осматривать, и есть игра. Точность осмотра на нуле «Глаза» честно плохая: хорошая паль читается как оригинал. Легит-чек на дешёвом сегменте не окупается, и там ты торгуешь риском, а не знанием.<span class="why"><em>Зачем:</em> возвращает риск, который в формулах уже заложен, но который игрок сейчас не платит.</span></span></li>
+      <li><span class="mk">Б</span><span><b>Ликвидность начинает кусаться.</b> Разброс спроса не 3×, а 15–20×. У вещи появляется стоимость владения: висит больше недели — дешевеет. Сезон усиливается до реального запрета: пуховик в июле не продать.<span class="why"><em>Зачем:</em> превращает Хайп-радар и PRO из украшения в инструмент, ради которого платят. Тренды наконец становятся навыком.</span></span></li>
+      <li><span class="mk">В</span><span><b>Подработка — клапан, а не карьера.</b> Платит меньше, и доход падает с ростом магазина. Зато смена даёт знакомства: курьер видит объявление или лот раньше остальных.<span class="why"><em>Зачем:</em> из тупика выбраться можно, нафармить — нельзя.</span></span></li>
+      <li><span class="mk">Г</span><span><b>У продажи появляются решения.</b> Фото, описание, честная бирка — вещь продаётся не только ценой. У покупателей появляются характеры, как у продавцов: перекуп давит, новичок переплатит, параноик требует легит-чек до сделки.<span class="why"><em>Зачем:</em> сейчас самая частая операция в игре — самая бездумная.</span></span></li>
+      <li><span class="mk">Д</span><span><b>Паль под видом оригинала — давление в переписке, а не кубик за спиной.</b> Покупатель задаёт вопросы, ты врёшь или юлишь, и каждый ответ двигает шанс, что он пойдёт проверять.<span class="why"><em>Зачем:</em> связывает два твоих любимых пункта в одну сцену: торг в переписке встречается с палью против оригинала.</span></span></li>
+      <li><span class="mk">Е</span><span><b>Канал и заказы — главный мотор прогрессии.</b> Заказ превращается в охоту: нужную модель и размер надо найти за 4–9 дней, а Пойзон едет 8–14 — не успеешь, иди к поставщикам, на Авито, в секонд. Аудитория и доверие расходятся на две разные шкалы.<span class="why"><em>Зачем:</em> твоя любимая механика сейчас сводится к «есть в шкафу — отдать». Срок создаёт напряжение, которого в игре почти нет.</span></span></li>
+      <li><span class="mk">Ж</span><span><b>Кидалы перестают опознаваться по чек-листу.</b> Вместо трёх жёстких признаков — градиент: аккаунт свежий, отзывов нет, «звонки не беру», просит предоплату, фото из интернета. Каждый признак по отдельности встречается и у честных. Плюс обратная сторона: игрок сам может проверить продавца — попросить видео, назначить встречу, посмотреть, что ещё он продаёт.<span class="why"><em>Зачем:</em> учишься читать людей, а не сверяться со списком. Это и есть твоё «кидалы и фишинг», но с глубиной.</span></span></li>
+      <li><span class="mk">З</span><span><b>Из целей уходят деньги.</b> Сейчас цели выдают 5 000 ₽ за рейтинг и 5 000 ₽ за капитал — ровно в тот момент, когда ранний баланс этого не переживает. Вместо денег — разблокировки: доступ к поставщику, скидка в легит-сервисе, лишнее место, контакт.<span class="why"><em>Зачем:</em> награда перестаёт обнулять сложность, которую ты же и просил.</span></span></li>
+    </ol>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Идеи, чтобы игра затягивала</div>
+      <h2>Десять предложений и зачем каждое игроку</h2>
+    </div>
+    <ol class="list col" style="max-width:var(--wide)">
+      <li><span class="mk">01</span><span><b>Постоянные клиенты вместо одноразовых покупателей.</b> Выполненный заказ превращает подписчика в контакт: имя, размер, бюджет, вкус. Он пишет снова, приводит друзей и помнит, обманул ты его или нет.<span class="why"><em>Зачем:</em> единственная механика, которая делает честность выгодной вдолгую. И причина открыть игру завтра — там люди, а не цифры.</span></span></li>
+      <li><span class="mk">02</span><span><b>Утренний ритуал.</b> В 9:00 один экран: Хайп-радар, что продалось ночью, кто написал, что завезли в секонд. С него начинается сессия.<span class="why"><em>Зачем:</em> у сессии появляются начало и конец. Сейчас игра — бесконечная каша без края.</span></span></li>
+      <li><span class="mk">03</span><span><b>Чуйка и записная книжка.</b> По каждой модели копится личная статистика: сколько раз попадалась паль, по чему палилась, в какой сезон брали. Со временем игра сама начинает подсказывать «у этой модели смотри бирку».<span class="why"><em>Зачем:</em> через две недели ты реально разбираешься лучше, чем в первый день — не потому, что вырос уровень, а потому, что ты знаешь.</span></span></li>
+      <li><span class="mk">04</span><span><b>Соперник с лицом.</b> Вместо одиннадцати строк в таблице — один конкурент, который перехватывает твои лоты, перебивает цену в объявлениях и подкалывает в комментариях канала.<span class="why"><em>Зачем:</em> конфликт с именем вместо конфликта с числом. Из такого получаются истории, которые пересказывают.</span></span></li>
+      <li><span class="mk">05</span><span><b>Дефекты, которые видно только вживую.</b> Не только паль: затёртая пятка, заломы, запах, перекрас. На фото не видно, на встрече видно, по доставке — сюрприз.<span class="why"><em>Зачем:</em> у встречи у метро появляется смысл, кроме минус 150 ₽ и двух часов. И появляется честный ответ на вопрос «почему так дёшево».</span></span></li>
+      <li><span class="mk">06</span><span><b>Торг как разговор, а не ввод числа.</b> Надавить, сослаться на дефект, уйти и вернуться, предложить забрать сегодня. Мама уступит доброму, магазин — только аргументу.<span class="why"><em>Зачем:</em> твоё любимое. Сейчас самая глубокая на вид механика сводится к вводу суммы в поле.</span></span></li>
+      <li><span class="mk">07</span><span><b>Сезонная арка вместо бесконечного сентября.</b> Осень — куртки, ноябрь — Чёрная пятница, декабрь — пик, январь — похмелье и долги. В конце сезона итоги и новый сезон с модификатором.<span class="why"><em>Зачем:</em> появляется финиш, к которому идёшь. Игра, которая не кончается, не держит.</span></span></li>
+      <li><span class="mk">08</span><span><b>Риск, который не выкупается деньгами.</b> Склад затопило, карго изъяли, Авито заблокировал, юань улетел. Всё в одну корзину наказывается системно, диверсификация становится решением.<span class="why"><em>Зачем:</em> жёсткость держится на риске, а не на бедности. Богатому игроку тоже должно быть страшно.</span></span></li>
+      <li><span class="mk">09</span><span><b>Витрина как настоящий эндгейм.</b> Шоурум — не +300 мест, а место, которое оформляешь: что в витрине, кого нанял. Помощник сам отвечает в чатах, но хуже тебя. Бренд — свои дропы и раффлы на твои вещи.<span class="why"><em>Зачем:</em> после восьмого уровня сейчас нечего открывать, а впереди ещё семь.</span></span></li>
+      <li><span class="mk">10</span><span><b>Ежедневная находка.</b> Раз в день где-то появляется что-то, на что стоит посмотреть. Не гарантированная выгода — гарантированное решение.<span class="why"><em>Зачем:</em> обещание, ради которого открываешь приложение, даже когда торговать не планировал.</span></span></li>
+    </ol>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Твои требования</div>
+      <h2>Шесть мест, где я вижу вариант лучше</h2>
+      <p class="lede">Молча ничего из этого не трону — спрошу перед тем, как делать. Но обязан сказать, где вижу лучше.</p>
+    </div>
+    <div class="cards two">
+      <div class="card">
+        <h4>Секонд: завоз раз в неделю</h4>
+        <p class="muted">Оставляю, но добавил бы второй маленький подвоз в четверг. Сейчас вся ранняя экономика — это утро понедельника, а остальные шесть дней в секонде делать нечего. Второй день разрежает пик и оживляет середину недели.</p>
+      </div>
+      <div class="card">
+        <h4>Опыт только за отзывы</h4>
+        <p class="muted">Правило отличное, но у него есть дыра: опыт выгодно набивать, продавая дешёвый масс-маркет пачками. Предлагаю умножать опыт за отзыв на сегмент вещи — тогда расти выгоднее, чем гриндить футболки по 700 ₽.</p>
+      </div>
+      <div class="card">
+        <h4>Кредит на старте 5 000 ₽</h4>
+        <p class="muted">Сумму оставляю. Но лимит привязал бы не к уровню, а к истории погашений: банк смотрит, как ты платишь, а не как тебя хвалят покупатели на Авито. Заодно «взял и вернул вовремя» становится осмысленным ходом.</p>
+      </div>
+      <div class="card">
+        <h4>Деньги только в банке</h4>
+        <p class="muted">Хорошее решение, оставляю. Добавил бы только строку баланса в шторку уведомлений, когда денег меньше обязательного платежа. Жёсткий баланс должен быть жёстким, но не внезапным: сейчас можно проснуться с микрозаймом и не понять, откуда.</p>
+      </div>
+      <div class="card">
+        <h4>Клиент ждёт минимум 2 дня</h4>
+        <p class="muted">Оставляю, но именно это делает игру пассивной: торопиться незачем. Предлагаю давать бонус к цене и к шансу на пятёрку за ответ быстрее часа — тогда «два дня» превращается из страховки в выбор.</p>
+      </div>
+      <div class="card">
+        <h4>Секунда = минута, ожидание кнопками</h4>
+        <p class="muted">Оставляю. Добавил бы скорость ×1/×2/×4 и кнопку «ждать до события» вместо «+1 ч». Сидеть на телефоне и смотреть, как капают минуты, — это не игра; пусть темп выбирает игрок.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Проверка</div>
+      <h2>Баланс — цифрами, интерфейс — тестами</h2>
+    </div>
+    <div class="stack col" style="max-width:var(--wide)">
+      <p>Четыре бота: аккуратный честный, жадный «паль как ориг», ленивый (только подработка и секонд) и кредитный маньяк. По 300 прогонов на стратегию, 60 игровых дней, фиксированные сиды. Смотрю медиану и квартили, а не среднее — именно среднее и прячет сейчас разброс в семь раз.</p>
+      <div class="scroll">
+        <table>
+          <caption>Целевые коридоры, по которым буду сверяться после каждого этапа.</caption>
+          <thead>
+            <tr><th>Что меряю</th><th class="n">Сейчас</th><th class="n">Цель</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Первые 50 000 ₽ капитала у хорошего игрока</td><td class="n">день 7–10</td><td class="n"><b>не раньше 3-й недели</b></td></tr>
+            <tr><td>Второй уровень</td><td class="n">день 4–9</td><td class="n">день 8–14</td></tr>
+            <tr><td>Разброс капитала на 30-й день (между квартилями)</td><td class="n neg">7×</td><td class="n pos">не больше 2,5×</td></tr>
+            <tr><td>Банкротств у безрассудного бота</td><td class="n">редко</td><td class="n">15–30% прогонов</td></tr>
+            <tr><td>Банкротств у аккуратного бота</td><td class="n">почти 0</td><td class="n">почти 0</td></tr>
+            <tr><td>Прогонов, где игрок застрял (капитал не растёт 10 дней)</td><td class="n">бывает</td><td class="n">меньше 5%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="cards two">
+        <div class="card">
+          <h3>Интерфейс</h3>
+          <ul class="plain">
+            <li>Playwright на 375×667, 390×844, 412×915 и на десктопе. Скриншоты ключевых экранов лежат в репозитории — регрессии видно глазами.</li>
+            <li>Автотест случайных нажатий: 1 000 кликов на каждом размере, после каждого шага поиск в DOM по <code>NaN</code>, <code>undefined</code>, <code>Infinity</code>, <code>[object</code>.</li>
+            <li>«Главный экран не прокручивается» и «подсказки помещаются» — проверяются тестом, а не глазом.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Пальцем на настоящем телефоне</h3>
+          <ul class="plain">
+            <li>Жесты шторки, свайпы уведомлений и смахивание баннера мышью не проверяются — только пальцем.</li>
+            <li>После каждого этапа ты открываешь сборку по Wi-Fi и говоришь, что не так. Это остаётся частью приёмки.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Этапы</div>
+      <h2>Порядок работ</h2>
+      <p class="lede">После каждого этапа игра запускается и в неё можно играть. Баланс идёт первым, потому что все последующие механики настраиваются относительно него. Графика — четвёртой: красивый арт поверх неверных механик пришлось бы переделывать.</p>
+    </div>
+    <div class="stages col" style="max-width:var(--wide)">
+      <div class="stage">
+        <div class="no">0</div>
+        <div class="body">
+          <h3>Каркас — ощущения не меняются</h3>
+          <p>Vite и TypeScript, логика переезжает в чистое ядро, сидируемый ГСЧ, миграции сейвов, починка кодировки. Прогоняю симулятор на нынешних цифрах и получаю базовую линию, с которой дальше сравниваю.</p>
+          <div class="ship">На выходе: игра выглядит и играется ровно как сейчас</div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="no">1</div>
+        <div class="body">
+          <h3>Жёсткий баланс</h3>
+          <p>Платная информация, кусачая ликвидность, подработка-клапан, разблокировки вместо денег за цели, кредит по истории погашений. Прогон симулятора и сверка с коридорами.</p>
+          <div class="ship">На выходе: игра перестаёт быть лёгкой</div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="no">2</div>
+        <div class="body">
+          <h3>Люди</h3>
+          <p>Торг как разговор, характеры покупателей, градиент кидал, давление в переписке при продаже пали. Два твоих любимых пункта получают глубину.</p>
+          <div class="ship">На выходе: переписка становится самым интересным экраном</div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="no">3</div>
+        <div class="body">
+          <h3>Канал и клиенты</h3>
+          <p>Постоянные клиенты, заказы как охота со сроком, доверие с последствиями, утренний ритуал.</p>
+          <div class="ship">На выходе: появляется причина зайти завтра</div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="no">4</div>
+        <div class="body">
+          <h3>Визуал</h3>
+          <p>Детальный вектор по моделям: у Форсов, Самб и Данок разный силуэт, свои полоски, свуш, подошва. Анимации, звук, «сок» на моменте продажи.</p>
+          <div class="ship">На выходе: вещь становится узнаваемой</div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="no">5</div>
+        <div class="body">
+          <h3>Глубина и эндгейм</h3>
+          <p>Чуйка и записная книжка, соперник с лицом, скрытые дефекты вещей, витрина и бренд, сезонная арка.</p>
+          <div class="ship">На выходе: игре есть что открывать после восьмого уровня</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="ask col" style="max-width:var(--wide)">
+    <h2>Что мне нужно от тебя, чтобы начать</h2>
+    <ol class="plain">
+      <li>Согласен с порядком этапов? Баланс вперёд людей — это мой выбор, его можно поменять местами, если тебе интереснее сначала оживить переписку.</li>
+      <li>Шесть правок в твоих требованиях выше — какие принимаем, какие нет.</li>
+      <li>Секонд, лоты и раффлы ты не отметил как любимое. Мне можно их переставлять свободнее — или они всё-таки дороги и их тоже беречь?</li>
+      <li>Тимур: обучение сейчас держится на стене из тринадцати его сообщений. Я бы разнёс подсказки по приложениям и оставил Тимура как характер, а не как инструкцию. Ок?</li>
+    </ol>
+  </section>
+
+  <footer>Прототип в репозитории нетронут · откат к коммиту ad644f5 в любой момент</footer>
+
+</div>
+
+</body>
+</html>

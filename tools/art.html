@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Графика вещей — превью</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600;700&display=swap">
+<style>
+  body { margin: 0; padding: 20px; background: #f2f1f5; font-family: "Golos Text", system-ui, sans-serif; color: #16151a; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #7b7684; font-size: 13px; margin-bottom: 18px; }
+  .controls { margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .controls button { padding: 6px 12px; border: 1px solid #d4d0db; background: #fff; border-radius: 20px; font: inherit; font-size: 13px; cursor: pointer; }
+  .controls button.on { background: #16151a; color: #fff; border-color: #16151a; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .cell { background: #fff; border-radius: 14px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 16px -10px rgba(0,0,0,.2); }
+  .art { height: 110px; border-radius: 10px; display: grid; place-items: center; overflow: hidden; }
+  .art svg { width: 100%; height: 100%; }
+  .nm { font-size: 12px; font-weight: 600; margin-top: 6px; line-height: 1.25; }
+  .mt { font-size: 10.5px; color: #7b7684; }
+</style>
+</head>
+<body>
+<h1>Графика вещей</h1>
+<div class="sub">Все модели каталога во всех расцветках. Проверяем силуэты, логотипы и читаемость.</div>
+<div class="controls" id="controls"></div>
+<div class="grid" id="grid"></div>
+<script type="module">
+import { MODELS } from '../src/core/data/models.js';
+import { itemArt, artBackdrop } from '../src/ui/art.js';
+import { CATS } from '../src/core/data/catalog.js';
+
+let filter = 'all';
+let cond = 0;
+
+const cats = ['all', ...new Set(MODELS.map(m => m.cat))];
+const controls = document.getElementById('controls');
+controls.innerHTML = cats.map(c =>
+  `<button data-cat="${c}" class="${c === 'all' ? 'on' : ''}">${c === 'all' ? 'Всё' : CATS[c].n}</button>`
+).join('') + `<button data-cond="worn">Показать ношеными</button>`;
+
+controls.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.cond) {
+    cond = cond ? 0 : 3;
+    b.classList.toggle('on');
+  } else {
+    filter = b.dataset.cat;
+    controls.querySelectorAll('[data-cat]').forEach(x => x.classList.toggle('on', x.dataset.cat === filter));
+  }
+  draw();
+});
+
+function draw() {
+  const cells = [];
+  for (const m of MODELS) {
+    if (filter !== 'all' && m.cat !== filter) continue;
+    m.ways.forEach((w, i) => {
+      const item = { m: m.i, way: i, cond, defects: [], condSeen: true };
+      cells.push(`<div class="cell">
+        <div class="art" style="background:${artBackdrop(item)}">${itemArt(item)}</div>
+        <div class="nm">${m.full}</div>
+        <div class="mt">${w.n} · ${m.art.form} · ${m.art.mark}</div>
+      </div>`);
+    });
+  }
+  document.getElementById('grid').innerHTML = cells.join('');
+  document.querySelector('.sub').textContent = `${cells.length} карточек. Проверяем силуэты, логотипы и читаемость.`;
+}
+draw();
+</script>
+</body>
+</html>

@@ -1,0 +1,1411 @@
+<title>Перекуп шмота</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Golos+Text:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: phone frame centered on a dark stage on desktop, full-bleed on phones. Home = night-street wallpaper with outlined ШМОТ; apps = light sheets, each with its own accent. Single deliberate look. */
+:root{
+  --ink:#17161a; --mute:#6f6b75; --line:#e7e4ea; --bg:#f3f2f5; --card:#ffffff;
+  --good:#12855a; --bad:#d4342a; --warn:#b97709; --blue:#2a8bd9;
+  --stage:#0c0b0f;
+  --f-ui:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-disp:"Dela Gothic One","Golos Text",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{background:var(--stage);color:var(--ink);font-family:var(--f-ui);margin:0;overflow:hidden;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0}
+input,select{font:inherit;color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+#stage{height:100%;display:flex;align-items:center;justify-content:center;background:radial-gradient(900px 600px at 50% 40%,#1d1a24 0%,#0c0b0f 70%)}
+#phone{position:relative;width:392px;height:min(846px,calc(100% - 28px));border-radius:50px;border:11px solid #050507;box-shadow:0 0 0 2px #2b2833,0 0 0 3px #0a090c,0 40px 90px rgba(0,0,0,.65);overflow:hidden;background:var(--bg)}
+#phone::before{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:112px;height:30px;border-radius:20px;background:#050507;z-index:60;pointer-events:none}
+@media (max-width:520px),(max-height:640px){#phone{width:100%;height:100%;border:0;border-radius:0;box-shadow:none}#phone::before{display:none}}
+#screen{position:absolute;inset:0;overflow:hidden}
+#status{position:absolute;top:0;left:0;right:0;height:46px;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:6px 26px 0;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;pointer-events:none}
+#status.light{color:#fff}
+#status.dark{color:var(--ink);background:var(--card)}
+#status .clock{pointer-events:auto;display:flex;gap:6px;align-items:center}
+#status .r{display:flex;gap:6px;align-items:center}
+#status .bat{width:22px;height:11px;border:1.5px solid currentColor;border-radius:3px;position:relative;opacity:.85}
+#status .bat i{position:absolute;left:1.5px;top:1.5px;bottom:1.5px;width:60%;background:currentColor;border-radius:1px}
+@media (max-width:520px),(max-height:640px){#status{padding:0 16px;height:40px}}
+#homebar{position:absolute;bottom:0;left:0;right:0;height:22px;z-index:25;display:flex;justify-content:center;align-items:center}
+#homebar button{width:134px;height:5px;border-radius:3px;background:rgba(20,20,24,.5)}
+#homebar.light button{background:rgba(255,255,255,.8)}
+/* HOME */
+.home{position:absolute;inset:0;padding:54px 18px 120px;overflow:hidden;overscroll-behavior:none;touch-action:none;display:flex;flex-direction:column;color:#fff;
+  background:
+   radial-gradient(160px 120px at 85% 18%,rgba(255,92,140,.35),transparent 70%),
+   radial-gradient(200px 140px at 10% 78%,rgba(70,180,255,.25),transparent 70%),
+   linear-gradient(170deg,#191526 0%,#2a1d3a 40%,#3d2340 70%,#5a2b3a 100%)}
+.home::before{content:"ШМОТ";position:absolute;right:0;top:300px;max-height:calc(100% - 300px);overflow:hidden;writing-mode:vertical-rl;transform:rotate(180deg);font-family:var(--f-disp);font-size:150px;line-height:1;letter-spacing:-.02em;color:transparent;-webkit-text-stroke:1.5px rgba(255,255,255,.12);pointer-events:none;white-space:nowrap}
+.widget{position:relative;background:rgba(255,255,255,.1);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-radius:24px;padding:14px;display:grid;gap:10px;border:1px solid rgba(255,255,255,.14)}
+.w-label{font-size:11px;letter-spacing:.09em;text-transform:uppercase;opacity:.72}
+.w-money{font-family:var(--f-disp);font-size:34px;font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.01em}
+.w-top{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.w-stats{display:grid;gap:3px;font-size:11.5px;text-align:right;opacity:.88;min-width:0}
+.w-btns{flex-wrap:nowrap}.w-btns button{flex:1;padding:7px 4px;white-space:nowrap}
+.tips .tip:nth-child(n+4){display:none}
+.tip{padding:8px 12px!important}
+@media (max-height:720px){.tips .tip:nth-child(n+3){display:none}.home{padding-top:46px}}
+@media (max-height:660px){.tips .tip:nth-child(n+2){display:none}}
+@media (max-height:640px){.grid{gap:10px 6px;margin-top:12px}.ico .sq{width:50px;height:50px;border-radius:14px}.ico svg{width:26px;height:26px}.widget{padding:12px;gap:8px}.w-money{font-size:30px}.home{padding-bottom:104px}.dock{bottom:22px;padding:9px 8px}}
+.w-sub{font-size:12.5px;opacity:.88;display:flex;gap:10px;flex-wrap:wrap}
+.w-btns{display:flex;gap:6px;flex-wrap:wrap}
+.w-btns button{background:rgba(255,255,255,.16);padding:7px 11px;border-radius:12px;font-size:12px;font-weight:600}
+.w-btns button.sl{background:#fff;color:#21182c}
+.grid{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:14px 6px;margin-top:16px}
+.ico{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;font-weight:500;text-shadow:0 1px 3px rgba(0,0,0,.45);position:relative;min-width:0}
+.ico span{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ico .sq{width:58px;height:58px;border-radius:16px;display:grid;place-items:center;box-shadow:0 5px 14px rgba(0,0,0,.3)}
+.ico svg{width:30px;height:30px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.badge{position:absolute;top:-5px;right:calc(50% - 37px);min-width:20px;height:20px;border-radius:10px;background:#ff3b30;color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 5px;text-shadow:none}
+.dock{position:absolute;left:12px;right:12px;bottom:28px;background:rgba(255,255,255,.15);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-radius:30px;padding:12px 8px;display:grid;grid-template-columns:repeat(4,1fr)}
+.dock .ico span{display:none}
+.tips{position:relative;margin-top:12px;display:grid;gap:6px}
+.tip{background:rgba(0,0,0,.28);border-radius:16px;padding:10px 12px;font-size:12.5px;display:flex;gap:10px;align-items:center;text-align:left;color:#fff}
+.tip svg{width:20px;height:20px;flex-shrink:0;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+/* APP */
+.app{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg);padding-top:46px}
+@media (max-width:520px),(max-height:640px){.app{padding-top:40px}#pull{height:38px}}
+.ah{min-height:52px;display:flex;align-items:center;gap:6px;padding:0 12px 0 6px;background:var(--card);border-bottom:1px solid var(--line);flex-shrink:0}
+.ah .bk{width:38px;height:38px;display:grid;place-items:center;border-radius:10px;font-size:26px;line-height:1;color:var(--acc)}
+.ah h1{font-family:var(--f-disp);font-weight:400;font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ah .rt{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tabs{display:flex;gap:4px;background:var(--card);padding:0 12px 10px;border-bottom:1px solid var(--line);flex-shrink:0}
+.tabs button{flex:1;padding:8px 4px;border-radius:10px;font-size:13px;font-weight:600;color:var(--mute);background:var(--bg);position:relative}
+.tabs button.on{background:var(--acc);color:var(--acc-ink,#fff)}
+.tabs .n{display:inline-block;min-width:17px;height:17px;border-radius:9px;background:#ff3b30;color:#fff;font-size:10.5px;line-height:17px;margin-left:4px}
+.body{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 14px 40px;display:flex;flex-direction:column;gap:10px}
+.body>*{flex-shrink:0}
+.af{background:var(--card);border-top:1px solid var(--line);padding:10px 12px 30px;display:grid;gap:8px;flex-shrink:0}
+.card{background:var(--card);border-radius:18px;padding:14px;display:grid;gap:8px}
+.card h3{margin:0;font-size:15px;font-weight:700}
+.muted{color:var(--mute);font-size:12.5px;line-height:1.4}
+.row{display:flex;gap:8px;align-items:center}
+.row.sp{justify-content:space-between}
+.row.wrap{flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 14px;border-radius:13px;font-weight:600;font-size:14px;background:var(--acc,var(--blue));color:var(--acc-ink,#fff);text-align:center}
+.btn.sec{background:var(--bg);color:var(--ink)}
+.btn.ghost{background:transparent;color:var(--acc-txt,var(--acc,var(--blue)));padding:8px}
+.btn.bad{background:var(--bad);color:#fff}
+.btn.good{background:var(--good);color:#fff}
+.btn.dark{background:var(--ink);color:#fff}
+.btn.sm{padding:7px 10px;font-size:12.5px;border-radius:10px}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.btn.full{width:100%}
+.btn.split{justify-content:space-between}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;flex-shrink:0}
+.chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;padding:7px 11px;border-radius:20px;background:var(--card);font-size:12.5px;font-weight:600;border:1px solid var(--line)}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 6px;border-radius:6px;background:var(--bg);color:var(--mute);letter-spacing:.02em;white-space:nowrap}
+.tag.g{background:#e1f4ea;color:var(--good)}
+.tag.r{background:#fde6e3;color:var(--bad)}
+.tag.y{background:#fdf0d4;color:#8f5c00}
+.tag.b{background:#e3f0fc;color:#1a64a8}
+.tag.p{background:#efe6fb;color:#6b3fb0}
+.tag.k{background:var(--ink);color:#fff}
+.money{font-family:var(--f-disp);font-weight:400;font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+.pos{color:var(--good)}.neg{color:var(--bad)}
+select.sel,input.inp{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 10px;font-size:14px;min-width:0}
+input.inp{width:100%}
+/* item rows */
+.lcard{background:var(--card);border-radius:18px;padding:10px;display:grid;grid-template-columns:96px 1fr;gap:12px;text-align:left;align-items:center;width:100%}
+.thumb{border-radius:13px;height:88px;display:grid;place-items:center;overflow:hidden;background:#ecebef}
+.thumb svg,.photo svg{width:84%;height:auto;max-width:100%}
+.li{display:grid;gap:3px;min-width:0}
+.lt{font-weight:600;font-size:14px;line-height:1.25}
+.lp{font-family:var(--f-disp);font-size:16px;font-variant-numeric:tabular-nums}
+.lm{font-size:12px;color:var(--mute)}
+.tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}
+.photo{border-radius:20px;height:230px;display:grid;place-items:center;overflow:hidden;position:relative;background:#ecebef}
+.photo svg{width:62%}
+.photo .stk{position:absolute;left:12px;top:12px;display:flex;gap:6px}
+.spec{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;font-size:13.5px}
+.spec div span{display:block;color:var(--mute);font-size:11.5px}
+.seller{display:flex;gap:10px;align-items:center}
+.ava{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;flex-shrink:0;font-size:15px}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:2px 0}
+.kv>span:first-child{color:var(--mute)}
+.kv>span:last-child{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.bar{height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--acc)}
+/* chats */
+.thw{position:relative}
+.thx{position:absolute;right:8px;top:50%;transform:translateY(-50%);z-index:1;width:30px;height:30px;border-radius:50%;background:var(--bg);color:var(--mute);font-size:18px;line-height:30px;text-align:center}
+.th.hasx{padding-right:46px}
+.th{background:var(--card);border-radius:16px;padding:10px 12px;display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center;text-align:left;width:100%}
+.th .nm{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th .pv{font-size:12.5px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ub{background:var(--acc,#2a8bd9);color:#fff;font-size:11px;font-weight:700;border-radius:10px;padding:2px 7px}
+.chat{display:flex;flex-direction:column;gap:6px}
+.bub{max-width:82%;padding:8px 12px;border-radius:18px;font-size:14px;line-height:1.38;white-space:pre-line}
+.bub.them{background:var(--card);align-self:flex-start;border-bottom-left-radius:6px}
+.bub.me{background:var(--acc);color:var(--acc-ink,#fff);align-self:flex-end;border-bottom-right-radius:6px}
+.bub.sys{align-self:center;background:transparent;color:var(--mute);font-size:12px;text-align:center;max-width:92%}
+.bub:last-child{animation:pop .25s ease-out}
+@keyframes pop{from{transform:translateY(6px);opacity:.3}to{transform:none;opacity:1}}
+.chatctx{background:var(--card);border-radius:16px;padding:8px;display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:center;text-align:left;width:100%}
+.chatctx .thumb{height:52px}
+.offer{display:grid;grid-template-columns:1fr auto;gap:8px}
+/* tg */
+.post{background:var(--card);border-radius:16px;padding:12px;display:grid;gap:8px;max-width:100%}
+.post .pt{font-size:14px;line-height:1.45;white-space:pre-line}
+.post .pm{font-size:11.5px;color:var(--mute);display:flex;justify-content:space-between}
+.post .thumb{height:150px}
+.post .thumb svg{width:auto;height:88%;max-width:90%}
+.tgbg{background:#dfe8d6}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper button{width:34px;height:34px;border-radius:10px;background:var(--bg);font-size:18px;font-weight:700}
+.stepper b{min-width:30px;text-align:center;font-variant-numeric:tabular-nums}
+.filters2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.filters2 select{width:100%}
+.szg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.szb{border:1px solid var(--line);border-radius:11px;padding:7px 4px;display:grid;gap:1px;text-align:center;background:var(--card)}.szb b{font-size:14px}.szb span{font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}.szb.on{border-color:var(--ink);background:var(--ink);color:#fff}.szb.on span{color:rgba(255,255,255,.75)}
+.liq{display:grid;grid-template-columns:1fr 46px 44px;gap:8px;align-items:center;font-size:13px;padding:3px 0}
+.liq .bar{height:8px}
+/* modal & banner */
+#modal{position:absolute;inset:0;z-index:40;display:flex;align-items:flex-end;background:rgba(12,10,16,.5)}
+.sheet{background:var(--card);width:100%;border-radius:26px 26px 0 0;padding:20px 18px 34px;display:grid;gap:12px;max-height:90%;overflow:auto;animation:up .22s ease-out;--acc:var(--ink)}
+.sheet h2{margin:0;font-family:var(--f-disp);font-weight:400;font-size:20px;text-wrap:balance}
+.sheet p{margin:0;font-size:14px;line-height:1.48;color:#34313a}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--bg);padding:4px;border-radius:13px}
+.seg button{padding:9px;border-radius:10px;font-weight:600;font-size:13.5px;color:var(--mute)}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.chk{display:flex;gap:10px;align-items:center;font-size:14px;font-weight:600;padding:6px 2px;text-align:left}
+.chk i{width:22px;height:22px;border-radius:7px;border:2px solid var(--line);display:grid;place-items:center;font-style:normal;font-size:13px;color:#fff;flex-shrink:0}
+.chk.on i{background:var(--ink);border-color:var(--ink)}
+.warn{background:#fdf0d4;color:#6e4700;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.4}
+.warn.r{background:#fde6e3;color:#8a1f17}
+.big-verdict{font-family:var(--f-disp);font-size:34px;text-align:center;padding:10px 0}
+@keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+#banner{position:absolute;top:48px;left:10px;right:10px;z-index:50;background:rgba(250,249,252,.97);border-radius:20px;padding:10px 12px;box-shadow:0 12px 32px rgba(0,0,0,.28);display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:center;text-align:left;animation:drop .3s ease-out}
+#banner{touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none}
+.bi{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex-shrink:0}
+.bi svg{width:21px;height:21px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#banner b{font-size:13px;display:block}
+#pull{position:absolute;top:0;left:0;right:0;height:46px;z-index:30;touch-action:none;cursor:grab}
+#nc{position:absolute;inset:0;z-index:55;background:rgba(16,14,22,.86);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);color:#fff;display:flex;flex-direction:column;padding:52px 12px 0;will-change:transform;touch-action:none}
+@keyframes ncin{from{transform:translateY(-40px);opacity:0}to{transform:none;opacity:1}}
+.nc-h{display:flex;justify-content:space-between;align-items:center;padding:0 6px 12px;gap:8px}
+.nc-h b{font-family:var(--f-disp);font-weight:400;font-size:22px}
+.nc-list{flex:1;overflow-y:auto;display:grid;gap:8px;align-content:start;overscroll-behavior:contain}
+.nc-i{touch-action:pan-y;cursor:pointer;user-select:none;-webkit-user-select:none;overflow:hidden;background:rgba(255,255,255,.12);border-radius:18px;padding:10px 12px;display:grid;grid-template-columns:36px 1fr;gap:10px;text-align:left;color:#fff;width:100%;align-items:center}
+.nc-i .t{font-size:13px;font-weight:700}.nc-i .x{font-size:12.5px;opacity:.85;line-height:1.35}.nc-i small{opacity:.55;font-size:11px;white-space:nowrap}
+.nc-foot{flex-shrink:0;padding:12px 0 16px;cursor:grab}
+.nc-grab{width:134px;height:5px;border-radius:3px;background:rgba(255,255,255,.75);margin:0 auto 6px}
+.nc-hint{text-align:center;font-size:11.5px;opacity:.55;margin-top:6px}
+#banner small{display:block;font-size:11px;margin-top:2px}
+#banner span{font-size:12.5px;color:var(--mute);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+@keyframes drop{from{transform:translateY(-30px);opacity:0}to{transform:none;opacity:1}}
+.empty{text-align:center;color:var(--mute);padding:30px 10px;font-size:14px;display:grid;gap:10px;justify-items:center;line-height:1.45}
+.stars{color:#f0a400;letter-spacing:1px}
+.mission{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:center;font-size:13.5px}
+.mission .ck{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:12px;color:#fff}
+.mission.done .ck{background:var(--good);border-color:var(--good)}
+.mission.done .mn{color:var(--mute);text-decoration:line-through}
+.sk{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center}
+.pips{display:flex;gap:3px;margin-top:4px}
+.pips i{width:12px;height:6px;border-radius:2px;background:var(--line)}
+.pips i.on{background:var(--acc)}
+.chart svg{width:100%;height:110px;display:block}
+.ship{background:var(--card);border-radius:16px;padding:12px;display:grid;gap:8px}
+.hero{background:var(--acc);color:var(--acc-ink,#fff);border-radius:20px;padding:16px;display:grid;gap:6px}
+.hero .money{font-size:30px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div id="stage"><div id="phone">
+  <div id="screen"></div>
+  <div id="status"></div>
+  <div id="homebar"><button data-a="home" aria-label="Домой"></button></div>
+  <div id="modal" hidden></div>
+  <div id="banner" hidden role="button" tabindex="0" aria-label="Уведомление"></div>
+  <div id="pull" aria-label="Потяни вниз — уведомления"></div>
+  <div id="nc" hidden></div>
+</div></div>
+
+<script>
+(()=>{
+'use strict';
+/* ================= UTILS ================= */
+const R=Math.random, rnd=(a,b)=>a+R()*(b-a), ri=(a,b)=>Math.floor(rnd(a,b+1)), pick=a=>a[Math.floor(R()*a.length)], clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const gauss=(m,s)=>m+s*((R()+R()+R()+R()-2)*1.22);
+const rub=n=>(n<0?'−':'')+Math.round(Math.abs(n)).toLocaleString('ru-RU')+' ₽';
+const rp=v=>{v=Math.max(0,v);return v<20000?Math.round(v/100)*100:v<200000?Math.round(v/500)*500:Math.round(v/1000)*1000};
+const wpick=(items,wf)=>{let tot=0;for(const x of items)tot+=Math.max(0,wf(x));let r=R()*tot;for(const x of items){r-=Math.max(0,wf(x));if(r<=0)return x}return items[items.length-1]};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const parseNum=v=>parseInt(String(v||'').replace(/\D/g,''),10)||0;
+const fmtN=n=>Math.round(n).toLocaleString('ru-RU');
+
+/* ================= DATA ================= */
+const SAVE='perekup_shmot_v6';
+const MODELS=[
+['Ноунейм','футболка','tee','mass',700,.08],
+['Ноунейм','худи','hoodie','mass',1800,.08],
+['Ноунейм','джинсы','pants','mass',2000,.08],
+['Ноунейм','куртка','jacket','mass',4000,.08],
+['Ноунейм','пуховик','puffer','mass',6000,.08],
+['Глория','свитшот','hoodie','mass',2500,.12],
+['Зара','куртка','jacket','mass',8000,.18],
+['Томми','свитшот','hoodie','mass',7500,.3],
+['Левайсы','501','pants','street',9000,.4],
+['Лакост','поло','polo','street',9500,.35],
+['Ралф','поло','polo','street',11000,.5],
+['Ралф','свитер с мишкой','knit','prem',24000,.55],
+['Конверсы','Чак 70','shoes','mass',9500,.35],
+['Вансы','Олд Скул','shoes','mass',8000,.3],
+['Найк','Форсы','shoes','street',12500,.55],
+['Найк','Данки','shoes','street',14500,.6],
+['Найк','ТНки','shoes','street',18000,.7],
+['Найк','Теч Флис','hoodie','street',14000,.65],
+['Джорданы','1 High','shoes','prem',22000,.6],
+['Джорданы','4','shoes','prem',27000,.7],
+['Адик','Самбы','shoes','street',11500,.6],
+['Адик','Кампусы','shoes','street',10500,.5],
+['Адик','олимпийка','jacket','street',8500,.45],
+['Нюбы','550','shoes','street',13500,.55],
+['Нюбы','9060','shoes','street',17500,.65],
+['Асиксы','Гель Кахана','shoes','street',13000,.5],
+['Саломоны','XT-6','shoes','prem',21000,.6],
+['Кархарт','штаны Double Knee','pants','street',13000,.55],
+['Кархарт','шапка','cap','mass',3800,.5],
+['Кархарт','худи','hoodie','street',11000,.5],
+['Стусси','худи','hoodie','street',14000,.55],
+['Стусси','футболка','tee','street',6000,.5],
+['Суприм','бокс-лого футболка','tee','prem',11000,.5],
+['Кортейз','карго','pants','street',12000,.5],
+['Мартинсы','1460','shoes','street',17000,.4],
+['Тимбы','жёлтые','shoes','street',18500,.45],
+['Норс','пуховик Нупси','puffer','prem',38000,.6],
+['Стонник','худи с патчем','hoodie','prem',38000,.65],
+['Стонник','софтшелл','jacket','prem',68000,.55],
+['Арк','ветровка Бета','jacket','prem',55000,.6],
+['Трапстар','куртка','jacket','prem',30000,.45],
+['Гусь','парка','puffer','lux',120000,.5],
+['Монка','пуховик Майя','puffer','lux',150000,.55],
+['Баленсы','Трипл С','shoes','lux',95000,.4],
+['Гуча','поясная сумка','bag','lux',90000,.45],
+['Луи','сумка через плечо','bag','lux',170000,.5],
+['Найк','Эйр Макс 90','shoes','street',14000,.45],
+['Найк','Блейзер Мид','shoes','street',10500,.4],
+['Найк','штаны Теч Флис','pants','street',11000,.6],
+['Адик','Газели','shoes','street',11000,.55],
+['Адик','Спешиалы','shoes','street',12000,.6],
+['Нюбы','2002R','shoes','street',16000,.55],
+['Нюбы','530','shoes','street',12500,.5],
+['Асиксы','Гель-1130','shoes','street',12500,.55],
+['Кархарт','куртка Детройт','jacket','prem',26000,.55],
+['Палас','худи Три-Ферг','hoodie','prem',19000,.45],
+['Ралф','кепка','cap','mass',5500,.4],
+['Норс','шапка','cap','street',4500,.45],
+['Стонник','свитшот','hoodie','prem',28000,.55],
+['Юникло','лёгкий пуховик','puffer','mass',7000,.35],
+['Маржела','Таби','shoes','lux',85000,.4],
+['Прада','нейлоновая сумка','bag','lux',140000,.45],
+].map((a,i)=>({i,b:a[0],n:a[1],cat:a[2],tier:a[3],rt:a[4],h0:a[5],noname:['Ноунейм','Глория','Зара'].includes(a[0])}));
+const BRANDED=MODELS.filter(m=>!m.noname);
+const CAT={tee:{n:'Футболки',w:.3,sz:'cl',sh:250},polo:{n:'Поло',w:.3,sz:'cl',sh:300},hoodie:{n:'Худи',w:.8,sz:'cl',sh:500},knit:{n:'Свитеры',w:.7,sz:'cl',sh:450},
+ jacket:{n:'Куртки',w:1.1,sz:'cl',sh:900},puffer:{n:'Пуховики',w:1.5,sz:'cl',sh:1300},pants:{n:'Штаны',w:.7,sz:'cl',sh:450},shoes:{n:'Обувь',w:1.6,sz:'sh',sh:900},
+ cap:{n:'Головные уборы',w:.2,sz:'one',sh:200},bag:{n:'Сумки',w:.9,sz:'one',sh:700}};
+const SZ={cl:['XS','S','M','L','XL','XXL'],sh:['38','39','40','41','42','43','44','45','46'],one:['One size']};
+const SZF={XS:.55,S:.85,M:1.15,L:1.15,XL:.9,XXL:.55,'38':.55,'39':.75,'40':.95,'41':1.15,'42':1.2,'43':1.15,'44':.95,'45':.7,'46':.5,'One size':1};
+const SEAS={puffer:[1.3,1.2,.9,.6,.4,.3,.3,.4,.8,1.2,1.4,1.5],jacket:[.8,.8,1.1,1.3,1.1,.8,.7,.9,1.3,1.3,.95,.8],tee:[.6,.6,.8,1,1.2,1.35,1.4,1.3,1,.8,.7,.7],polo:[.6,.6,.8,1,1.2,1.35,1.4,1.3,1,.8,.7,.7],
+ hoodie:[1.1,1.1,1,1,.9,.8,.8,.9,1.1,1.2,1.2,1.1],knit:[1.3,1.2,1,.8,.6,.5,.5,.6,.9,1.2,1.3,1.35],shoes:[.95,.95,1,1.05,1.05,1.05,1,1,1.05,1,.95,1],pants:[1,1,1,1,1,.95,.95,1,1.05,1.05,1,1],
+ cap:[1.3,1.2,1,.8,.6,.5,.5,.6,.9,1.2,1.3,1.35],bag:[1,1,1,1,1,1,1,1,1,1,1.05,1.2]};
+const COND=[{n:'Новое с биркой',s:'новое',k:1},{n:'Как новое',s:'как новое',k:.8},{n:'Хорошее',s:'хорошее',k:.6},{n:'Ношеное',s:'ношеное',k:.38}];
+const TIER={mass:{n:'Масс-маркет',d:1.3,lc:290},street:{n:'Стритвир',d:1,lc:490},prem:{n:'Премиум',d:.62,lc:790},lux:{n:'Люкс',d:.28,lc:1490}};
+const COLS=['#1f1e22','#f1efe9','#8d939b','#2f4f86','#a3312a','#3e6b4c','#c8b48c','#5a3d2b','#e2a83a','#7b5aa6','#e46f9b','#3f9bb5'];
+const NAMES=['Артём','Даня','Кирилл','Влад','Саша','Лиза','Настя','Егор','Максим','Ника','Тимоха','Ваня','Полина','Миша','Карина','Арсений','Дима','Соня','Глеб','Вика','Рома','Алина','Марк','Ярик','Лёша','Катя','Стас','Ева','Матвей','Ульяна','Руслан','Эмиль'];
+const SHOPS=['Resell_Store77','Кроссы у Гоши','SneakerHead MSK','Шмот-Маркет','Брендовые вещи Опт'];
+const REPS=['Реплики Люкс 1:1','Копии Premium','Shop Replica'];
+const MOMS=['Ирина Викторовна','Светлана','Ольга (мама Дани)','Наталья Петровна'];
+const STYPES={
+ owner:{w:.42,k:[.85,1.05],mf:[.85,.93],pat:[3,5],fake:.07,n:'Частное лицо'},
+ reseller:{w:.2,k:[1,1.15],mf:[.93,.98],pat:[2,3],fake:.1,n:'Магазин'},
+ mom:{w:.07,k:[.25,.5],mf:[.8,.95],pat:[4,6],fake:.12,n:'Частное лицо'},
+ replica:{w:.1,k:[.9,1.2],mf:[.9,.97],pat:[2,4],n:'Магазин'},
+ liar:{w:.14,k:[.55,.8],mf:[.82,.9],pat:[3,4],n:'Частное лицо'},
+ scam:{w:.07,k:[.35,.5],mf:[1,1],pat:[9,9],n:'Частное лицо'}};
+const SUP={
+ orig:{n:'Ориг из Европы 🇪🇺',col:'#2a6bd1',kind:'trap',tiers:['street','prem','lux'],pk:[.55,.78],q:[.55,.92],eta:[3,6],minQ:1,stock:[1,3],cond:[0,1],ship:500,about:'Оригинал из аутлетов Европы, всё с чеками 💯 Отправка СДЭКом, 3–6 дней.'},
+ rep:{n:'Китай Опт · реплики',col:'#c2402e',kind:'rep',eta:[10,16],minQ:5,stock:[30,150],ship:'cargo',about:'Реплики с фабрик Путяня, партии от 5 штук. Есть эконом и топ 1:1. Карго до Москвы 10–16 дней.'}};
+const ADS=[{n:'Шмот дёшево',subs:9000,price:900,q:.5},{n:'Кроссы и точка',subs:24000,price:3200,q:.8},{n:'Стиль района',subs:52000,price:6500,q:.65},{n:'Мемы про перекупов',subs:140000,price:14000,q:.35},{n:'Москва Стритвир',subs:310000,price:38000,q:.75},{n:'Fashion Россия',subs:900000,price:120000,q:.6}];
+const SKILLS=[{k:'eye',n:'Глаз',d:'Отличаешь паль на осмотре, легит-чек дешевле'},{k:'bargain',n:'Торг',d:'Продавцы уступают больше и дольше терпят'},{k:'sales',n:'Продажи',d:'Покупатели пишут чаще и платят больше'},
+ {k:'smm',n:'SMM',d:'Реклама даёт больше подписчиков, канал меньше теряет'},{k:'logist',n:'Логистика',d:'Доставка из Китая дешевле и быстрее'},{k:'conn',n:'Связи',d:'Поставщики чаще постят и дают скидку'}];
+const STOR=[
+ {id:'rack',n:'Вешалка-стойка',d:'Ещё 10 мест в комнате.',p:3000,cap:10,lvl:1},
+ {id:'ward',n:'Шкаф-купе',d:'Ещё 20 мест. Мама довольна.',p:15000,cap:20,lvl:3},
+ {id:'closet',n:'Кладовка в аренду',d:'60 мест рядом с домом.',p:0,rent:3500,cap:60,lvl:5},
+ {id:'wh',n:'Склад',d:'200 мест, можно брать партии.',p:0,rent:12000,cap:200,lvl:8},
+ {id:'show',n:'Шоурум',d:'300 мест и витрина. Покупатели пишут на 30% чаще.',p:250000,rent:40000,cap:300,lvl:12}];
+const METRO=['Курская','Таганская','Китай-город','Белорусская','Павелецкая','Тёплый Стан','Выхино','Марьино','Речной вокзал','Сокол','Бауманская','Савёловская','Пражская','Митино','Новогиреево','Парк культуры','Динамо','ВДНХ'];
+const OCITY=['Санкт-Петербург','Казань','Екатеринбург','Новосибирск','Краснодар','Нижний Новгород','Ростов-на-Дону','Самара'];
+const LOANT=[[2,.045],[4,.035],[8,.03],[12,.027]];
+const LOANLIM=[0,5000,6000,8000,11000,15000,20000,28000,40000,55000,75000,100000,140000,200000,300000,450000,650000,900000,1300000,2000000,3000000];
+const RIVALS=[['hype_boy',30000,.022],['Шмот у Тёмы',45000,.021],['Лиза Винтаж',65000,.02],['Кросс-Король',90000,.02],['sneaker_dima',130000,.019],['Кархарт Сева',180000,.018],['Стас Перекуп',280000,.017],['Resell Mafia',500000,.016],['Опт Гоша',1000000,.015],['ЦУМ на минималках',2200000,.014],['Бренд «Подвал»',5000000,.013]];
+const DROPN=['«Панда»','«Мокко»','«Чикаго»','«Шёлковый путь»','«Морозко»','«Ночной Питер»','«Кислота»','«Ржавчина»','«Байкал»','«Хохлома»'];
+const JOBS=[{id:'courier',n:'Курьер',d:'Развозишь заказы по району на велике.',h:4,pay:[1800,2600],from:10,to:18},{id:'loader',n:'Грузчик на складе',d:'Тяжело, но платят больше.',h:6,pay:[3000,3800],from:8,to:16},{id:'promo',n:'Промоутер у метро',d:'Раздаёшь листовки и заодно рекламируешь свой канал.',h:3,pay:[1100,1500],from:11,to:19,subs:true}];
+const DEALPPL={bag:['Сосед Вова','Тётя Лена','Знакомый с района','Бабушка с 3-го этажа'],lot:['Ашот (Садовод)','Миша Опт','Ли с рынка'],ward:['Кирилл (уезжает)','Марина, переезд','Олег, распродажа']};
+const LOOKTXT={f:'Похоже на паль: шрифт на бирке кривой, швы неровные.',o:'Бирки и швы чёткие — выглядит как оригинал.','?':'Не понять. Сделано хорошо — без легит-чека не отличить.'};
+const STATUS=[[1,'Новичок'],[3,'Перекуп'],[6,'Ресейлер'],[10,'Магазин'],[15,'Бренд']];
+
+/* ================= ICONS & ART ================= */
+const IC={
+ avito:'<circle cx="8" cy="8" r="3"/><circle cx="16.5" cy="9" r="2"/><circle cx="9" cy="16.5" r="2.4"/><circle cx="16.5" cy="16" r="3.4"/>',
+ tg:'<path d="M3 11.5 21 4l-3 16-6-4.5-3 3v-5l9-8-11 6z"/>',
+ poizon:'<path d="M5 7h14l-1.5 13h-11z"/><path d="M9 7a3 3 0 0 1 6 0"/><path d="M9.5 13.5 12 11l2.5 2.5L12 16z"/>',
+ second:'<path d="M12 4a2 2 0 0 1 2 2c0 1.2-2 1.6-2 3"/><path d="M12 9 3.5 15.5a1.2 1.2 0 0 0 .7 2.1h15.6a1.2 1.2 0 0 0 .7-2.1z"/>',
+ bank:'<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10.5h18M7 15h4"/>',
+ shkaf:'<path d="M6 3h12v18H6z"/><path d="M12 3v18M10 11v2M14 11v2"/>',
+ post:'<path d="M3 8 12 4l9 4v9l-9 4-9-4z"/><path d="M3 8l9 4 9-4M12 12v9M7.5 6l9 4"/>',
+ shop:'<path d="M4 9h16l-1 11H5z"/><path d="M8 9V7a4 4 0 0 1 8 0v2"/><path d="m10 14 1.5 1.5L14.5 12"/>',
+ goals:'<path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/>',
+ job:'<circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M6 17l4-7h5l3 7M10 10 8.5 7H6M15 10l-1-3h2"/>',
+ settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>'};
+const APPS=[
+ {id:'avito',n:'Авитка',bg:'#00a046'},{id:'tg',n:'Телега',bg:'#2a9fd6'},{id:'poizon',n:'Пойзон',bg:'#141414'},{id:'second',n:'Секонд',bg:'#e86a1f'},
+ {id:'shkaf',n:'Шкаф',bg:'#8c5a33'},{id:'bank',n:'Банк',bg:'#f5c400',ink:'#1a1a1a'},{id:'post',n:'Посылки',bg:'#3b9a3f'},{id:'shop',n:'Магазин',bg:'#7a46d6'},
+ {id:'job',n:'Подработка',bg:'#2f6f8f'},{id:'goals',n:'Цели',bg:'#e0457b'},{id:'settings',n:'Настройки',bg:'#8b8794'}];
+const APP=Object.fromEntries(APPS.map(a=>[a.id,a]));
+const icon=id=>`<svg viewBox="0 0 24 24">${IC[id]}</svg>`;
+function shade(hex,k){const n=parseInt(hex.slice(1),16);let r=n>>16,g=n>>8&255,b=n&255;const f=k<0?0:255,a=Math.abs(k);r=Math.round(r+(f-r)*a);g=Math.round(g+(f-g)*a);b=Math.round(b+(f-b)*a);return `rgb(${r},${g},${b})`}
+const SHAPE={
+ tee:'M30 14 L42 10 Q50 17 58 10 L70 14 L86 27 L78 37 L70 32 L70 72 L30 72 L30 32 L22 37 L14 27 Z',
+ polo:'M30 14 L42 10 L50 20 L58 10 L70 14 L86 27 L78 37 L70 32 L70 72 L30 72 L30 32 L22 37 L14 27 Z',
+ hoodie:'M30 16 L40 12 Q50 20 60 12 L70 16 L83 30 L88 68 L79 70 L73 40 L72 73 L28 73 L27 40 L21 70 L12 68 L17 30 Z',
+ knit:'M30 14 L42 10 Q50 16 58 10 L70 14 L83 30 L88 68 L79 70 L73 40 L72 73 L28 73 L27 40 L21 70 L12 68 L17 30 Z',
+ jacket:'M30 14 L42 9 L50 16 L58 9 L70 14 L83 30 L88 68 L79 70 L73 40 L72 74 L28 74 L27 40 L21 70 L12 68 L17 30 Z',
+ puffer:'M28 15 Q40 8 50 14 Q60 8 72 15 Q84 22 87 36 L89 68 Q84 72 78 69 L75 44 L74 74 Q50 78 26 74 L25 44 L22 69 Q16 72 11 68 L13 36 Q16 22 28 15 Z',
+ pants:'M32 8 L68 8 L72 74 L56 74 L50 30 L44 74 L28 74 Z',
+ shoes:'M8 56 Q9 44 22 42 L38 40 Q47 27 60 29 Q66 39 78 43 Q93 47 93 57 Z',
+ cap:'M24 56 Q24 20 50 18 Q76 20 76 56 Z',
+ bag:'M22 34 Q22 30 26 30 L74 30 Q78 30 78 34 L78 66 Q78 70 74 70 L26 70 Q22 70 22 66 Z'};
+function itemSVG(it){const m=MODELS[it.m],c=COLS[it.col%COLS.length],dk=shade(c,-.35),lt=shade(c,.3),light=['#f1efe9','#c8b48c','#e2a83a'].includes(c);
+ const logo=m.noname?'':`<text x="${m.cat==='shoes'?54:m.cat==='pants'?40:m.cat==='bag'?50:58}" y="${m.cat==='shoes'?52:m.cat==='cap'?48:m.cat==='bag'?53:m.cat==='pants'?22:34}" font-size="${m.cat==='bag'?9:7}" font-family="Dela Gothic One,sans-serif" text-anchor="middle" fill="${light?'#1f1e22':'#ffffff'}" opacity=".85">${esc(m.b[0])}</text>`;
+ let extra='';
+ if(m.cat==='hoodie')extra=`<path d="M40 12 Q50 2 60 12 Q50 22 40 12" fill="${dk}"/><rect x="38" y="52" width="24" height="12" rx="3" fill="${dk}" opacity=".5"/>`;
+ if(m.cat==='polo')extra=`<path d="M50 20 L50 32" stroke="${dk}" stroke-width="1.5"/><path d="M42 10 L50 20 L58 10" fill="none" stroke="${dk}" stroke-width="2"/>`;
+ if(m.cat==='knit')extra=`<path d="M28 68 L72 68 M28 71 L72 71" stroke="${dk}" stroke-width="1.2"/><path d="M42 10 Q50 16 58 10" fill="none" stroke="${dk}" stroke-width="3"/>`;
+ if(m.cat==='jacket')extra=`<path d="M50 16 L50 74" stroke="${dk}" stroke-width="1.6"/><path d="M42 9 L50 16 L58 9" fill="none" stroke="${dk}" stroke-width="3"/>`;
+ if(m.cat==='puffer')extra=`<path d="M20 30 Q50 34 80 30 M18 42 Q50 46 82 42 M24 54 Q50 58 76 54 M25 65 Q50 69 75 65" fill="none" stroke="${dk}" stroke-width="1.4"/><path d="M50 14 L50 76" stroke="${dk}" stroke-width="1.4"/>`;
+ if(m.cat==='pants')extra=`<path d="M50 8 L50 30" stroke="${dk}" stroke-width="1.2"/><rect x="32" y="8" width="36" height="5" fill="${dk}"/>`;
+ if(m.cat==='shoes')extra=`<path d="M6 56 L95 56 L95 62 Q50 68 6 63 Z" fill="#f4f2ee" stroke="#cfcac2" stroke-width="1"/><path d="M30 50 Q50 38 72 46" fill="none" stroke="${light?'#1f1e22':'#ffffff'}" stroke-width="3" stroke-linecap="round" opacity=".85"/><path d="M46 34 L52 38 M50 31 L56 35 M54 30 L60 33" stroke="${dk}" stroke-width="1.4"/>`;
+ if(m.cat==='cap')extra=`<rect x="22" y="50" width="56" height="12" rx="3" fill="${dk}"/><circle cx="50" cy="17" r="4" fill="${lt}"/>`;
+ if(m.cat==='bag')extra=`<path d="M30 32 Q50 -4 70 32" fill="none" stroke="${dk}" stroke-width="3"/><rect x="40" y="44" width="20" height="6" rx="2" fill="${dk}"/>`;
+ const worn=it.cond>=3?`<circle cx="36" cy="58" r="3" fill="${dk}" opacity=".35"/><circle cx="64" cy="46" r="2" fill="${dk}" opacity=".3"/>`:'';
+ return `<svg viewBox="0 0 100 80" aria-hidden="true"><ellipse cx="50" cy="76" rx="36" ry="3" fill="rgba(0,0,0,.12)"/><path d="${SHAPE[m.cat]}" fill="${c}" stroke="${dk}" stroke-width="1.4" stroke-linejoin="round"/>${extra}${worn}${logo}</svg>`}
+
+/* ================= STATE ================= */
+let S=null;
+const uid=()=>(S.uid=(S.uid||1)+1);
+const dayOf=()=>Math.floor(S.t/24), hourOf=()=>S.t%24;
+const dateObj=(t=S.t)=>new Date(2026,8,7+Math.floor(t/24));
+const monthOf=()=>dateObj().getMonth();
+const WD=['вс','пн','вт','ср','чт','пт','сб'],MO=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+const dateStr=(t=S.t)=>{const d=dateObj(t);return `${WD[d.getDay()]}, ${d.getDate()} ${MO[d.getMonth()]}`};
+const clock=(t=S.t)=>String(t%24).padStart(2,'0')+':'+(t===S.t?String(S.mi||0).padStart(2,'0'):'00');
+const ago=t=>{const h=S.t-t;return h<1?'только что':h<24?`${h} ч назад`:`${Math.floor(h/24)} дн назад`};
+const H=i=>S.H[i].h, liq=i=>Math.round(S.H[i].h*100);
+const iName=it=>{const m=MODELS[it.m];return m.b+' '+m.n+(it.lim?' '+it.liName:'')};
+const seas=m=>SEAS[m.cat][monthOf()];
+function pickSize(cat){const a=SZ[CAT[cat].sz];return wpick(a,s=>.4+SZF[s])}
+function mkItem(m,o={}){return {id:uid(),m,size:o.size||pickSize(MODELS[m].cat),cond:o.cond!=null?o.cond:2,col:o.col!=null?o.col:ri(0,COLS.length-1),auth:o.auth||'o',q:o.q||0,k:o.k||'?',hint:null,cost:o.cost||0,src:o.src||'',sale:null,ph:0,cl:0,bt:S?S.t:8}}
+
+function newGame(){
+ S={v:6,t:8,nlog:[],mi:0,money:5000,dep:0,loans:[],items:[],ships:[],list:[],threads:[],deals:[],tx:[],pend:[],
+  tg:{has:false,name:'',subs:0,trust:60,last:-99,posts:[],ads:[],pro:0,trendPost:-99},chan:{},sec:{items:[],last:-1},
+  H:MODELS.map(m=>{const h=clamp(m.h0+rnd(-.12,.12),.03,1);return {h,hT:h,hP:h,until:0,r:.15}}),pzN:MODELS.map(()=>rnd(.95,1.05)),fx:12,
+  ev:[],drop:null,jobDay:-1,rivals:RIVALS.map(([n,nw,g])=>({n,nw:Math.round(nw*rnd(.8,1.2)),g:g*rnd(.8,1.2)})),reviews:[],complaints:0,ban:0,xp:0,lvl:1,sp:0,sk:{eye:0,bargain:0,sales:0,smm:0,logist:0,conn:0},stor:{},
+  stats:{bought:0,sold:0,profit:0,best:0,secBuys:0,legit:0,pzOrders:0,bulk:0,ads:0,lux:0,fakeOrig:0,caught:0,refunds:0,scammed:0,drops:0,orders:0,lots:0,jobs:0,returns:0},
+  done:{},flags:{},uid:1,nextEv:8+30,hist:[],ui:{app:null,view:'main',id:null,stack:[],lim:30,qty:{},pzSize:{}},filt:{cat:'all',sort:'new',m:'all',size:'all',mode:'all',q:''},pzf:{cat:'all',tier:'all',q:'',sort:'pop'},shkTab:'all'};
+ for(const c of Object.keys(SUP))S.chan[c]={posts:[],unread:0};
+ S.chan.news={posts:[],unread:0};S.chan.pro={posts:[],unread:0};S.chan.drops={posts:[],unread:0};
+ const fm=(b,n)=>MODELS.find(x=>x.b===b&&x.n===n).i;const a=mkItem(fm('Адик','олимпийка'),{cond:3,auth:'o',k:'o',src:'Своё'}),b=mkItem(fm('Найк','Форсы'),{cond:3,auth:'o',k:'o',size:'42',src:'Своё'}),c=mkItem(fm('Найк','Теч Флис'),{cond:1,auth:'f',q:.22,k:'?',size:'L',col:2,src:'Подарок брата'});
+ a.size='M';S.items.push(a,b,c);
+ for(let i=0;i<34;i++)S.list.push(genListing(ri(0,60)));
+ restockSecond('junk');
+ for(const k of Object.keys(SUP))for(let i=0;i<2;i++)supplierPost(k,true);
+ newsPost('Хайп-радар на связи 📡 Каждое утро в 9:00 — сводка: что сейчас ликвид, а что лежит мёртвым грузом. Ликвидность — какая доля таких вещей продаётся за неделю.',true);
+ dailyReport(true);
+ newDrop();
+ const th=newThread('mentor','Тимур','tg');th.sub='Друг, перекуп со стажем';
+ ['Здорово! Слышал, решил шмотом барыжить. Расскажу базу, слушай.',
+  'Схема простая: покупаешь дешевле — продаёшь дороже. Дёшево берут в секонде, на Авитке у тех, кто не шарит, и на Пойзоне из Китая. Продаёшь на Авитке и в своём канале в Телеге.',
+  'Главное — ликвид. Вещь, которая сейчас в тренде, улетает за день. Неликвид будет висеть месяц. Что в тренде — смотри в «Хайп-радаре» в Телеге.',
+  'И про паль. Её тут море. Бывает такая, что сразу видно, а бывает «один в один». Перед продажей делай легит-чек в Шкафу — копейки стоит.',
+  'Можно и специально паль продавать. Как реплику — норм, рейтинг чуть просядет. Как ориг — быстрые деньги, но если покупатель проверит, тебе прилетит единица в отзывы, и рейтинг рухнет. С плохим рейтингом на Авитке никто не пишет.',
+  'Для старта продай свои шмотки из Шкафа. И проверь Теч Флис, что брат подарил. Что-то он мутный 😏',
+  'Секонд завозят раз в неделю, в понедельник к 10:00. Хорошее разбирают за пару часов, так что будь там к открытию. Сегодня как раз понедельник 😉','Если совсем на мели — открой «Подработку», смена курьером даёт пару тысяч. Банк новичку больше 5 000 в кредит не даст, лимит растёт с уровнем магазина.','По воскресеньям в Телеге открываются раффлы на лимитки — запишись, вдруг повезёт. А когда заведёшь канал, подписчики начнут писать с заказами.','Опыт магазина растёт только от отзывов: пятёрка — плюс, единица — серьёзный минус. Так что продавай честно.','Уведомления смахиваются вверх, а если потянуть вниз от верхнего края экрана, увидишь все сразу.','Время идёт само: секунда — это минута. В полночь вырубаешься до утра. Каждый день уходит 500 ₽ на еду и проезд, по понедельникам 5 000 за комнату. В минус карта не уходит — не хватает, бери кредит в банке. Погнали!'
+ ].forEach(x=>msg(th,'them',x));
+ th.unread=1;
+ S.hist.push({d:0,v:Math.round(netWorth())});
+ S.wk={nw:netWorth(),sold:0,profit:0};
+}
+function save(){try{localStorage.setItem(SAVE,JSON.stringify(S))}catch(e){}}
+function load(){try{const s=localStorage.getItem(SAVE);if(s){S=JSON.parse(s);return true}}catch(e){}return false}
+
+/* ================= ECONOMY ================= */
+function evActive(type){return S.ev.filter(e=>e.type===type&&S.t>=e.start&&S.t<e.end)}
+function demandMult(){const mo=monthOf();let k=mo===11?1.25:mo===0?.85:mo===10?1.08:1;for(const e of evActive('demand'))k*=e.val;return k}
+function limK(it){return it.lim?1.25+.8*Math.exp(-(S.t-it.lim)/(24*21)):1}
+function hOf(it){return it.lim?Math.max(H(it.m),.95):H(it.m)}
+function valueOrig(it,h){const m=MODELS[it.m];h=h==null?hOf(it):h;return rp(m.rt*COND[it.cond].k*(0.55+0.62*h)*seas(m)*limK(it))}
+function valueFake(it){const m=MODELS[it.m];const q=it.q||.5;return rp(Math.max(300,m.rt*COND[it.cond].k*(0.07+0.2*q)*(0.6+0.6*H(it.m))*seas(m)))}
+function estFor(it){return it.k==='f'?valueFake(it):valueOrig(it)}
+function rating(){const r=S.reviews.slice(0,40);if(!r.length)return null;let a=0,w=0;for(const x of r){a+=x.s*x.w;w+=x.w}return a/w}
+function ratingF(){const r=rating();if(r==null)return .75;return clamp(Math.pow(Math.max(0,(r-1)/4),1.6)*1.05,.12,1.05)}
+function trusted(){return S.reviews.length>=15&&rating()>=4.8}
+function loanCap(){return LOANLIM[Math.min(S.lvl,LOANLIM.length-1)]}
+function capacity(){let c=15;for(const s of STOR)if(S.stor[s.id])c+=s.cap;return c}
+function used(){return S.items.length+S.ships.reduce((a,s)=>a+s.items.length,0)}
+function netWorth(){let v=S.money+S.dep;for(const p of S.pend)if(p.type==='payout'&&!dealById(p.deal)?.disp)v+=p.amt;
+ for(const it of S.items)v+=estFor(it)*(it.k==='o'?.9:.8);for(const s of S.ships)for(const it of s.items)v+=estFor(it)*.8;
+ for(const s of STOR)if(S.stor[s.id]&&s.p)v+=s.p*.5;for(const l of S.loans)v-=l.P;return v}
+const XPT=[0,350,450,550,700,850,1050,1250,1450,1650,1900,2150,2400,2700,3000,3300];
+const xpNeed=l=>l<XPT.length?XPT[l]:3300+400*(l-15);
+const statusOf=l=>{let s=STATUS[0][1];for(const [lv,n] of STATUS)if(l>=lv)s=n;return s};
+function addXP(n){S.xp=Math.max(0,S.xp+Math.round(n));while(S.xp>=xpNeed(S.lvl)){S.xp-=xpNeed(S.lvl);S.lvl++;S.sp++;
+ notify('shop','Уровень магазина '+S.lvl,`${statusOf(S.lvl)} · очко навыка, кредит в банке до ${rub(loanCap())}`);
+ if(S.lvl===4)setTimeout(()=>mentor('В «Мешке» тебя запомнили — теперь на завоз откладывают стритвир получше и недорогой премиум.'),0);
+ if(S.lvl===8)setTimeout(()=>mentor('Ты в секонде уже свой. На завоз теперь попадает премиум, а иногда и люкс. Но и цены там кусаются — продавщицы тоже шарят.'),0);
+ if(S.lvl===4)mentor('Слышал, ты уже 4 уровень. На Пойзоне теперь можно брать оптом от 5 пар — скидка и доставка дешевле. Лови хайп заранее: пока посылка едет две недели, тренд может уже пройти.');
+ if(S.lvl===12)mentor('Ты дорос до шоурума! Глянь в «Магазине». Свой угол с витриной — это уже уровень.')}}
+function pay(a,x){S.money-=a;S.tx.unshift({t:S.t,a:-a,x});if(S.tx.length>100)S.tx.length=100}
+function earn(a,x){S.money+=a;S.tx.unshift({t:S.t,a,x});if(S.tx.length>100)S.tx.length=100}
+function canPay(a){if(S.money>=a)return true;toast(`Не хватает ${rub(a-S.money)}. Возьми кредит в «Банке»`);return false}
+function sizeF(it){return SZF[it.size]||1}
+function priceF(r){return clamp(Math.exp(-6*(r-0.95)),.03,2.5)}
+function buyP(it,plat){const m=MODELS[it.m],s=it.sale,base=s.orig?valueOrig(it):valueFake(it);
+ let c=priceF(s.price/base)*(0.22+1.3*hOf(it))*seas(m)*sizeF(it)*TIER[m.tier].d*(it.ph?1.25:1)*demandMult()*(1+.06*S.sk.sales)*(S.stor.show?1.3:1);
+ if(plat==='avito'){c*=0.085*ratingF()*(.45+.55*Math.exp(-(S.t-Math.max(s.t,s.up||0))/72))*(trusted()?1.2:1);if(s.boost>S.t)c*=2;if(!s.orig&&evActive('avitoBan').length)c*=.45}
+ else{const fresh=Math.exp(-(S.t-(s.tgT||0))/60);c*=clamp(S.tg.subs*0.0001,0,.6)*clamp(S.tg.trust/60,.2,1.4)*(.25+.75*fresh)}
+ return Math.min(c,.6)}
+function pDetect(it){const m=MODELS[it.m];let p=.12+.85*Math.pow(1-it.q,1.1)+({lux:.25,prem:.12,street:0,mass:-.03})[m.tier];if(evActive('avitoBan').length)p+=.08;return clamp(p,.05,.97)}
+function legitCost(it){return Math.round(TIER[MODELS[it.m].tier].lc*(1-.06*S.sk.eye)/10)*10}
+function pzPrice(m,sz){const x=S.H[m.i];const k=sz==null||sz==='mix'?1:(0.85+0.15*(SZF[sz]||1));return rp(m.rt*(0.6+0.36*x.hP)*(S.fx/12)*S.pzN[m.i]*k*(evActive('pzsale').length?.85:1))}
+const pzFrom=m=>Math.min(...SZ[CAT[m.cat].sz].map(z=>pzPrice(m,z)));
+function pzEta(){const k=1-.04*S.sk.logist;return [Math.round(8*k),Math.round(14*k)]}
+function pzShip(m,qty){const w=CAT[m.cat].w;let s=(300+650*w)*(1-.06*S.sk.logist);if(qty>=5&&S.lvl>=4)s*=.7;return Math.round(s/10)*10}
+function cargo(m){const w=CAT[m.cat].w;return Math.round((150+380*w)*(1-.06*S.sk.logist)/10)*10}
+
+/* ================= GENERATION ================= */
+function genListing(back=0){
+ const cap=Math.max(20000,(S?netWorth():20000)*1.3);
+ const type=wpick(Object.keys(STYPES),k=>STYPES[k].w),T=STYPES[type];
+ let m,it;
+ for(let i=0;i<14;i++){m=wpick(MODELS,x=>(x.noname?(type==='replica'||type==='liar'?0:.45):1)*(.35+H(x.i))*(x.tier==='lux'?.4:1));
+  const cond=type==='replica'?0:wpick([0,1,2,3],c=>[.12,.32,.38,.18][c]);
+  it=mkItem(m.i,{cond});if(valueOrig(it)<=cap||R()<.08)break}
+ if(type==='replica'){it.auth='f';it.q=rnd(.55,.95)}
+ else if(type==='liar'){it.auth='f';it.q=rnd(.3,.95)}
+ else if(!m.noname&&R()<(T.fake||0)){it.auth='f';it.q=rnd(.3,.9)}
+ const decl=type==='replica'?'f':'o';
+ const base=decl==='f'?valueFake(it):valueOrig(it);
+ const ask=rp(base*rnd(T.k[0],T.k[1])),min=rp(ask*rnd(T.mf[0],T.mf[1]));
+ const name=type==='mom'?pick(MOMS):type==='reseller'?pick(SHOPS):type==='replica'?pick(REPS):pick(NAMES);
+ const t0=S?S.t:8;
+ const mode=type==='scam'?'ship':type==='replica'?pick(['both','ship']):wpick(['both','meet','ship'],k=>({both:.5,meet:.25,ship:.25})[k]);
+ const l={id:S?uid():ri(1,1e9),it,decl,ask,mode,city:mode==='ship'?pick(OCITY):'Москва',metro:mode==='ship'?'':pick(METRO),t:t0-back,exp:(decl==='o'&&type!=='scam'&&ask<valueOrig(it)*.65)?t0+ri(3,10):t0-back+ri(24,110),avg:base,photos:false,lc:false,
+  seller:{name,type,min,cur:ask,pat:ri(T.pat[0],T.pat[1])+(S?Math.floor(S.sk.bargain/3):0),blocked:false,agreed:false,asked:{},since:type==='scam'?'2026':String(ri(2016,2025))}};
+ if(l.exp<=t0)l.exp=t0+ri(8,40);
+ l.desc=describe(l);return l}
+function describe(l){const it=l.it,s=l.seller,m=MODELS[it.m];const sz=it.size==='One size'?'':` Размер ${it.size}.`;
+ const D={owner:pick(['Продаю, не подошёл размер.','Носил пару раз, надоело.','Разбираю шкаф, всё лишнее отдаю.','Брал себе, но не мой стиль.']),
+  reseller:'В наличии! Ориг 100%. Отправка в день оплаты Авитка Доставкой. Больше товаров в профиле.',
+  mom:pick(['Сын вырос, вещи остались. Не знаю, что за фирма, вроде хорошая.','Разбираю вещи сына, он уехал учиться. Отдам недорого, торг.']),
+  replica:'Реплика премиум-качества 1:1. Все бирки, коробка. Не оригинал!',
+  liar:pick(['Ориг, брал в ЦУМе, чек потерялся. Срочно, нужны деньги.','100% оригинал. Продаю ниже рынка — срочно переезжаю.','Оригинал, покупал за границей. Дешево, потому что срочно.']),
+  scam:'Оригинал, новый. Цена ниже рынка — переезд. Пишите только сюда, звонки не беру.'}[s.type];
+ return D+sz+' Состояние: '+COND[it.cond].s+'.'+(l.mode==='ship'?' Отправлю Авитка Доставкой, встретиться не получится.':l.mode==='meet'?' Только личная встреча у м. '+l.metro+', не отправляю.':' Отправлю доставкой или встретимся у м. '+l.metro+'.')}
+function marketFill(){const n=S.list.length;if(n<36)for(let i=0;i<Math.min(3,36-n);i++)if(R()<.55){const l=genListing();S.list.push(l);
+ const r=l.ask/valueOrig(l.it);if(l.decl==='o'&&r<.6&&l.seller.type!=='scam'&&R()<.15+.1*S.sk.conn)notify('avito/item/'+l.id,'Дёшево: '+iName(l.it),`${rub(l.ask)} · размер ${l.it.size}`)}}
+function wdMult(){return [.8,1,1,.95,.9,.85,.8][dateObj().getDay()]}
+function secItem(good,forceOrig){let m,it;
+ if(good){m=wpick(secPool(),x=>(x.tier==='lux'?.1:x.tier==='prem'?.5:1)*H(x.i)*H(x.i));it=mkItem(m.i,{cond:wpick([1,2,3],c=>[.3,.45,.25][c-1])});if(!forceOrig&&R()<.5){it.auth='f';it.q=R()<.6?rnd(.3,.65):rnd(.65,.93)}}
+ else{const branded=R()<.2;m=branded?wpick(secPool(),x=>(x.tier==='lux'?.1:x.tier==='prem'?.5:1)):wpick(MODELS.filter(x=>x.noname||x.tier==='mass'),()=>1);it=mkItem(m.i,{cond:wpick([1,2,3],c=>[.2,.45,.35][c-1])});
+  if(!m.noname&&R()<.5){it.auth='f';it.q=R()<.7?rnd(.08,.5):rnd(.5,.9)}}
+ const base=Math.round(CAT[m.cat].sh*rnd(.7,1.6)*(m.noname?1:1.5)/10)*10;const price=m.noname?base:Math.max(base,Math.round(valueOrig({m:m.i,cond:it.cond})*rnd(.4,.65)/10)*10);
+ return {id:uid(),it,p0:price,seen:false,ex:false}}
+function secPool(){const L=S.lvl;return BRANDED.filter(x=>L>=8?true:L>=4?(x.tier!=='lux'&&(x.tier!=='prem'||x.rt<=30000)):((x.tier==='mass'||x.tier==='street')&&x.rt<=12000))}
+const secRange=()=>S.lvl<4?'масс-маркет и простой стритвир':S.lvl<8?'стритвир и недорогой премиум':'вплоть до люкса';
+function secGood(x){const it=x.it;return it.auth==='o'&&!MODELS[it.m].noname&&liq(it.m)>=45}
+function restockSecond(kind){
+ if(kind==='full'){S.sec.items=S.sec.items.slice(-15);const add=[];const n=ri(38,46);for(let i=0;i<n;i++)add.push(secItem(false));const g=ri(4,6);for(let i=0;i<g;i++)add.push(secItem(true));for(const x of add)S.sec.items.push(x)}
+ else{for(let i=0;i<24;i++){const x=secItem(false);if(!secGood(x))S.sec.items.push(x)}}
+ S.sec.last=dayOf()}
+function nextRestock(){const dw=dateObj().getDay();if(dw===1&&hourOf()<10)return 'сегодня в 10:00';const d=(8-dw)%7||7;return dateStr(S.t+d*24)+', 10:00'}
+function supplierPost(k,init){const C=SUP[k];let m;
+ if(C.kind==='rep')m=wpick(BRANDED,x=>.15+H(x.i)*H(x.i)*2);else m=wpick(MODELS.filter(x=>C.tiers.includes(x.tier)&&!x.noname&&(x.tier!=='lux'||S.lvl>=6)),x=>.3+H(x.i));
+ const cond=C.cond?ri(C.cond[0],C.cond[1]):0;const tmpl=mkItem(m.i,{cond});
+ let price,q=0,top=false;
+ if(C.kind==='rep'){top=R()<.5;q=top?rnd(.78,.96):rnd(.15,.45);price=Math.max(300,rp(m.rt*(top?rnd(.09,.13):rnd(.03,.05))))}
+ else price=rp(valueOrig(tmpl)*rnd(C.pk[0],C.pk[1])*(1-.02*S.sk.conn));
+ const left=ri(C.stock[0],C.stock[1]);
+ const p={id:uid(),t:S.t,m:m.i,cond,col:tmpl.col,price,left,q,fake:C.kind==='trap'?origFake():0,top,size:C.minQ===1?tmpl.size:null};
+ const txt={orig:pick(['🔥 Новое поступление','В наличии','Свежая поставка','Забирайте, пока есть']),rep:pick(['Новая партия на фабрике','Топ продаж этой недели','Качество 1:1, все бирки']),trap:pick(['🔥 Новое поступление из Европы','В наличии, ориг с чеком','Свежая поставка из аутлета 💯'])}[C.kind];
+ p.x=`${txt}\n${m.b} ${m.n}${C.kind==='rep'?(top?' · реплика ТОП 1:1':' · реплика эконом'):''}\n${COND[cond].n}${p.size?' · размер '+p.size:' · размерная сетка'}`;
+ S.chan[k].posts.unshift(p);if(S.chan[k].posts.length>14)S.chan[k].posts.length=14;if(!init)S.chan[k].unread++}
+function origFake(){return clamp(.3-.015*S.lvl-.02*S.sk.conn,.08,.3)}
+function newsPost(x,init){S.chan.news.posts.unshift({id:uid(),t:S?S.t:8,x});if(S.chan.news.posts.length>40)S.chan.news.posts.length=40;if(!init)S.chan.news.unread++}
+function futH(i){const x=S.H[i];let f=x.hT;for(const e of S.ev){if(e.start>S.t-24&&e.start<S.t+7*24){if(e.type==='wave'&&e.m===i)f=.97;if(e.type==='brand'&&MODELS[i].b===e.b)f=Math.min(1,f+.28);if(e.type==='dead'&&e.m===i)f=.12}}return f}
+function proReport(){const arr=BRANDED.map(m=>{const now=H(m.i),f=futH(m.i);return {m,now,f,sc:f+1.2*(f-now)}}).filter(a=>a.f>=.55).sort((a,b)=>b.sc-a.sc).slice(0,5);
+ S.chan.news.posts.unshift({id:uid(),t:S.t,pro:1,x:`🔮 PRO · ${dateStr()}\nТоп-5 вещей, которые будут в ликвиде на этой неделе:\n\n${arr.map((a,i)=>`${i+1}. ${a.m.b} ${a.m.n} — сейчас ${Math.round(a.now*100)}% → ~${Math.round(a.f*100)}%${a.f-a.now>.08?' 📈':''}`).join('\n')}\n\nЗакупайся, пока Пойзон не подтянул цены.`});if(S.chan.news.posts.length>40)S.chan.news.posts.length=40;S.chan.news.unread++;
+ notify('chan:news','Хайп-радар PRO','Топ-5 вещей, которые скоро будут в ликвиде')}
+function dailyReport(init){const arr=BRANDED.map(m=>({m,l:liq(m.i)})).sort((a,b)=>b.l-a.l);
+ const top=arr.slice(0,5),bot=arr.slice(-3).reverse();
+ const mo=monthOf(),season=mo>=8&&mo<=11?'Осень: пуховики, куртки и свитеры дорожают с каждой неделей.':mo<=1?'Зима: пуховики на пике, футболки никому не нужны.':mo<=4?'Весна: ветровки и кроссы в цене, пуховики дешевеют.':'Лето: футболки и поло, пуховики почти не берут.';
+ newsPost(`📊 Что сейчас в ликвиде · ${dateStr()}\n\n🔥 Ликвид:\n${top.map(x=>`• ${x.m.b} ${x.m.n} — ${x.l}%`).join('\n')}\n\n🧊 Лежит:\n${bot.map(x=>`• ${x.m.b} ${x.m.n} — ${x.l}%`).join('\n')}\n\n${season}`,init)}
+
+/* ================= THREADS ================= */
+function newThread(kind,name,plat){const th={id:uid(),kind,name,plat,msgs:[],unread:0,last:S.t,closed:false};S.threads.unshift(th);return th}
+function msg(th,f,x){th.msgs.push({f,x,t:S.t});th.last=S.t;if(f==='them'&&!(S.ui.view==='thread'&&S.ui.id===th.id))th.unread++}
+const getT=id=>S.threads.find(t=>t.id===+id);
+const getL=id=>S.list.find(l=>l.id===+id);
+const getI=id=>S.items.find(i=>i.id===+id);
+const dealById=id=>S.deals.find(d=>d.id===+id);
+function mentor(x){let th=S.threads.find(t=>t.kind==='mentor');msg(th,'them',x);notify('tg/thread/'+th.id,'Тимур',x)}
+function sellerThread(l){let th=l.th&&getT(l.th);if(th&&th.closed&&!l.seller.blocked){th.closed=false;th.hidden=false}if(!th){th=newThread('aseller',l.seller.name,'avito');th.ref=l.id;th.sub=iName(l.it);l.th=th.id}return th}
+const visTh=th=>!th.hidden&&(th.kind==='mentor'||!th.closed||th.unread>0||(S.ui.view==='thread'&&S.ui.id===th.id));
+const unreadOf=plat=>S.threads.filter(t=>t.plat===plat&&t.unread>0).length;
+const chanUnread=()=>Object.values(S.chan).filter(c=>c.unread>0).length;
+
+/* ================= TIME ================= */
+let dayLog=[];
+let sleeping=false;
+function advance(h){let mid=false;for(let i=0;i<h;i++){S.t++;if(S.t%24===0)dayTick();hourTick();if(!sleeping&&hourOf()===0){mid=true;break}}checkMissions();save();if(mid){S.mi=0;setTimeout(()=>doSleep(true),0)}}
+function advanceMin(n){S.mi=(S.mi||0)+n;while(S.mi>=60){S.mi-=60;advance(1);if(hourOf()===0){S.mi=0;break}}save()}
+function doSleep(forced){if(sleeping)return;sleeping=true;const h=hourOf(),n=h<8?8-h:32-h;advance(n);S.mi=0;sleeping=false;save();closeModal();S.ui.app=null;S.ui.stack=[];render();
+ if(S.flags.bankrupt){modal(`<h2>Банкротство</h2><p>Долги выросли настолько, что банк подал на тебя в суд. Коллекторы забрали всё, карьера перекупа закончилась.</p><div class="kv"><span>Дней в деле</span><span>${dayOf()+1}</span></div><div class="kv"><span>Продано вещей</span><span>${S.stats.sold}</span></div><div class="kv"><span>Долг</span><span class="neg">${rub(S.loans.reduce((a,L)=>a+L.P,0))}</span></div><p class="muted">В следующий раз не бери в долг на всё и выходи на подработку, если денег нет совсем.</p><button class="btn bad full" data-a="reset">Начать заново</button>`);return}
+ modal(`<h2>${forced?'Полночь. Ты вырубился':'Доброе утро'}</h2><p class="muted">${dateStr()}, 08:00</p>${dayLog.map(([x,a])=>`<div class="kv"><span>${esc(x)}</span><span class="${a>0?'pos':''}">${a?(a>0?'+':'')+rub(a):''}</span></div>`).join('')}<button class="btn full" data-a="closeModal">Начать день</button>`)}
+function hourTick(){const h=hourOf();
+ for(const s of S.ships.slice())if(S.t>=s.eta)arrive(s);
+ for(const e of S.pend)if(!e.done&&e.t<=S.t){e.done=1;handlePend(e)}S.pend=S.pend.filter(e=>!e.done);
+ S.list=S.list.filter(l=>{if(l.exp>S.t)return true;const th=l.th&&getT(l.th);if(th&&!th.closed){msg(th,'sys','Объявление снято: вещь продали');th.closed=true;th.unread=0}return false});
+ if(h>=8&&h<=23)marketFill();
+ if(h===10){if(dateObj().getDay()===1){restockSecond('full');notify('second','Секонд: завоз!','Раз в неделю. Ликвид разберут за пару часов')}else if(R()<.5)S.sec.items.push(secItem(true,true))}
+ if(h>=11&&h<=21)for(const x of S.sec.items){const it=x.it,m=MODELS[it.m],l=H(it.m);let p;
+  if(secGood(x))p=.42;else if(it.auth==='o'&&!m.noname)p=.07+.12*l;else if(it.auth==='f'&&it.q>.8&&!m.noname)p=.05*l;else p=.012;
+  if(R()<p)x.ex=true}
+ if(S.sec.items.length>70)S.sec.items=S.sec.items.slice(-70);
+ S.sec.items=S.sec.items.filter(x=>!x.ex);
+ nPrune();if(!$('#nc').hidden)ncFill();
+ dropTick();if(h===11||h===15||h===19)maybeOffer();if(h===12||h===18)maybeOrder();
+ if(h===9){dailyReport(false);if(S.tg.pro>S.t)proReport()}
+ if(h===11||h===14||h===17)for(const k of Object.keys(SUP))if(R()<.5+.05*S.sk.conn)supplierPost(k,false);
+ for(const k of Object.keys(SUP)){const ps=S.chan[k].posts;S.chan[k].posts=ps.filter(p=>S.t-p.t<96&&p.left>0)}
+ for(const a of S.tg.ads)if(a.left>0){const n=Math.min(a.left,Math.max(1,Math.round(a.tot/24*rnd(.5,1.5))));a.left-=n;S.tg.subs+=n}
+ S.tg.ads=S.tg.ads.filter(a=>a.left>0);
+ if(h>=9&&h<=23)for(const it of S.items){if(!it.sale)continue;
+  const open=S.threads.filter(t=>(t.kind==='abuyer'||t.kind==='tbuyer')&&!t.closed&&t.b.item===it.id).length;if(open>=3)continue;
+  if(it.sale.avito&&S.ban<=S.t){it.sale.views+=ri(0,5);if(R()<buyP(it,'avito'))genBuyer(it,'avito')}
+  if(it.sale.tg&&S.tg.has&&R()<buyP(it,'tg'))genBuyer(it,'tg')}
+ for(const th of S.threads){if((th.kind==='abuyer'||th.kind==='tbuyer')&&!th.closed&&((!th.b.agreed&&S.t>th.b.exp)||(th.b.agreed&&S.t-th.b.lt>48))){msg(th,'them',th.b.agreed?'Так и не отправили… Ладно, неактуально.':'Уже неактуально, нашёл другой вариант.');th.closed=true;th.unread=0}
+  if(th.kind==='claim'&&!th.closed&&S.t>th.exp)resolveClaim(th,false,true);
+  if(th.kind==='deal'&&!th.closed&&S.t>th.o.exp){msg(th,'them',pick(['Всё, забрали уже.','Отдал другому, сорян.']));th.closed=true;th.unread=0}
+  if(th.kind==='order'&&!th.closed&&S.t>th.o.exp){msg(th,'them','Нашёл в другом месте, спасибо.');th.closed=true;th.unread=0;S.tg.trust=clamp(S.tg.trust-1,0,100)}}}
+function dayTick(){dayLog=[];const d=dateObj();
+ if(d.getDay()===1&&S.wk){dayLog.push(['Итоги недели: продано '+(S.stats.sold-S.wk.sold)+' шт, прибыль '+rub(S.stats.profit-S.wk.profit),0]);dayLog.push(['Капитал за неделю',Math.round(netWorth()-S.wk.nw)])}
+ mustPay(500,'Еда и проезд');
+ if(S.dep>0){const i=Math.round(S.dep*.0005);S.dep+=i;dayLog.push(['Проценты по вкладу',i])}
+ if(d.getDay()===1){
+  for(const L of S.loans.slice())loanWeek(L);
+  mustPay(5000,'Аренда комнаты');
+  for(const s of STOR)if(S.stor[s.id]&&s.rent)mustPay(s.rent,'Аренда: '+s.n);
+  S.loans=S.loans.filter(L=>L.P>0.5)}
+ if(d.getDay()===1)S.wk={nw:netWorth(),sold:S.stats.sold,profit:S.stats.profit};
+ if(d.getDay()===1){const nw=netWorth(),lim=-Math.max(40000,loanCap()*3);if(nw<lim)S.flags.bankrupt=1;else if(nw<lim/2)mentor('Брат, долги уже больше, чем всё твоё добро. Ещё немного — и банкротство. Срочно гаси микрозайм: продавай быстро и выходи на подработку.')}
+ if(d.getDay()===0&&(!S.drop||S.drop.done))newDrop();
+ for(let i=0;i<S.H.length;i++){const x=S.H[i],m=MODELS[i];
+  if(x.until&&S.t>=x.until){x.hT=clamp(m.h0+rnd(-.1,.1),.03,1);x.until=0;x.r=.12}
+  x.hT=clamp(x.hT+rnd(-.015,.015),.03,1);if(!x.until&&R()<.04)x.hT=clamp(x.hT+rnd(-.3,.3),.05,.95);x.h=clamp(x.h+(x.hT-x.h)*x.r+rnd(-.015,.015),.02,1);x.hP=x.hP+(x.h-x.hP)*.07;S.pzN[i]=clamp(S.pzN[i]+rnd(-.02,.02),.92,1.08)}
+ S.fx=clamp(S.fx+rnd(-.08,.08),10,14.5);
+ {const md=d.getMonth()*100+d.getDate();
+  if(md===1024&&!S.flags.bfAnn){S.flags.bfAnn=1;newsPost('🖤 В пятницу Чёрная пятница! Три дня покупатели будут сметать всё подряд, а Пойзон обещает −15% на всё. Закупайся заранее.')}
+  if(md===1027&&!S.flags.bf){S.flags.bf=1;S.ev.push({type:'demand',val:1.45,start:S.t,end:S.t+72,ti:'Чёрная пятница',d:'Три дня покупатели пишут почти в полтора раза чаще.',ann:false},{type:'pzsale',start:S.t,end:S.t+72,ti:'Распродажа на Пойзоне',d:'Минус 15% на всё до конца выходных.',ann:false})}
+  if(md===1220&&!S.flags.ny){S.flags.ny=1;S.ev.push({type:'demand',val:1.2,start:S.t,end:S.t+11*24,ti:'Новогодний ажиотаж',d:'Все ищут подарки: до 31 декабря покупатели пишут чаще.',ann:false})}}
+ if(S.t>=S.nextEv){genEvent();S.nextEv=S.t+ri(3,5)*24}
+ for(const e of S.ev)if(!e.ann&&S.t>=e.start){e.ann=true;applyEvent(e);newsPost('⚡ '+e.ti+'\n\n'+e.d);dayLog.push(['Новость: '+e.ti,0])}
+ S.ev=S.ev.filter(e=>e.end>S.t-24*10);
+ if(S.tg.has){if(S.t-S.tg.last>48){const lost=Math.round(S.tg.subs*(.03-.003*S.sk.smm));S.tg.subs-=lost;if(lost)dayLog.push(['Канал без постов — отписались '+lost,0])}
+  else{const g=Math.round(S.tg.subs*.006*(S.tg.trust/60)+ri(0,2));S.tg.subs+=g}
+  S.tg.trust=clamp(S.tg.trust+(S.tg.trust<60?.5:0),0,100)}
+ if(S.ban&&S.ban<=S.t&&!S.flags.unbanned){S.flags.unbanned=1;S.complaints=0;dayLog.push(['Авитка сняла блокировку',0])}
+ {const r0=myRank();for(const r of S.rivals){r.nw=Math.round(r.nw*(1+r.g+rnd(-.025,.02)));r.g*=.993}const r1=myRank();if(r1<r0)dayLog.push(['Ты поднялся в топе перекупов Москвы: №'+r1,0]);else if(r1>r0)dayLog.push(['Тебя обогнали в топе перекупов: теперь №'+r1,0])}
+ S.threads=S.threads.filter(th=>th.kind==='mentor'||!th.closed||th.unread>0||S.t-th.last<48);
+ S.hist.push({d:dayOf(),v:Math.round(netWorth())});if(S.hist.length>120)S.hist.shift()}
+function mustPay(a,x){if(S.money<a){const need=Math.ceil((a-S.money)/1000)*1000;const ex=S.loans.find(L=>L.name==='Микрозайм');if(ex){ex.P+=need;ex.pay=annuity(ex.P,ex.r,2);earn(need,'Микрозайм: доплата')}else takeLoan(need,2,.1,'Микрозайм');dayLog.push(['Не хватило денег — банк выдал микрозайм',need]);notify('bank','Микрозайм '+rub(need),'Не хватило на «'+x+'». 10% в неделю — верни поскорее')}pay(a,x);dayLog.push([x,-a])}
+function annuity(P,r,n){return Math.ceil(P*r/(1-Math.pow(1+r,-n))/10)*10}
+function takeLoan(P,n,r,name){const L={id:uid(),name,P,r,n,pay:annuity(P,r,n),missed:0,t:S.t};S.loans.push(L);earn(P,name+' на '+n+' нед');return L}
+function loanWeeksLeft(L){if(L.P<=0)return 0;const x=1-L.P*L.r/L.pay;return x<=0?99:Math.ceil(-Math.log(x)/Math.log(1+L.r)-1e-9)}
+function loanWeek(L){const int=Math.round(L.P*L.r),p=Math.min(L.pay,Math.ceil(L.P+int));
+ if(S.money>=p){pay(p,L.name+': платёж');L.P=Math.max(0,L.P+int-p);L.missed=0;dayLog.push([L.name+': платёж',-p])}
+ else{L.missed++;const fine=Math.round(p*.1);L.P+=int+fine;dayLog.push([L.name+': просрочка! +'+rub(int+fine)+' к долгу',0]);notify('bank','Просрочка по кредиту','Проценты и штраф добавлены к долгу'+(L.missed>=2?'. Пришли коллекторы':''));
+  if(L.missed>=2)collectors(L,p)}}
+function collectors(L,need){let got=0;const taken=[];const I=S.items.slice().sort((a,b)=>estFor(b)-estFor(a));
+ for(const it of I){if(got>=need)break;got+=Math.round(estFor(it)*.4/10)*10;taken.push(iName(it));S.items=S.items.filter(x=>x!==it);
+  for(const t of S.threads)if((t.kind==='abuyer'||t.kind==='tbuyer')&&!t.closed&&t.b.item===it.id){msg(t,'sys','Вещь уже продана');t.closed=true}}
+ const m=Math.min(S.money,Math.max(0,need-got));if(m>0){pay(m,'Коллекторы списали с карты');got+=m}
+ L.P=Math.max(0,L.P-got);L.missed=0;dayLog.push(['Коллекторы забрали: '+(taken.join(', ')||'деньги с карты'),0])}
+function genEvent(){const r=R(),st=S.t+ri(18,40);let e;
+ if(r<.38){const m=wpick(BRANDED,x=>(1-H(x.i))*(x.tier==='lux'?.4:1));e={type:'wave',m:m.i,start:st,end:st+ri(12,20)*24,ti:`${m.b} ${m.n} — главный хайп недели`,d:`Блогеры и рэперы скупили всё. Ликвидность растёт к 95–100%. Ловите момент, пока на Пойзоне цены не догнали.`};
+  newsPost(`👀 Инсайд: в закрытых чатах начали скупать ${m.b} ${m.n}. Если подтвердится — через пару дней будет хайп.`)}
+ else if(r<.55){const m=wpick(BRANDED,x=>H(x.i)*H(x.i));e={type:'dead',m:m.i,start:S.t+6,end:S.t+ri(14,22)*24,ti:`${m.b} ${m.n} всех задолбали`,d:`Рынок перенасыщен, ликвидность падает. Кто взял партию — сливайте, пока не поздно.`}}
+ else if(r<.66){const b=pick([...new Set(BRANDED.filter(m=>m.tier!=='mass').map(m=>m.b))]);e={type:'brand',b,start:st,end:st+ri(10,16)*24,ti:`${b}: вышел коллаб, бренд снова в моде`,d:`Все вещи ${b} в тренде: ликвидность растёт.`};newsPost(`👀 Слухи: ${b} готовит громкий коллаб. Возможно, бренд скоро снова выстрелит.`)}
+ else if(r<.75){const up=R()<.5;e={type:'fx',val:up?rnd(1,2):-rnd(1,2),start:st,end:st+24,ti:up?'Юань подорожал':'Юань подешевел',d:up?'Заказы с Пойзона стали дороже.':'Заказы с Пойзона подешевели. Время закупаться.'};newsPost(`💱 Аналитики ждут ${up?'роста':'падения'} курса юаня в ближайшие дни.`)}
+ else if(r<.83){e={type:'customs',start:st,end:st+14*24,ti:'Таможня ужесточила контроль реплик',d:'Две недели посылки с репликами чаще изымают на границе.'};newsPost('🛃 Слухи: таможня готовит рейд на карго с репликами.')}
+ else if(r<.91){e={type:'avitoBan',start:st,end:st+10*24,ti:'Авитка взялась за реплики',d:'10 дней объявления с репликами показываются хуже, а покупатели чаще делают легит-чек.'};newsPost('🚫 Говорят, Авитка готовит чистку объявлений с репликами.')}
+ else{const up=R()<.55;e={type:'demand',val:up?1.25:.78,start:S.t+6,end:S.t+7*24,ti:up?'Пришли зарплаты и кешбэк — все покупают шмот':'Все экономят: спрос на одежду упал',d:up?'Неделю покупатели пишут на четверть чаще.':'Неделю покупатели пишут реже. Не закупайся на все.'}}
+ S.ev.push(e)}
+function applyEvent(e){
+ if(e.type==='wave'){const x=S.H[e.m];x.hT=rnd(.93,1);x.until=e.end;x.r=.3;x.h+=(x.hT-x.h)*.35}
+ if(e.type==='dead'){const x=S.H[e.m];x.hT=rnd(.08,.18);x.until=e.end;x.r=.25}
+ if(e.type==='brand')for(const m of MODELS)if(m.b===e.b){const x=S.H[m.i];x.hT=clamp(x.hT+.28,.03,1);x.until=e.end;x.r=.22}
+ if(e.type==='fx')S.fx=clamp(S.fx+e.val,10,15)}
+
+/* ================= PENDING ================= */
+const REVXP={5:35,4:15,3:0,2:-25,1:-60};
+function addReview(s,w,x,plat){S.reviews.unshift({s,w,x,t:S.t,plat});if(S.reviews.length>80)S.reviews.length=80;addXP(REVXP[s]);checkMissions()}
+const xpTxt=s=>REVXP[s]>0?' · +'+REVXP[s]+' опыта':REVXP[s]<0?' · '+REVXP[s]+' опыта':' · опыт без изменений';
+const REV5=['Всё супер, ориг, рекомендую!','Быстро отправил, вещь огонь 🔥','Всё как в описании, спасибо','Чёткий продавец, буду брать ещё','Отличный магазин'];
+const REV4=['Всё норм, но долго отвечал','Вещь хорошая, состояние чуть хуже, чем на фото'];
+const REVF=['Реплика как реплика, за свои деньги норм','Качество так себе, но честно предупредили','Норм копия, но магазин паль продаёт — ну такое'];
+function handlePend(e){
+ if(e.type==='payout'){const d=dealById(e.deal);if(d&&d.disp)return;earn(e.amt,'Авитка: выплата за '+(d?d.n:'заказ'));notify('bank','Деньги пришли',`+${rub(e.amt)} · ${d?d.n:''}`)}
+ if(e.type==='review'){addReview(e.s,1,e.s>=5?pick(REV5):e.s===4?pick(REV4):pick(REVF),e.plat);notify('shop','Новый отзыв '+'★'.repeat(e.s),'Рейтинг магазина: '+rating().toFixed(2)+xpTxt(e.s))}
+ if(e.type==='dispute'){const d=dealById(e.deal);if(!d)return;d.disp=true;S.stats.profit-=d.price;S.stats.caught++;addReview(1,3,'Продавец — мошенник! Продал ПАЛЬ под видом оригинала. Авитка вернула деньги.','avito');S.complaints++;
+  const th=newThread('sys','Авитка · Поддержка','avito');msg(th,'them',`Покупатель открыл спор по заказу «${d.n}»: товар не является оригиналом. Экспертиза подтвердила подделку. Деньги возвращены покупателю, товар едет обратно. Жалоб на вас: ${S.complaints} из 3.`);th.closed=true;
+  backItem(d,'Возврат по спору');notify('avito','Спор проигран: '+d.n,'Покупатель доказал, что это паль. Деньги вернули ему, тебе — 1★');checkBan()}
+ if(e.type==='claim'){const d=dealById(e.deal);if(!d)return;const th=newThread('claim',d.buyer||pick(NAMES),e.plat);th.deal=d.id;th.exp=S.t+36;th.sub=d.n;
+  msg(th,'them',pick([`Слышь, я сделал легит-чек на ${d.n}. Это ПАЛЬ. Ты мне продавал как оригинал. Верни ${rub(d.price)}, вещь отдам.`,`Мне в легит-сервисе сказали, что ${d.n} — подделка. Возвращай деньги, или пишу отзыв и жалобу.`]));
+  notify((e.plat==='tg'?'tg':'avito')+'/thread/'+th.id,'Покупатель: это паль!',d.n+' · требует вернуть деньги')}
+ if(e.type==='sizeret'){const d=dealById(e.deal);if(!d||d.disp)return;d.disp=true;d.ret=true;S.stats.profit-=d.price;S.stats.returns++;S.pend.push({t:S.t+36,type:'ret',it:JSON.parse(JSON.stringify(d.it)),keep:1});notify('avito','Возврат: '+d.n,'Покупателю не подошёл размер. Деньги не придут, вещь вернётся через 1–2 дня')}
+ if(e.type==='ret'){const it=e.it;it.id=uid();it.sale=null;if(!e.keep)it.k='f';S.items.push(it);notify('shkaf','Вещь вернулась',iName(it)+' снова в Шкафу')}}
+function backItem(d,why){const it=JSON.parse(JSON.stringify(d.it));S.pend.push({t:S.t+48,type:'ret',it})}
+function checkBan(){if(S.complaints>=3){S.ban=S.t+5*24;S.flags.unbanned=0;for(const it of S.items)if(it.sale){it.sale.avito=false;if(!it.sale.tg)it.sale=null}
+ for(const th of S.threads)if(th.kind==='abuyer'&&!th.closed){msg(th,'sys','Аккаунт продавца заблокирован');th.closed=true}
+ mentor('Брат, тебе Авитку заблочили на 5 дней из-за жалоб. Пока работай через канал в Телеге. И завязывай паль как ориг толкать, рейтинг потом не отмоешь.')}}
+
+/* ================= SHIPMENTS ================= */
+function arrive(s){S.ships=S.ships.filter(x=>x!==s);
+ if(s.rep){const pc=.05+(evActive('customs').length?.18:0);if(R()<pc){S.stats.seized=(S.stats.seized||0)+1;notify('post','Таможня изъяла посылку',`${s.name}: партия реплик конфискована. Деньги не вернут.`);
+  if(!S.flags.seize){S.flags.seize=1;setTimeout(()=>mentor('Таможня забрала партию? Бывает, это риск карго с палью. Не вкладывай всё в одну партию.'),50)}return}}
+ for(const it of s.items){it.bt=S.t;if(s.prot){it.prot=S.t+24;it.protDecl=s.prot.decl;it.paid=s.prot.total;it.protName=s.prot.seller}S.items.push(it)}
+ notify('shkaf','Посылка получена',s.name+(s.items.length>1?` · ${s.items.length} шт`:'')+' — уже в Шкафу');
+ if(s.prot&&!S.flags.protTip){S.flags.protTip=1;setTimeout(()=>mentor('Получил вещь с Авитки? У тебя 24 часа, чтобы сделать легит-чек. Если окажется паль, а продавец писал «ориг» — откроешь спор и вернёшь деньги. Потом уже никак.'),50)}}
+function addShip(name,items,days,o={}){const s={id:uid(),name,items,start:S.t,eta:S.t+Math.max(6,Math.round(days*24)),...o};S.ships.push(s);return s}
+
+/* ================= BUYERS ================= */
+function genBuyer(it,plat){const base=it.sale.orig?valueOrig(it):valueFake(it),rat=rating()||4.5;
+ const low=R()<(plat==='tg'?.12:.25);
+ let max=base*gauss(1.02,.06)*(1+.015*S.sk.sales)*(.9+.02*rat);if(plat==='tg')max*=(.92+S.tg.trust/600);if(low)max*=.8;
+ const price=it.sale.price;let offer,full=false;
+ if(!low&&price<=max*.98&&R()<(plat==='tg'?.55:.35)){offer=price;full=true}else offer=rp(Math.min(price*.99,max*rnd(low?.75:.86,low?.86:.96)));
+ if(offer>=price){offer=price;full=true}
+ const th=newThread(plat==='tg'?'tbuyer':'abuyer',pick(NAMES),plat);th.sub=iName(it);
+ th.b={item:it.id,max:rp(max),offer,pat:ri(2,4),agreed:false,low,exp:S.t+ri(48,72),price:0,lt:S.t};
+ if(plat==='avito'&&S.stats.sold>=1&&R()<.06&&!it.sale.noPhish){th.b.phish=true;
+  msg(th,'them','Здравствуйте! Беру за вашу цену. Я уже оплатил через Авитка Доставку 👍');msg(th,'them','Чтобы получить деньги, перейдите по ссылке и введите данные карты: avitka-dostavka-pay.ru/get');
+  notify('avito/thread/'+th.id,th.name+' · '+iName(it),'Оплатил, просит перейти по ссылке');return}
+ msg(th,'them',pick(['Здравствуйте! ','Привет! ','Добрый день! ','Здравствуйте, размер точно '+it.size+'? '])+(full?pick(['Беру за вашу цену. Как оплатить?','Цена ок, забираю!']):low?pick([`${rub(offer)} и забираю сегодня. Я сам перекуп, долго не думаю.`,`Отдай за ${rub(offer)}, всё равно висит.`]):pick([`Отдадите за ${rub(offer)}?`,`Готов взять за ${rub(offer)}.`,`${rub(offer)} — и по рукам?`,`Давайте за ${rub(offer)}, сразу оплачу.`])));
+ notify((plat==='tg'?'tg':'avito')+'/thread/'+th.id,th.name+' · '+iName(it),full?'Готов купить за вашу цену':'Предлагает '+rub(offer))}
+function finishSale(th,price){const it=getI(th.b.item);if(!it)return;const m=MODELS[it.m],plat=th.plat;
+ const decl=it.sale.orig,fakeOrig=it.auth==='f'&&decl;
+ const d={id:uid(),n:iName(it),size:it.size,cost:it.cost,price,prof:price-it.cost,plat,t:S.t,decl,auth:it.auth,buyer:th.name,it:JSON.parse(JSON.stringify(it))};d.it.sale=null;
+ S.deals.unshift({...d});if(S.deals.length>150)S.deals.length=150;
+ S.stats.sold++;S.stats.profit+=d.prof;S.stats.best=Math.max(S.stats.best,d.prof);if(m.tier==='lux')S.stats.lux++;if(fakeOrig)S.stats.fakeOrig++;
+ S.items=S.items.filter(x=>x!==it);
+ msg(th,'sys',plat==='avito'?`Отправлено Авитка Доставкой. Деньги придут после получения.`:`Покупатель перевёл ${rub(price)}. Отправлено СДЭКом.`);th.closed=true;
+ for(const t of S.threads)if(t!==th&&(t.kind==='abuyer'||t.kind==='tbuyer')&&!t.closed&&t.b.item===it.id){msg(t,'sys','Вещь уже продана');t.closed=true}
+ const pt=S.t+ri(20,40);
+ if(plat==='avito')S.pend.push({t:pt,type:'payout',deal:d.id,amt:price});else earn(price,'Телега: '+d.n);
+ const after=plat==='avito'?pt:S.t+ri(24,48);
+ if(fakeOrig&&R()<pDetect(it)){if(plat==='avito'&&R()<.5)S.pend.push({t:pt-ri(2,8),type:'dispute',deal:d.id});else S.pend.push({t:after+ri(12,120),type:'claim',deal:d.id,plat})}
+ else if(plat==='avito'&&R()<.04)S.pend.push({t:pt-1,type:'sizeret',deal:d.id});
+ else{const s=!decl?pick([3,3,4]):(R()<.85?5:4);S.pend.push({t:after+ri(2,20),type:'review',s,plat})}
+ if(plat==='tg'){if(!decl)S.tg.trust=clamp(S.tg.trust-2,0,100);else S.tg.trust=clamp(S.tg.trust+1,0,100)}
+ 
+ if(!S.flags.s1){S.flags.s1=1;setTimeout(()=>mentor(d.prof>0?'Первая продажа! Красава. Деньги не держи на счету — сразу пускай в оборот.':'Первая продажа, пусть и в минус. Бывает, главное — оборот.'),50)}
+ checkMissions();save();render();
+ modal(`<h2>Продано</h2><p>${esc(d.n)} · ${it.size}</p><div class="kv"><span>Цена продажи</span><span>${rub(price)}</span></div><div class="kv"><span>Себестоимость</span><span>${rub(d.cost)}</span></div><div class="kv"><span>Прибыль</span><span class="${d.prof>=0?'pos':'neg'}">${d.prof>=0?'+':''}${rub(d.prof)}</span></div>${plat==='avito'?'<div class="muted">Деньги придут через 1–2 дня, когда покупатель заберёт посылку.</div>':''}${fakeOrig?'<div class="warn r">Это была паль под видом оригинала. Если покупатель проверит — жди проблем.</div>':''}<button class="btn full" data-a="closeModal">Отлично</button>`)}
+function resolveClaim(th,refund,auto){const d=dealById(th.deal);if(!d||th.closed)return;th.closed=true;
+ if(refund){pay(d.price,'Возврат денег: '+d.n);S.stats.profit-=d.price;S.stats.refunds++;S.stats.caught++;msg(th,'me','Ладно, возвращаю деньги. Отправь вещь обратно.');msg(th,'them','Ок, отправил.');
+  addReview(2,2,'Продал паль под видом оригинала. Деньги вернул, но осадочек остался.',th.plat);backItem(d);if(th.plat==='tg')S.tg.trust=clamp(S.tg.trust-5,0,100)}
+ else{S.stats.caught++;if(!auto)msg(th,'me','Ничего не верну. Ориг всё.');else msg(th,'sys','Ты не ответил покупателю');msg(th,'them','Ясно. Жди отзыв и жалобу, мошенник.');
+  addReview(1,3,'МОШЕННИК! Продал паль как оригинал и отказался вернуть деньги.',th.plat);
+  if(th.plat==='avito'){S.complaints++;checkBan()}else{const lost=Math.round(S.tg.subs*.15);S.tg.subs-=lost;S.tg.trust=clamp(S.tg.trust-15,0,100);
+   S.tg.posts.unshift({t:S.t,x:'💬 В комментариях скандал: подписчик пишет, что ему продали паль под видом оригинала.'});notify('tg','Скандал в канале',`Отписались ${lost} человек`)}}
+ if(!S.flags.claimTip){S.flags.claimTip=1;setTimeout(()=>mentor(refund?'Вернул деньги — правильно. Рейтинг просел, но не в ноль.':'Отказал покупателю? Единица в отзывах весит как три пятёрки. Ещё пара таких — и с тобой никто работать не будет.'),50)}
+ save();render()}
+
+/* ================= DROPS / DEALS / ORDERS / RIVALS ================= */
+function myRank(){const nw=netWorth();return 1+S.rivals.filter(r=>r.nw>nw).length}
+function dropChance(){return clamp(.08+.012*S.lvl+.02*S.sk.conn+(S.tg.subs>=1000?.03:0),.08,.35)}
+function newDrop(){const m=wpick(BRANDED.filter(x=>['shoes','hoodie','jacket','tee'].includes(x.cat)),x=>(x.tier==='lux'?.15:x.tier==='mass'?.3:1)*(.3+H(x.i)));
+ const dw=dateObj().getDay(),dd=(6-dw+7)%7||7;
+ S.drop={id:uid(),m:m.i,name:pick(DROPN),retail:rp(m.rt*.9),at:(dayOf()+dd)*24+12,entered:false,size:null,done:false};
+ const D=S.drop;S.chan.drops.posts.unshift({id:uid(),t:S.t,x:`🎟 Раффл: ${m.b} ${m.n} ${D.name}\nЛимитированный релиз. Цена ${rub(D.retail)}, на ресейле уйдёт в разы дороже.\nЗапись до ${dateStr(D.at)}, 12:00. Взнос за участие 300 ₽.`});if(S.chan.drops.posts.length>20)S.chan.drops.posts.length=20;S.chan.drops.unread++;
+ if(!S.flags.dropTip&&S.t>30){S.flags.dropTip=1;mentor('Видел раффлы в Телеге? Записываешься за 300 ₽, а если повезёт — берёшь лимитку по ретейлу и перепродаёшь вдвое дороже. Шанс небольшой, но растёт с уровнем и связями.')}}
+function dropTick(){const D=S.drop;if(!D||D.done||S.t<D.at)return;D.done=true;const nm=MODELS[D.m].b+' '+MODELS[D.m].n+' '+D.name;
+ S.chan.drops.posts.unshift({id:uid(),t:S.t,x:`🏁 Итоги раффла ${nm}: победителям пришли письма. Следующий раффл откроется в воскресенье.`});S.chan.drops.unread++;
+ if(!D.entered)return;
+ if(R()<dropChance()){if(S.money>=D.retail&&used()<capacity()){pay(D.retail,'Раффл: '+nm);const it=mkItem(D.m,{cond:0,auth:'o',k:'o',size:D.size,cost:D.retail+300,src:'Раффл',col:(D.m*3+1)%COLS.length});it.lim=S.t;it.liName=D.name;S.items.push(it);S.stats.drops++;
+   notify('shkaf','Ты выиграл раффл! 🎉',nm+' · размер '+D.size+' уже в Шкафу');setTimeout(()=>modal(`<h2>Ты выиграл раффл!</h2><p>${esc(nm)}, размер ${D.size}. Выкупил по ретейлу за ${rub(D.retail)}.</p><div class="kv"><span>На ресейле сейчас</span><span>~${rub(valueOrig(it))}</span></div><p class="muted">Хайп на лимитку держится пару недель, потом цена сползает. Продавай, пока горячо.</p><button class="btn full" data-a="closeModal">Забрать</button>`),0)}
+  else notify('tg','Раффл выигран, но…',S.money<D.retail?'Не хватило денег на выкуп — место ушло другому':'Шкаф забит — место ушло другому')}
+ else notify('tg','Раффл: не повезло',nm+' · в следующий раз')}
+function maybeOffer(){if(S.threads.filter(t=>t.kind==='deal'&&!t.closed).length>=2)return;if(R()>.2+.03*S.sk.conn)return;
+ const type=wpick(['bag','lot','ward'],k=>k==='bag'?1:k==='lot'?(S.lvl>=2?.7:0):(S.lvl>=3?.8:0));let items=[],price,txt;
+ if(type==='bag'){const n=ri(6,10),cap=Math.max(3000,netWorth()*.5),k=rnd(.6,.95);let sum=0,ps=[];for(let i=0;i<n;i++){const x=secItem(false);ps.push(x.p0);sum+=x.p0;items.push(x.it)}while(items.length>4&&sum*k>cap){items.pop();sum-=ps.pop()}price=rp(sum*k);
+  txt=`Привет! Разбираю кладовку — мешок шмоток, штук ${items.length}. Что там, сам не знаю, вроде есть фирма. Отдам всё за ${rub(price)}.`}
+ else if(type==='lot'){const cap=Math.max(12000,netWorth()*.6);let m,q,unit;for(let i=0;i<12;i++){m=wpick(BRANDED,x=>.1+H(x.i)*H(x.i));q=rnd(.55,.9);unit=rp(valueFake({m:m.i,cond:0,q})*rnd(.3,.5));if(unit*5<=cap)break}const n=clamp(Math.floor(cap/unit),3,10);price=unit*n;
+  for(let i=0;i<n;i++)items.push(mkItem(m.i,{cond:0,auth:'f',k:'f',q:clamp(q+rnd(-.04,.04),.05,.97)}));
+  txt=`Есть ${n} шт ${m.b} ${m.n} — реплика, качество хорошее. По ${rub(unit)} за штуку, только всё сразу: ${rub(price)}. Размеры вразброс.`}
+ else{const n=ri(4,7);let sum=0;for(let i=0;i<n;i++){const m=wpick(BRANDED.filter(x=>x.tier==='street'||x.tier==='prem'),x=>.3+H(x.i));const it=mkItem(m.i,{cond:ri(0,2)});if(R()<.18){it.auth='f';it.q=rnd(.6,.92)}items.push(it);sum+=valueOrig(it)}
+  const cap=Math.max(15000,netWorth()*.7);while(items.length>2&&sum*.5>cap){const x=items.pop();sum-=valueOrig(x)}
+  price=rp(sum*rnd(.42,.62));txt=`Уезжаю, распродаю гардероб одним лотом:\n${items.map(it=>'• '+iName(it)+', '+sizeTxt(it)).join('\n')}\nВсё за ${rub(price)}, по одной не продаю. Забрать сегодня.`}
+ const th=newThread('deal',pick(DEALPPL[type]),'tg');th.sub=type==='bag'?'мешок вещей':type==='lot'?'партия реплик':'гардероб';th.o={type,items,price,exp:S.t+ri(4,9),haggle:false};
+ msg(th,'them',txt);notify('tg/thread/'+th.id,th.name,(type==='bag'?'Мешок вещей':type==='lot'?'Партия реплик':'Гардероб')+' за '+rub(price));
+ if(!S.flags.dealTip){S.flags.dealTip=1;setTimeout(()=>mentor('Тебе в личку пишут с лотами? Мешки — лотерея: бывает пусто, бывает Стонник за копейки. Гардеробы обычно выгодные, но паль попадается и там.'),0)}}
+function maybeOrder(){if(!S.tg.has||S.tg.subs<40)return;if(S.threads.filter(t=>t.kind==='order'&&!t.closed).length>=3)return;if(R()>.15+Math.min(.25,S.tg.subs/20000))return;
+ const m=wpick(BRANDED,x=>(x.tier==='lux'?.15:1)*(.1+H(x.i)*H(x.i)));const size=pickSize(m.cat),budget=rp(valueOrig({m:m.i,cond:0})*rnd(1.12,1.3)),exp=S.t+ri(4,9)*24;
+ const th=newThread('order',pick(NAMES),'tg');th.sub='заказ: '+m.b+' '+m.n;th.o={m:m.i,size,budget,exp};
+ msg(th,'them',`Привет! Подписан на твой канал. Ищу ${m.b} ${m.n}, ${size==='One size'?'':'размер '+size+', '}новые или как новые. Плачу ${rub(budget)}. Нужно до ${dateStr(exp)}. Только оригинал!`);
+ notify('tg/thread/'+th.id,'Заказ от подписчика',`${m.b} ${m.n} ${size} · ${rub(budget)}`);
+ if(!S.flags.orderTip){S.flags.orderTip=1;setTimeout(()=>mentor('Подписчики пишут с заказами? Это лучшие деньги: платят выше рынка. Ищи нужное у поставщиков или на Пойзоне, только успей к сроку.'),0)}}
+function orderMatch(o){return S.items.filter(it=>it.m===o.m&&it.size===o.size&&it.cond<=1)}
+
+/* ================= MISSIONS ================= */
+const MISSIONS=[
+ {id:'sell1',n:'Продай первую вещь',c:()=>S.stats.sold>=1,m:300,xp:10},
+ {id:'legit1',n:'Сделай легит-чек',c:()=>S.stats.legit>=1,m:200,xp:5},
+ {id:'sec1',n:'Купи вещь в секонде',c:()=>S.stats.secBuys>=1,m:300,xp:5},
+ {id:'drop0',n:'Запишись на раффл',c:()=>!!(S.drop&&S.drop.entered)||S.stats.drops>0,m:200,xp:5},
+ {id:'chan',n:'Создай свой канал в Телеге',c:()=>S.tg.has,m:500,xp:15},
+ {id:'p10k',n:'Заработай 10 000 ₽ прибыли',c:()=>S.stats.profit>=1e4,m:1000,xp:40},
+ {id:'pz1',n:'Закажи вещь на Пойзоне',c:()=>S.stats.pzOrders>=1,m:1000,xp:20},
+ {id:'lot1',n:'Купи лот в личке',c:()=>S.stats.lots>=1,m:500,xp:20},
+ {id:'sub100',n:'100 подписчиков в канале',c:()=>S.tg.subs>=100,m:1500,xp:60},
+ {id:'order1',n:'Выполни заказ подписчика',c:()=>S.stats.orders>=1,m:2000,xp:80},
+ {id:'ad1',n:'Купи рекламу своего канала',c:()=>S.stats.ads>=1,m:500,xp:20},
+ {id:'sold10',n:'Продай 10 вещей',c:()=>S.stats.sold>=10,m:2000,xp:80},
+ {id:'rat',n:'Рейтинг 4.8 и 10+ отзывов',c:()=>S.reviews.length>=10&&rating()>=4.8,m:5000,xp:200},
+ {id:'nw100',n:'Капитал 100 000 ₽',c:()=>netWorth()>=1e5,m:5000,xp:200},
+ {id:'top8',n:'Войди в топ-8 перекупов Москвы',c:()=>myRank()<=8,m:5000,xp:200},
+ {id:'bulk',n:'Возьми партию от 5 штук',c:()=>S.stats.bulk>=1,m:3000,xp:150},
+ {id:'sub1k',n:'1 000 подписчиков',c:()=>S.tg.subs>=1000,m:10000,xp:300},
+ {id:'nw500',n:'Капитал 500 000 ₽',c:()=>netWorth()>=5e5,m:20000,xp:400},
+ {id:'lux',n:'Продай вещь из люкса',c:()=>S.stats.lux>=1,m:15000,xp:400},
+ {id:'drop1',n:'Выиграй раффл',c:()=>S.stats.drops>=1,m:3000,xp:300},
+ {id:'ord10',n:'Выполни 10 заказов подписчиков',c:()=>S.stats.orders>=10,m:20000,xp:600},
+ {id:'sold50',n:'Продай 50 вещей',c:()=>S.stats.sold>=50,m:30000,xp:800},
+ {id:'nw1m',n:'Капитал 1 000 000 ₽',c:()=>netWorth()>=1e6,m:40000,xp:800},
+ {id:'top3',n:'Войди в топ-3 перекупов Москвы',c:()=>myRank()<=3,m:80000,xp:1500},
+ {id:'sub10k',n:'10 000 подписчиков',c:()=>S.tg.subs>=1e4,m:80000,xp:1200},
+ {id:'show',n:'Открой шоурум',c:()=>!!S.stor.show,m:80000,xp:1500},
+ {id:'sold200',n:'Продай 200 вещей',c:()=>S.stats.sold>=200,m:150000,xp:2500},
+ {id:'nw5m',n:'Капитал 5 000 000 ₽',c:()=>netWorth()>=5e6,m:250000,xp:3000},
+ {id:'top1',n:'Стань №1 среди перекупов Москвы',c:()=>myRank()===1,m:400000,xp:4000},
+ {id:'brand',n:'Запусти свой бренд',c:()=>!!S.flags.brand,m:0,xp:5000}];
+function checkMissions(){for(const ms of MISSIONS)if(!S.done[ms.id]&&ms.c()){S.done[ms.id]=S.t;if(ms.m)earn(ms.m,'Награда: '+ms.n);notify('goals','Цель выполнена',ms.n+(ms.m?' · +'+rub(ms.m):''))}}
+
+/* ================= UI CORE ================= */
+let bannerRoute=null,bannerTimer=null,lastKey='';
+let nq=[],nCur=null;
+function showBanner(n){const b=$('#banner');const ap=n.route?(n.route.startsWith('chan:')?'tg':n.route.split('/')[0]):'settings';const a=APP[ap]||APP.tg;nCur=n;bannerRoute=n.route;
+ b.innerHTML=`<div class="bi" style="background:${a.bg}">${icon(a.id)}</div><div>${n.title?`<b>${esc(n.title)}</b>`:''}<span>${esc(n.text)}</span>${nq.length?`<small class="muted">ещё ${nq.length}</small>`:''}</div>`;b.hidden=false;
+ clearTimeout(bannerTimer);bannerTimer=setTimeout(hideBanner,n.dur||(nq.length?3000:4200))}
+function hideBanner(){$('#banner').hidden=true;nCur=null;clearTimeout(bannerTimer);if(nq.length)bannerTimer=setTimeout(()=>{if(!nCur&&nq.length)showBanner(nq.shift())},250)}
+function notify(route,title,text){if(S){S.nlog=S.nlog||[];S.nlog.unshift({id:(S.nid=(S.nid||0)+1),route,title,text,t:S.t});if(S.nlog.length>60)S.nlog.length=60;if(!$('#nc').hidden)ncFill()}if(nq.some(n=>n.route===route&&n.title===title&&n.text===text))return;nq.push({route,title,text});if(nq.length>12)nq.splice(0,nq.length-12);if(!nCur)showBanner(nq.shift())}
+function toast(x){if(nCur&&!nCur.toast)nq.unshift(nCur);showBanner({route:null,title:'',text:x,dur:2400,toast:1})}
+function modal(html){const m=$('#modal');m.innerHTML=`<div class="sheet" role="dialog">${html}</div>`;m.hidden=false}
+function closeModal(){$('#modal').hidden=true;$('#modal').innerHTML=''}
+function go(app,view='main',id=null,push=true){if(push&&S.ui.app)S.ui.stack.push([S.ui.app,S.ui.view,S.ui.id]);if(!app)S.ui.stack=[];
+ S.ui.app=app;S.ui.view=view;S.ui.id=id;if(view==='main')S.ui.lim=30;render()}
+function goRoute(r){if(r.startsWith('chan:')){S.ui.cid=r.slice(5);go('tg','chan',null);return}const [a,v,i]=r.split('/');go(a,v||'main',i?+i:(v&&isNaN(+v)?null:null))}
+function back(){const p=S.ui.stack.pop();if(p){S.ui.app=p[0];S.ui.view=p[1];S.ui.id=p[2];render()}else go(null)}
+function render(){const sc=$('#screen'),st=$('#status');
+ const key=S.ui.app+'/'+S.ui.view+'/'+S.ui.id;const pb=sc.querySelector('.body');const keep=key===lastKey&&pb?pb.scrollTop:0;
+ st.className=S.ui.app?'dark':'light';$('#homebar').className=S.ui.app?'':'light';
+ st.innerHTML=`<button class="clock" id="sclock" data-a="timeSheet" aria-label="Время">${clock()}</button><div class="r"><span>5G</span><span class="bat"><i></i></span></div>`;
+ sc.innerHTML=S.ui.app?appHTML():homeHTML();
+ const body=sc.querySelector('.body');if(body){if(S.ui.view==='thread')body.scrollTop=body.scrollHeight;else body.scrollTop=keep}
+ lastKey=key}
+function appHTML(){const a=APP[S.ui.app];const V=VIEWS[S.ui.app](S.ui.view,S.ui.id)||{};
+ return `<div class="app" style="--acc:${a.bg};--acc-ink:${a.ink||'#fff'};--acc-txt:${a.id==='bank'?'#8a6d00':a.bg}"><div class="ah"><button class="bk" data-a="back" aria-label="Назад">‹</button><h1>${V.t||a.n}</h1><div class="rt">${V.r||''}</div></div>
+ ${V.tabs||''}<div class="body">${V.b||''}</div>${V.f?`<div class="af">${V.f}</div>`:''}</div>`}
+function homeHTML(){const r=rating(),h=hourOf();
+ const badge=id=>{let n=0;if(id==='avito')n=unreadOf('avito');if(id==='tg')n=unreadOf('tg')+chanUnread();if(id==='shop')n=S.sp;if(id==='shkaf')n=S.items.filter(i=>i.prot>S.t&&i.k==='?').length;return n?`<span class="badge">${n>99?'99+':n}</span>`:''};
+ const ico=a=>`<button class="ico" data-a="open_app" data-id="${a.id}"><div class="sq" style="background:${a.bg}">${icon(a.id)}</div><span>${a.n}</span>${badge(a.id)}</button>`;
+ const tips=[];const nm=MISSIONS.find(m=>!S.done[m.id]);if(nm)tips.push(`<button class="tip" data-a="open_app" data-id="goals">${icon('goals')}<span>Цель: <b>${nm.n}</b></span></button>`);
+ if(S.ban>S.t)tips.push(`<button class="tip" data-a="open_app" data-id="avito">${icon('avito')}<span>Авитка заблокирована до ${dateStr(S.ban)}</span></button>`);
+ if(dateObj().getDay()===1&&h<16)tips.push(`<button class="tip" data-a="open_app" data-id="second">${icon('second')}<span>${h<10?'Сегодня в 10:00 завоз в секонде':'В секонде завоз — хорошее разбирают'}</span></button>`);
+ if(S.drop&&!S.drop.done&&!S.drop.entered)tips.push(`<button class="tip" data-a="openChan" data-k="drops">${icon('tg')}<span>Раффл: <b>${esc(MODELS[S.drop.m].b+' '+MODELS[S.drop.m].n+' '+S.drop.name)}</b> · запись до ${dateStr(S.drop.at)}</span></button>`);
+ const forSale=S.items.filter(i=>i.sale).length;
+ return `<div class="home"><div class="widget">
+  <div class="w-top"><div><div class="w-label">${dateStr()}</div><div class="w-money" id="hclock">${clock()}</div></div>
+  <div class="w-stats"><span>${r==null?'нет отзывов':'★ '+r.toFixed(2)} · ур. ${S.lvl}</span><span>Шкаф ${S.items.length}/${capacity()} · в продаже ${forSale}</span>${S.ships.length||S.tg.has?`<span>${S.ships.length?'посылок '+S.ships.length:''}${S.ships.length&&S.tg.has?' · ':''}${S.tg.has?fmtN(S.tg.subs)+' подп.':''}</span>`:''}</div></div>
+  <div class="w-btns"><button data-a="wait" data-h="1">+1 ч</button><button data-a="wait" data-h="3">+3 ч</button>${h<19&&h>=7?`<button data-a="wait" data-h="${19-h}">До 19:00</button>`:''}<button class="sl" data-a="sleep">Спать</button></div>
+ </div>
+ <div class="grid">${APPS.map(ico).join('')}</div><div class="tips">${tips.join('')}</div></div>
+ <div class="dock">${['avito','tg','shkaf','bank'].map(id=>ico(APP[id])).join('')}</div>`}
+
+/* ================= COMPONENTS ================= */
+const ava=(name,i=0)=>{const c=['#e07a5f','#3d85c6','#6aa84f','#8e7cc3','#c27ba0','#e69138','#45818e','#7a46d6'];return `<div class="ava" style="background:${c[(name.charCodeAt(0)+i)%c.length]}">${esc(name[0])}</div>`};
+function authTag(it){if(it.k==='o')return '<span class="tag g">Ориг ✓</span>';if(it.k==='f')return '<span class="tag r">Паль</span>';if(it.hint==='f')return '<span class="tag y">Похоже на паль</span>';if(it.hint==='o')return '<span class="tag b">Похоже на ориг</span>';if(it.look==='?')return '<span class="tag">Не понять</span>';return '<span class="tag">Не проверено</span>'}
+function liqTag(i){const l=liq(i);return l>=85?`<span class="tag g">Ликвид ${l}%</span>`:l<=25?`<span class="tag">Неликвид</span>`:''}
+const sizeTxt=it=>it.size==='One size'?'one size':it.size;
+
+/* ================= VIEWS ================= */
+const VIEWS={};
+/* ---------- AVITKA ---------- */
+function lcard(l){const it=l.it,s=l.seller,cheap=l.ask<l.avg*.78;
+ const tags=[l.mode==='ship'?'<span class="tag b">Только доставка</span>':l.mode==='meet'?'<span class="tag">Только встреча</span>':'<span class="tag b">Доставка</span>'];if(l.decl==='f')tags.push('<span class="tag r">Реплика</span>');if(cheap)tags.push('<span class="tag g">Дёшево</span>');if(s.type==='reseller'||s.type==='replica')tags.push('<span class="tag">Магазин</span>');if(l.th)tags.push('<span class="tag b">Чат</span>');if(it.hint||it.k!=='?')tags.push(authTag(it));
+ return `<button class="lcard" data-a="go" data-r="avito/item/${l.id}"><div class="thumb">${itemSVG(it)}</div><div class="li"><div class="lt">${iName(it)}</div><div class="lp">${rub(s.agreed?s.cur:l.ask)}</div><div class="lm">${sizeTxt(it)} · ${COND[it.cond].s}</div><div class="lm">${l.mode==='ship'?esc(l.city):'м. '+esc(l.metro)} · ${ago(l.t)}</div><div class="tags">${tags.join('')}</div></div></button>`}
+VIEWS.avito=(v,id)=>{const un=unreadOf('avito');
+ const tabs=`<div class="tabs"><button class="${v==='main'?'on':''}" data-a="nav" data-r="avito/main">Поиск</button><button class="${v==='mine'?'on':''}" data-a="nav" data-r="avito/mine">Мои</button><button class="${v==='chats'?'on':''}" data-a="nav" data-r="avito/chats">Чаты${un?`<span class="n">${un}</span>`:''}</button></div>`;
+ if(v==='item')return avitoItem(id);
+ if(v==='thread')return threadView(id);
+ if(v==='chats'){const T=S.threads.filter(t=>t.plat==='avito'&&visTh(t)).sort((a,b)=>b.last-a.last);return {tabs,b:T.map(thRow).join('')||'<div class="empty">Чатов пока нет</div>'}}
+ if(v==='mine'){const I=S.items.filter(i=>i.sale&&i.sale.avito);const r=rating();
+  const head=`<div class="card"><div class="row sp"><h3>Мой профиль</h3><span class="stars">${r==null?'нет отзывов':'★ '+r.toFixed(2)}</span></div><div class="muted">${S.reviews.length} отзывов · жалоб ${S.complaints} из 3${S.ban>S.t?` · <b class="neg">заблокирован до ${dateStr(S.ban)}</b>`:''}. Чем выше рейтинг, тем чаще пишут покупатели.</div>${trusted()?'<span class="tag g">Надёжный продавец · +20% покупателей</span>':'<div class="muted">Значок «Надёжный продавец» дают за 15+ отзывов и рейтинг от 4.8.</div>'}<div class="muted">Объявления со временем опускаются в поиске — поднимай их в карточке вещи.</div></div>`;
+  return {tabs,b:head+(I.map(it=>`<button class="lcard" data-a="go" data-r="shkaf/item/${it.id}"><div class="thumb">${itemSVG(it)}</div><div class="li"><div class="lt">${iName(it)}</div><div class="lp">${rub(it.sale.price)}</div><div class="lm">${it.sale.views} просмотров · ${ago(it.sale.t)}</div><div class="tags">${it.sale.orig?'':'<span class="tag r">Реплика</span>'}${it.sale.boost>S.t?'<span class="tag g">Поднято</span>':S.t-Math.max(it.sale.t,it.sale.up||0)>48?'<span class="tag y">Опустилось в поиске</span>':''}</div></div></button>`).join('')||'<div class="empty">Нет объявлений. Выставить вещь можно из «Шкафа».<button class="btn sm" data-a="go" data-r="shkaf/main">Открыть Шкаф</button></div>')}}
+ const f=S.filt,q=(f.q||'').toLowerCase().trim();
+ let L=S.list.filter(l=>{const m=MODELS[l.it.m];if(f.cat!=='all'&&m.cat!==f.cat)return false;if(f.m!=='all'&&l.it.m!==+f.m)return false;if(f.size!=='all'&&l.it.size!==f.size)return false;
+  if(f.mode==='ship'&&l.mode==='meet')return false;if(f.mode==='meet'&&l.mode==='ship')return false;if(q&&!(m.b+' '+m.n+' '+CAT[m.cat].n).toLowerCase().includes(q))return false;return true});
+ const sorts={new:(a,b)=>b.t-a.t,cheap:(a,b)=>a.ask-b.ask,exp:(a,b)=>b.ask-a.ask,deal:(a,b)=>a.ask/a.avg-b.ask/b.avg};L.sort(sorts[f.sort]||sorts.new);
+ const ms=MODELS.filter(m=>f.cat==='all'||m.cat===f.cat).sort((a,b)=>(a.b+' '+a.n).localeCompare(b.b+' '+b.n,'ru'));
+ const sizes=f.cat==='all'?[...SZ.cl,...SZ.sh,'One size']:SZ[CAT[f.cat].sz];
+ const any=f.q||f.m!=='all'||f.size!=='all'||f.mode!=='all'||f.cat!=='all';
+ const b=`<div class="offer"><input class="inp" id="aq" type="search" placeholder="Поиск: Данки, Стусси, худи…" value="${esc(f.q||'')}" aria-label="Поиск по объявлениям"><button class="btn" data-a="aSearch">Найти</button></div>
+ <div class="chips"><button class="chip ${f.cat==='all'?'on':''}" data-a="fCat" data-s="all">Все категории</button>${Object.entries(CAT).map(([k,c])=>`<button class="chip ${f.cat===k?'on':''}" data-a="fCat" data-s="${k}">${c.n}</button>`).join('')}</div>
+ <div class="filters2"><select class="sel" id="fModel" data-c="fModel" aria-label="Модель"><option value="all">Все модели</option>${ms.map(m=>`<option value="${m.i}"${String(f.m)===String(m.i)?' selected':''}>${m.b} ${m.n}</option>`).join('')}</select>
+ <select class="sel" id="fSize" data-c="fSize" aria-label="Размер"><option value="all">Любой размер</option>${sizes.map(z=>`<option value="${z}"${f.size===z?' selected':''}>${z}</option>`).join('')}</select>
+ <select class="sel" id="fMode" data-c="fMode" aria-label="Способ получения">${[['all','Доставка и встреча'],['ship','С доставкой'],['meet','Личная встреча']].map(([k,n])=>`<option value="${k}"${f.mode===k?' selected':''}>${n}</option>`).join('')}</select>
+ <select class="sel" id="fSort" data-c="fSort" aria-label="Сортировка">${[['new','Сначала новые'],['deal','Сначала выгодные'],['cheap','Дешевле'],['exp','Дороже']].map(([k,n])=>`<option value="${k}"${f.sort===k?' selected':''}>${n}</option>`).join('')}</select></div>
+ <div class="row sp"><span class="muted">${L.length} объявлений</span>${any?'<button class="btn ghost sm" data-a="fReset">Сбросить</button>':''}</div>
+ ${L.slice(0,S.ui.lim).map(lcard).join('')||'<div class="empty">Ничего не нашлось. Измени фильтры — новые объявления появляются каждый час.</div>'}${L.length>S.ui.lim?'<button class="btn sec full" data-a="more">Показать ещё</button>':''}`;
+ return {tabs,b}};
+function avitoItem(id){const l=getL(id);if(!l)return {t:'Объявление',b:'<div class="empty">Объявление снято с публикации.</div>'};
+ const it=l.it,s=l.seller,m=MODELS[it.m],price=s.agreed?s.cur:l.ask;
+ const notes=[];if(l.photos)notes.push(`<div class="muted">📷 ${esc(l.photoNote)}</div>`);if(it.hint&&it.k==='?')notes.push(`<div class="muted">👁 ${it.hint==='f'?'На осмотре тебе показалось, что это паль.':'На осмотре вещь выглядела как оригинал.'}</div>`);if(l.lc)notes.push(`<div class="muted">🔎 Легит-чек по фото: <b class="${it.k==='o'?'pos':'neg'}">${it.k==='o'?'оригинал':'паль'}</b></div>`);
+ const fee=Math.max(199,Math.round(price*.05));
+ const b=`<div class="photo">${itemSVG(it)}<div class="stk">${l.decl==='f'?'<span class="tag r">Реплика</span>':''}${authTag(it)}</div></div>
+ <div class="card"><h3>${iName(it)}</h3><div class="money" style="font-size:26px">${rub(price)}</div>${s.agreed?`<div class="muted">Договорились · в объявлении ${rub(l.ask)}</div>`:''}
+  <div class="muted">Похожие ${l.decl==='f'?'реплики':'вещи'} на Авитке продаются в среднем за ${rub(l.avg)}</div></div>
+ <div class="card"><div class="spec"><div><span>Размер</span>${sizeTxt(it)}</div><div><span>Состояние</span>${COND[it.cond].n}</div><div><span>Категория</span>${CAT[m.cat].n}</div><div><span>Сегмент</span>${TIER[m.tier].n}</div><div><span>Где</span>${l.mode==='ship'?esc(l.city):'Москва, м. '+esc(l.metro)}</div><div><span>Получение</span>${l.mode==='ship'?'только доставка':l.mode==='meet'?'только встреча':'доставка или встреча'}</div></div></div>
+ <div class="card"><h3>Описание</h3><p style="margin:0;font-size:14px;line-height:1.45">${esc(l.desc)}</p>${notes.join('')}</div>
+ <div class="card seller">${ava(s.name)}<div style="flex:1;min-width:0"><b>${esc(s.name)}</b><div class="muted">${STYPES[s.type].n} · на Авитке с ${s.since}${s.type==='scam'?' · 0 отзывов':''}</div></div></div>
+ ${l.photos&&!l.lc?`<button class="btn sec full btn split" data-a="lcListing" data-id="${l.id}"><span>Легит-чек по фото · 1 ч</span><span>${rub(legitCost(it))}</span></button>`:''}`;
+ const cs=l.mode!=='meet',cm=l.mode!=='ship';
+ const f=`<div class="row"><button class="btn sec" style="flex:1" data-a="openSellerChat" data-id="${l.id}">Написать</button>${cs?`<button class="btn" style="flex:1" data-a="buyDelivery" data-id="${l.id}">Купить с доставкой</button>`:`<button class="btn" style="flex:1" data-a="meet" data-id="${l.id}">Встретиться · 2 ч</button>`}</div>${cs&&cm?`<button class="btn ghost" data-a="meet" data-id="${l.id}">Встретиться у м. ${esc(l.metro)} · 2 ч</button>`:''}<div class="muted" style="text-align:center">${cs?`Доставка: +${rub(fee)} комиссия, ${l.mode==='ship'?'2–4 дня':'1–2 дня'}, защита покупателя 24 ч`:'Продавец не отправляет. Встреча у метро — вещь можно рассмотреть'}</div>`;
+ return {t:'Объявление',b,f}}
+function thRow(th){const lm=th.msgs[th.msgs.length-1];const cx=th.kind!=='mentor'&&th.kind!=='claim';return `<div class="thw">${cx?`<button class="thx" data-a="thClose" data-id="${th.id}" aria-label="Закрыть диалог">×</button>`:''}<button class="th${cx?' hasx':''}" data-a="go" data-r="${th.plat}/thread/${th.id}">${ava(th.name,th.id)}<div style="min-width:0"><div class="nm">${esc(th.name)}${th.sub?` <span class="muted">· ${esc(th.sub)}</span>`:''}</div><div class="pv">${lm?(lm.f==='me'?'Вы: ':'')+esc(lm.x):''}</div></div>${th.unread?`<span class="ub">${th.unread}</span>`:th.closed?'<span class="muted">✓</span>':''}</button></div>`}
+function threadView(id){const th=getT(id);if(!th)return {t:'Чат',b:''};th.unread=0;let ctx='';
+ if(th.kind==='aseller'){const l=getL(th.ref);if(l)ctx=`<button class="chatctx" data-a="go" data-r="avito/item/${l.id}"><div class="thumb">${itemSVG(l.it)}</div><div><b>${iName(l.it)}</b><div class="muted">${rub(l.seller.cur)} · ${sizeTxt(l.it)}</div></div></button>`}
+ if(th.kind==='abuyer'||th.kind==='tbuyer'){const it=getI(th.b.item);if(it)ctx=`<button class="chatctx" data-a="go" data-r="shkaf/item/${it.id}"><div class="thumb">${itemSVG(it)}</div><div><b>${iName(it)}</b><div class="muted">${sizeTxt(it)} · твоя цена ${it.sale?rub(it.sale.price):'—'}</div></div></button>`}
+ const b=ctx+`<div class="chat">${th.msgs.map(m=>`<div class="bub ${m.f}">${esc(m.x)}</div>`).join('')}</div>`;
+ return {t:esc(th.name),r:'',b,f:threadFoot(th)}}
+function threadFoot(th){
+ if(th.kind==='mentor'||th.kind==='sys')return '';
+ if(th.closed)return '<div class="muted" style="text-align:center">Переписка закрыта</div>';
+ if(th.kind==='aseller'){const l=getL(th.ref);if(!l)return '<div class="muted" style="text-align:center">Объявление снято</div>';const s=l.seller;
+  if(s.blocked)return '<div class="muted" style="text-align:center">Продавец тебя заблокировал</div>';
+  const q=[['act','Актуально?'],['orig','Оригинал?'],['photo','Фото бирок?'],['why','Почему так дёшево?']].filter(([k])=>!s.asked[k]);
+  return `${th.scam?`<button class="btn bad full" data-a="scamPay" data-id="${l.id}">Перевести ${rub(s.cur)} на карту продавца</button>`:''}<div class="chips">${q.map(([k,n])=>`<button class="chip" data-a="askSeller" data-id="${l.id}" data-q="${k}">${n}</button>`).join('')}</div>
+  <div class="offer"><input class="inp num" id="offer" inputmode="numeric" placeholder="Ваша цена, ₽" value="${rp(s.cur*.85)}"><button class="btn" data-a="offerSeller" data-id="${l.id}">Предложить</button></div>
+  <div class="row">${l.mode!=='meet'?`<button class="btn ${s.agreed?'good':'sec'}" style="flex:1" data-a="buyDelivery" data-id="${l.id}">Доставкой${s.agreed?' за '+rub(s.cur):''}</button>`:''}${l.mode!=='ship'?`<button class="btn ${s.agreed&&l.mode==='meet'?'good':'sec'}" style="flex:1" data-a="meet" data-id="${l.id}">Встретиться${s.agreed&&l.mode==='meet'?' · '+rub(s.cur):''}</button>`:''}</div>`}
+ if(th.kind==='abuyer'||th.kind==='tbuyer'){const b=th.b,it=getI(b.item);if(!it)return '';
+  if(b.phish)return `<button class="btn bad full" data-a="phishGo" data-id="${th.id}">Перейти по ссылке</button><button class="btn sec full" data-a="phishNo" data-id="${th.id}">Это развод, заблокировать</button>`;
+  if(b.agreed)return `<button class="btn good full" data-a="bsend" data-id="${th.id}">${th.plat==='tg'?'Получить оплату и отправить СДЭКом':'Отправить Авитка Доставкой'} · ${rub(b.price)}</button><button class="btn ghost" data-a="bdecline" data-id="${th.id}">Передумать</button>`;
+  return `<div class="row"><button class="btn good" style="flex:1" data-a="baccept" data-id="${th.id}">Согласен на ${rub(b.offer)}</button><button class="btn sec" data-a="bdecline" data-id="${th.id}">Нет</button></div>
+  <div class="offer"><input class="inp num" id="offer" inputmode="numeric" placeholder="Своя цена, ₽" value="${rp((b.offer+it.sale.price)/2)}"><button class="btn" data-a="bcounter" data-id="${th.id}">Ответить</button></div>`}
+ if(th.kind==='deal'){const o=th.o;return `<div class="muted" style="text-align:center">Предложение в силе до ${clock(o.exp)}, ${dateStr(o.exp)}</div><button class="btn full" data-a="dealTake" data-id="${th.id}">Забрать за ${rub(o.price)} · 1 ч</button><div class="row">${o.haggle?'':`<button class="btn sec" style="flex:1" data-a="dealHaggle" data-id="${th.id}">Скинь 15%</button>`}<button class="btn sec" style="flex:1" data-a="dealNo" data-id="${th.id}">Отказаться</button></div>`}
+ if(th.kind==='order'){const o=th.o,mt=orderMatch(o),m=MODELS[o.m];return `<div class="muted" style="text-align:center">Нужно: ${m.b} ${m.n}, ${o.size}, новые или как новые · до ${dateStr(o.exp)}</div>${mt.map(it=>`<button class="btn full btn split" data-a="orderGive" data-id="${th.id}" data-it="${it.id}"><span>Отдать: ${COND[it.cond].s}${it.k==='o'?' · ориг ✓':''}</span><span>${rub(o.budget)}</span></button>`).join('')||`<button class="btn sec full" data-a="orderFind" data-m="${o.m}">Найти на Пойзоне</button>`}<button class="btn ghost" data-a="orderNo" data-id="${th.id}">Отказаться</button>`}
+ if(th.kind==='claim'){const d=dealById(th.deal);return `<div class="muted" style="text-align:center">Если не ответишь до ${clock(th.exp)}, ${dateStr(th.exp)} — покупатель сочтёт это отказом</div><button class="btn full" style="background:var(--good);color:#fff" data-a="claimRefund" data-id="${th.id}">Вернуть ${d?rub(d.price):''} и забрать вещь</button><button class="btn bad full" data-a="claimRefuse" data-id="${th.id}">Отказать</button>`}
+ return ''}
+
+/* ---------- TELEGA ---------- */
+const CHN={news:{n:'Хайп-радар 📡',col:'#2a9fd6',about:'Каждое утро — что сейчас в ликвиде, плюс инсайды рынка. PRO-подписка присылает топ-5 вещей, которые скоро будут в ликвиде.'},drops:{n:'Дропы и раффлы 🎟',col:'#d94a2a',about:'Лимитированные релизы. Записываешься в раффл и, если повезёт, выкупаешь по ретейлу.'},pro:{n:'Хайп-радар PRO 🔒',col:'#1b4f8a',about:'Полная таблица ликвидности по всем моделям. 1 490 ₽ в неделю.'}};
+function chanMeta(k){return SUP[k]||CHN[k]}
+VIEWS.tg=(v,id)=>{
+ if(v==='thread')return threadView(id);
+ if(v==='chan')return chanView(S.ui.cid);
+ if(v==='own')return ownView();
+ const rows=[];
+ rows.push(S.tg.has?`<button class="th" data-a="go" data-r="tg/own">${`<div class="ava" style="background:#7a46d6">${esc(S.tg.name[0]||'М')}</div>`}<div style="min-width:0"><div class="nm">${esc(S.tg.name)} <span class="muted">· мой канал</span></div><div class="pv">${fmtN(S.tg.subs)} подписчиков · доверие ${Math.round(S.tg.trust)}</div></div><span></span></button>`
+  :`<button class="th" data-a="createChan"><div class="ava" style="background:#7a46d6">+</div><div style="min-width:0"><div class="nm">Создать свой канал</div><div class="pv">Продавай подписчикам без комиссии</div></div><span></span></button>`);
+ const keys=['news','drops',...Object.keys(SUP)];
+ const chans=[];for(const k of keys){const c=S.chan[k],meta=chanMeta(k),p=c.posts[0];chans.push({last:p?p.t:0,html:`<button class="th" data-a="openChan" data-k="${k}"><div class="ava" style="background:${meta.col}">${esc(meta.n[0])}</div><div style="min-width:0"><div class="nm">${esc(meta.n)}</div><div class="pv">${p?esc(p.x.split('\n')[0]):''}</div></div>${c.unread?`<span class="ub">${c.unread}</span>`:''}</button>`})}
+ chans.sort((a,b)=>b.last-a.last);
+ const chats=S.threads.filter(t=>t.plat==='tg'&&t.kind!=='mentor'&&visTh(t)).sort((a,b)=>b.last-a.last);
+ const tm=S.threads.find(t=>t.kind==='mentor'),lm=tm&&tm.msgs[tm.msgs.length-1];
+ const pin=tm?`<button class="th" data-a="go" data-r="tg/thread/${tm.id}" style="background:#eef6fc">${ava(tm.name,tm.id)}<div style="min-width:0"><div class="nm">📌 ${esc(tm.name)} <span class="muted">· закреплён</span></div><div class="pv">${lm?esc(lm.x):''}</div></div>${tm.unread?`<span class="ub">${tm.unread}</span>`:''}</button>`:'';
+ const tab=S.ui.tgTab||'chats',nChats=S.threads.filter(t=>t.plat==='tg'&&t.unread>0).length,nCh=chanUnread();
+ const tabs=`<div class="tabs"><button class="${tab==='chats'?'on':''}" data-a="tgTab" data-s="chats">Чаты${nChats?`<span class="n">${nChats}</span>`:''}</button><button class="${tab==='chans'?'on':''}" data-a="tgTab" data-s="chans">Каналы${nCh?`<span class="n">${nCh}</span>`:''}</button></div>`;
+ if(tab==='chans')return {t:'Телега',tabs,b:rows.join('')+chans.map(x=>x.html).join('')};
+ return {t:'Телега',tabs,b:pin+(chats.map(thRow).join('')||'<div class="empty">Клиентов пока нет. Заведи канал и выставляй вещи — подписчики начнут писать сюда.</div>')}};
+function chanView(k){const c=S.chan[k],meta=chanMeta(k);if(!c)return {t:'Канал'};c.unread=0;
+ const head=`<div class="card"><div class="seller"><div class="ava" style="background:${meta.col}">${esc(meta.n[0])}</div><div style="min-width:0"><b>${esc(meta.n)}</b><div class="muted">${esc(meta.about)}</div></div></div></div>`;
+ if(k==='pro'){if(S.tg.pro<=S.t)return {t:meta.n,b:head+`<div class="card"><h3>Платный канал</h3><div class="muted">Внутри — ликвидность каждой модели и динамика за день. Видно, что разгоняется, ещё до того, как это попадёт в общую сводку.</div><button class="btn full" data-a="buyPro">Подписаться · 1 490 ₽ на 7 дней</button></div>`};
+  const rows=BRANDED.map(m=>{const x=S.H[m.i],l=Math.round(x.h*100),tr=x.hT-x.h;return {m,l,tr}}).sort((a,b)=>b.l-a.l);
+  return {t:meta.n,b:head+`<div class="card"><h3>Ликвидность на ${dateStr()}</h3><div class="muted">Стрелка — куда двигается тренд.</div>${rows.map(r=>`<div class="liq"><span>${r.m.b} ${r.m.n}</span><div class="bar"><i style="width:${r.l}%;background:${r.l>=80?'var(--good)':r.l<=25?'#b9b4c0':'var(--acc)'}"></i></div><b class="num">${r.l}% ${r.tr>.05?'<span class="pos">↑</span>':r.tr<-.05?'<span class="neg">↓</span>':''}</b></div>`).join('')}</div>`}}
+ if(k==='drops'){const D=S.drop;let card='';if(D&&!D.done){const m=MODELS[D.m],sizes=SZ[CAT[m.cat].sz],sz=D.size||S.ui.dropSize||sizes[Math.floor(sizes.length/2)],est=valueOrig({m:D.m,cond:0,lim:S.t});
+  card=`<div class="post"><div class="thumb">${itemSVG({m:D.m,col:(D.m*3+1)%COLS.length,cond:0})}</div><div class="pt"><b>${esc(m.b+' '+m.n+' '+D.name)}</b>\nЛимитированный релиз</div>
+  <div class="kv"><span>Цена по ретейлу</span><span>${rub(D.retail)}</span></div><div class="kv"><span>На ресейле после релиза</span><span>~${rub(est)}</span></div><div class="kv"><span>Итоги</span><span>${dateStr(D.at)}, 12:00</span></div><div class="kv"><span>Твой шанс</span><span>${Math.round(dropChance()*100)}%</span></div>
+  ${D.entered?`<div class="warn">Ты в списке, размер ${D.size}. Держи на карте ${rub(D.retail)} к ${dateStr(D.at)}, 12:00 — при победе спишут автоматически.</div>`:`<div class="szg">${sizes.map(z=>`<button class="szb ${z===sz?'on':''}" data-a="dropSize" data-s="${z}"><b>${z}</b></button>`).join('')}</div><button class="btn full" data-a="dropEnter" data-s="${sz}">Участвовать · 300 ₽</button><div class="muted">Шанс растёт с уровнем магазина, навыком «Связи» и с 1 000 подписчиков.</div>`}</div>`}
+  else card='<div class="empty">Сейчас раффлов нет. Новый откроется в воскресенье.</div>';
+  return {t:meta.n,b:head+card+c.posts.map(p=>`<div class="post"><div class="pt">${esc(p.x)}</div><div class="pm"><span>${dateStr(p.t)}, ${clock(p.t)}</span></div></div>`).join('')}}
+ if(k==='news')return {t:meta.n,b:head+(S.tg.pro>S.t?`<div class="card"><div class="row sp"><h3>PRO активна</h3><span class="tag g">до ${dateStr(S.tg.pro)}</span></div><div class="muted">Каждое утро в 9:00 приходит топ-5 вещей, которые будут в ликвиде.</div><button class="btn sec full" data-a="buyPro">Продлить на 7 дней · 1 490 ₽</button></div>`:`<div class="card"><h3>Хайп-радар PRO</h3><div class="muted">Бесплатно — только то, что в ликвиде уже сейчас. С подпиской каждое утро приходит топ-5 вещей, которые станут ликвидом в ближайшие дни, пока на Пойзоне они ещё дешёвые.</div><button class="btn full" data-a="buyPro">Подписаться · 1 490 ₽ на 7 дней</button></div>`)+c.posts.map(p=>`<div class="post"${p.pro?' style="box-shadow:inset 3px 0 0 #1b4f8a"':''}><div class="pt">${esc(p.x)}</div><div class="pm"><span>${dateStr(p.t)}, ${clock(p.t)}</span><span>👁 ${fmtN(12000+p.id*37%9000)}</span></div></div>`).join('')};
+ const C=SUP[k];
+ const posts=c.posts.map(p=>{const m=MODELS[p.m];const q=Math.max(C.minQ,Math.min(p.left,S.ui.qty[p.id]||C.minQ));const shipU=C.ship==='cargo'?cargo(m):0;const shipT=C.ship==='cargo'?shipU*q:C.ship;const tot=p.price*q+shipT;
+  return `<div class="post"><div class="thumb">${itemSVG({m:p.m,col:p.col,cond:p.cond})}</div><div class="pt">${esc(p.x)}</div>
+  <div class="row sp"><span class="money" style="font-size:18px">${rub(p.price)}${C.minQ>1?'<span class="muted" style="font-family:var(--f-ui)"> / шт</span>':''}</span><span class="muted">${C.kind==='rep'?'':liqTag(p.m)} в наличии ${p.left}</span></div>
+  <div class="muted">${C.kind==='rep'?`Карго ${rub(shipU)}/шт · ${C.eta[0]}–${C.eta[1]} дней · от ${C.minQ} шт`:`Доставка ${rub(C.ship)} · ${C.eta[0]}–${C.eta[1]} дн${C.minQ>1?' · от '+C.minQ+' шт':''}`}${C.kind!=='rep'?` · на Авитке ~${rub(valueOrig({m:p.m,cond:p.cond}))}`:''}</div>
+  <div class="row sp">${p.left>C.minQ?`<div class="stepper"><button data-a="qty" data-id="${p.id}" data-d="-1" aria-label="Меньше">−</button><b>${q}</b><button data-a="qty" data-id="${p.id}" data-d="1" aria-label="Больше">+</button></div>`:`<span class="muted">${q} шт</span>`}<button class="btn sm" data-a="buyPost" data-k="${k}" data-id="${p.id}">Купить · ${rub(tot)}</button></div>
+  <div class="pm"><span>${ago(p.t)}</span><span>${p.size?'размер '+p.size:'размеры вразброс'}</span></div></div>`}).join('');
+ return {t:meta.n,b:head+(posts||'<div class="empty">Новых постов пока нет. Поставщики постят днём.</div>')}}
+function ownView(){const T=S.tg;const forTg=S.items.filter(i=>i.sale&&i.sale.tg);
+ const canTrend=S.t-T.trendPost>=20;
+ const b=`<div class="hero" style="background:#7a46d6"><div class="w-label" style="opacity:.8">Мой канал</div><div style="font-family:var(--f-disp);font-size:20px">${esc(T.name)}</div><div class="money">${fmtN(T.subs)} <span style="font-family:var(--f-ui);font-size:14px">подписчиков</span></div><div style="font-size:12.5px;opacity:.9">Доверие ${Math.round(T.trust)}/100 · ${S.t-T.last>48?'давно не было постов — люди отписываются':'последний пост '+ago(T.last)}</div></div>
+ <div class="card"><h3>Что постить</h3><div class="muted">Канал живёт, пока ты постишь. Без постов дольше двух дней подписчики уходят. Покупатели из канала не торгуются так жёстко, комиссии нет.</div>
+  <button class="btn full" data-a="go" data-r="shkaf/main">Выставить вещь из Шкафа</button>
+  <button class="btn sec full btn split" data-a="trendPost" ${canTrend?'':'disabled'}><span>Пост-обзор трендов · 1 ч</span><span>${canTrend?'+подписчики':'завтра'}</span></button>
+  <button class="btn sec full" data-a="giveaway">Розыгрыш вещи</button></div>
+ <div class="card"><h3>Реклама в каналах</h3><div class="muted">Подписчики приходят в течение суток. Чем лучше канал попадает в аудиторию, тем больше людей останется.</div>
+  ${ADS.map((a,i)=>`<button class="btn sec full btn split" data-a="buyAd" data-i="${i}"><span>${a.n} · ${fmtN(a.subs)}</span><span>${rub(a.price)}</span></button>`).join('')}
+  ${T.ads.length?`<div class="muted">Сейчас идёт реклама: ещё придёт ~${fmtN(T.ads.reduce((x,a)=>x+a.left,0))} подписчиков</div>`:''}</div>
+ <div class="card"><h3>В продаже в канале · ${forTg.length}</h3>${forTg.map(it=>`<button class="btn sec full btn split" data-a="go" data-r="shkaf/item/${it.id}"><span>${iName(it)} · ${sizeTxt(it)}</span><span>${rub(it.sale.price)}</span></button>`).join('')||'<div class="muted">Пусто</div>'}</div>
+ <div class="muted">Лента канала</div>
+ ${T.posts.slice(0,20).map(p=>`<div class="post"><div class="pt">${esc(p.x)}</div><div class="pm"><span>${dateStr(p.t)}, ${clock(p.t)}</span><span>👁 ${fmtN(Math.round(T.subs*rnd(.25,.45)))}</span></div></div>`).join('')}`;
+ return {t:'Мой канал',b}}
+
+/* ---------- POIZON ---------- */
+VIEWS.poizon=(v,id)=>{
+ if(v==='item')return pzItem(id);
+ const f=S.pzf,q=(f.q||'').toLowerCase().trim();
+ let L=MODELS.filter(m=>(f.cat==='all'||m.cat===f.cat)&&(f.tier==='all'||m.tier===f.tier)&&(!q||(m.b+' '+m.n+' '+CAT[m.cat].n).toLowerCase().includes(q)));
+ const so={pop:(a,b)=>H(b.i)-H(a.i),cheap:(a,b)=>pzFrom(a)-pzFrom(b),exp:(a,b)=>pzFrom(b)-pzFrom(a)};L.sort(so[f.sort]||so.pop);
+ const b=`<div class="card" style="background:#141414;color:#fff"><div class="row sp"><b>Курс юаня</b><span class="money">${S.fx.toFixed(2)} ₽</span></div><div style="font-size:12.5px;opacity:.8">Все модели, все размеры. Каждую вещь проверяют на подлинность в Китае: только оригинал, новое с бирками. Доставка ${pzEta()[0]}–${pzEta()[1]} дней.${S.lvl>=4?' Опт от 5 шт: −10% и доставка дешевле.':' Опт откроется на 4 уровне.'}</div></div>
+ <div class="offer"><input class="inp" id="pq" type="search" placeholder="Поиск: Самбы, Нупси, Таби…" value="${esc(f.q||'')}" aria-label="Поиск по моделям"><button class="btn" data-a="pSearch">Найти</button></div>
+ <div class="chips"><button class="chip ${f.cat==='all'?'on':''}" data-a="pzfCat" data-s="all">Всё</button>${Object.entries(CAT).map(([k,c])=>`<button class="chip ${f.cat===k?'on':''}" data-a="pzfCat" data-s="${k}">${c.n}</button>`).join('')}</div>
+ <div class="filters2"><select class="sel" id="pzTier" data-c="pzTier" aria-label="Сегмент"><option value="all">Все сегменты</option>${Object.entries(TIER).map(([k,t])=>`<option value="${k}"${f.tier===k?' selected':''}>${t.n}</option>`).join('')}</select>
+ <select class="sel" id="pzSort" data-c="pzSort" aria-label="Сортировка">${[['pop','Популярные'],['cheap','Дешевле'],['exp','Дороже']].map(([k,n])=>`<option value="${k}"${f.sort===k?' selected':''}>${n}</option>`).join('')}</select></div>
+ <div class="muted">${L.length} моделей</div>
+ ${L.map(m=>`<button class="lcard" data-a="go" data-r="poizon/item/${m.i}"><div class="thumb" style="background:#f4f4f4">${itemSVG({m:m.i,col:(m.i*5)%COLS.length,cond:0})}</div><div class="li"><div class="lt">${m.b} ${m.n}</div><div class="lp">от ${rub(pzFrom(m))}</div><div class="lm">${CAT[m.cat].n} · ${TIER[m.tier].n} · доставка ${pzEta()[0]}–${pzEta()[1]} дн</div><div class="lm">продано за месяц ${fmtN(40+H(m.i)*H(m.i)*2600)}</div></div></button>`).join('')||'<div class="empty">Ничего не нашлось</div>'}`;
+ return {t:'Пойзон',b}};
+function pzItem(i){const m=MODELS[i];if(!m)return {};const sizes=SZ[CAT[m.cat].sz],q=S.ui.qty['pz'+i]||1;let size=S.ui.pzSize[i]||sizes[Math.floor(sizes.length/2)];if(size==='mix'&&q<2)size=sizes[Math.floor(sizes.length/2)];
+ const p=pzPrice(m,size),opt=q>=5&&S.lvl>=4,unit=opt?rp(p*.9):p,ship=pzShip(m,q),tot=(unit+ship)*q,resale=valueOrig({m:i,cond:0});
+ const b=`<div class="photo" style="background:#f4f4f4">${itemSVG({m:i,col:(i*5)%COLS.length,cond:0})}</div>
+ <div class="card"><h3>${m.b} ${m.n}</h3><div class="row sp"><span class="money" style="font-size:24px">${rub(p)}</span><span class="muted">¥${fmtN(p/S.fx)} · ${size==='mix'?'сетка':'размер '+size}</span></div>
+ <div class="kv"><span>Срок доставки</span><span>${pzEta()[0]}–${pzEta()[1]} дней · ${dateStr(S.t+pzEta()[0]*24).split(', ')[1]}–${dateStr(S.t+pzEta()[1]*24).split(', ')[1]}</span></div><div class="kv"><span>Стоимость доставки</span><span>${rub(ship)}/шт</span></div><div class="kv"><span>Новые на Авитке сейчас</span><span>~${rub(resale)}</span></div><div class="kv"><span>Продано за месяц</span><span>${fmtN(40+H(i)*H(i)*2600)}</span></div>
+ <div class="muted">Цена на Пойзоне догоняет хайп с опозданием в пару недель. Хайп растёт — успей взять дешевле.</div></div>
+ <div class="card"><h3>Размер</h3><div class="szg">${q>1?`<button class="szb ${size==='mix'?'on':''}" data-a="pzSize" data-m="${i}" data-s="mix"><b>Сетка</b><span>разные</span></button>`:''}${sizes.map(z=>`<button class="szb ${z===size?'on':''}" data-a="pzSize" data-m="${i}" data-s="${z}"><b>${z}</b><span>${fmtN(pzPrice(m,z))} ₽</span></button>`).join('')}</div><div class="muted">Цена зависит от размера: ходовые дороже, зато продаются быстрее.${q>1?' В опте можно взять все одного размера или сеткой.':''}</div></div>
+ <div class="card"><div class="row sp"><h3>Количество</h3><div class="stepper"><button data-a="qty" data-id="pz${i}" data-d="-1" aria-label="Меньше">−</button><b>${q}</b><button data-a="qty" data-id="pz${i}" data-d="1" aria-label="Больше">+</button></div></div>${q>=5&&S.lvl<4?'<div class="warn">Оптовая скидка откроется на 4 уровне магазина.</div>':''}${opt?'<div class="muted pos">Оптовая цена: −10% и доставка −30%</div>':''}</div>`;
+ const f=`<button class="btn full" style="background:#141414" data-a="pzBuy" data-m="${i}" data-s="${size}">Заказать ${q} шт · ${rub(tot)}</button><div class="muted" style="text-align:center">Приедет ${dateStr(S.t+pzEta()[0]*24)} – ${dateStr(S.t+pzEta()[1]*24)}</div>`;
+ return {t:'Пойзон',b,f}}
+
+/* ---------- SECOND ---------- */
+VIEWS.second=()=>{const h=hourOf(),open=h>=10&&h<21,wm=wdMult(),dw=dateObj().getDay();
+ const I=S.sec.items.slice().reverse();
+
+ const b=`<div class="hero" style="background:#e86a1f"><div class="w-label" style="opacity:.85">Секонд «Мешок» · ${open?'открыто до 21:00':'закрыто, откроемся в 10:00'}</div><div style="font-family:var(--f-disp);font-size:26px">${dw===1?(h<10?'Завоз в 10:00':'Завоз! Полная цена'):'Скидка −'+Math.round((1-wm)*100)+'%'}</div><div style="font-size:12.5px;opacity:.92">Хорошее разбирают за пару часов, к вечеру остаются паль и неликвид. Половина брендовых вещей — паль, а ценники продавщицы ставят по бирке. Следующий завоз: ${nextRestock()}.</div></div>
+ <div class="card"><div class="kv"><span>Ассортимент сейчас</span><span>${secRange()}</span></div><div class="muted">Чем выше уровень магазина, тем лучше вещи тебе откладывают: премиум с 4 уровня, люкс с 8-го.</div></div>
+
+
+ ${open?'':'<div class="warn">Секонд закрыт. Купить можно с 10:00 до 21:00.</div>'}${I.map(x=>{const it=x.it,price=Math.max(30,Math.round(x.p0*wm/10)*10);return `<div class="lcard" style="cursor:default"><div class="thumb">${itemSVG(it)}</div><div class="li"><div class="lt">${iName(it)}</div><div class="lp">${rub(price)}</div><div class="lm">${sizeTxt(it)} · ${COND[it.cond].s}</div><div class="tags">${MODELS[it.m].noname?'':authTag(it)}${MODELS[it.m].noname?'':liqTag(it.m)}</div>
+  <div class="row" style="margin-top:4px">${!MODELS[it.m].noname&&!it.look&&it.k==='?'?`<button class="btn sm sec" data-a="secLook" data-id="${x.id}">Рассмотреть</button>`:''}<button class="btn sm" data-a="secBuy" data-id="${x.id}" ${open?'':'disabled'}>Купить</button></div></div></div>`}).join('')||'<div class="empty">Всё разобрали. Приходи завтра к 10:00.</div>'}`;
+ return {t:'Секонд «Мешок»',b}};
+
+/* ---------- SHKAF ---------- */
+VIEWS.shkaf=(v,id)=>{if(v==='item')return shkItem(id);
+ const tab=S.shkTab,I=S.items.filter(i=>tab==='all'||(tab==='sale'?i.sale:!i.sale));
+ const tabs=`<div class="tabs"><button class="${tab==='all'?'on':''}" data-a="shkTab" data-s="all">Все · ${S.items.length}</button><button class="${tab==='sale'?'on':''}" data-a="shkTab" data-s="sale">В продаже</button><button class="${tab==='idle'?'on':''}" data-a="shkTab" data-s="idle">Лежат</button></div>`;
+ const head=`<div class="card"><div class="row sp"><h3>Место</h3><span class="num">${used()}/${capacity()}</span></div><div class="bar"><i style="width:${Math.min(100,used()/capacity()*100)}%"></i></div><div class="muted">С учётом посылок в пути. Больше места — в «Магазине».</div></div>`;
+ return {t:'Шкаф',tabs,b:head+(I.map(it=>{const est=estFor(it);return `<button class="lcard" data-a="go" data-r="shkaf/item/${it.id}"><div class="thumb">${itemSVG(it)}</div><div class="li"><div class="lt">${iName(it)}</div><div class="lp">${it.sale?rub(it.sale.price):'~'+rub(est)}</div><div class="lm">${sizeTxt(it)} · ${COND[it.cond].s} · куплено за ${rub(it.cost)}</div><div class="tags">${authTag(it)}${it.lim?'<span class="tag p">Лимитка</span>':liqTag(it.m)}${it.sale?(it.sale.avito?'<span class="tag" style="background:#e0f5e8;color:#00863b">Авитка</span>':'')+(it.sale.tg?'<span class="tag b">Канал</span>':'')+(it.sale.orig?'':'<span class="tag r">как реплика</span>'):''}${it.prot>S.t?'<span class="tag y">Защита '+(it.prot-S.t)+' ч</span>':''}</div></div></button>`}).join('')||'<div class="empty">Пусто. Закупись в секонде, на Авитке или Пойзоне.</div>')}};
+function shkItem(id){const it=getI(id);if(!it)return {t:'Вещь',b:'<div class="empty">Этой вещи больше нет</div>'};const m=MODELS[it.m];
+ const vo=valueOrig(it),vf=valueFake(it),ths=S.threads.filter(t=>(t.kind==='abuyer'||t.kind==='tbuyer')&&!t.closed&&t.b.item===it.id);
+ const acts=[];
+ if(it.sale)acts.push(`<button class="btn" data-a="sellModal" data-id="${it.id}">Изменить объявление</button>`,`<button class="btn sec" data-a="unlist" data-id="${it.id}">Снять с продажи</button>`);else acts.push(`<button class="btn" data-a="sellModal" data-id="${it.id}">Выставить на продажу</button>`);
+ if(it.sale&&it.sale.avito)acts.push(`<button class="btn sec btn split" data-a="boost" data-id="${it.id}" ${it.sale.boost>S.t?'disabled':''}><span>${it.sale.boost>S.t?'Поднято в поиске':'Поднять на Авитке на сутки'}</span><span>${rub(boostCost(it))}</span></button>`);
+ if(it.sale&&it.sale.tg&&S.tg.has)acts.push(`<button class="btn sec" data-a="repost" data-id="${it.id}">Запостить в канал ещё раз</button>`);
+ if(!m.noname&&!it.lc)acts.push(`<button class="btn sec btn split" data-a="legit" data-id="${it.id}"><span>Легит-чек · 1 ч</span><span>${rub(legitCost(it))}</span></button>`);
+ if(!m.noname&&!it.look&&it.k==='?')acts.push(`<button class="btn sec" data-a="examine" data-id="${it.id}">Рассмотреть самому</button>`);
+ if(it.prot>S.t&&it.k==='f'&&it.protDecl==='o')acts.push(`<button class="btn bad" data-a="dispute" data-id="${it.id}">Открыть спор и вернуть ${rub(it.paid)}</button>`);
+ if(!it.ph)acts.push(`<button class="btn sec btn split" data-a="photo" data-id="${it.id}"><span>Фотосессия на белом фоне</span><span>${rub(500)}</span></button>`);
+ if(it.cond===3&&!it.cl)acts.push(`<button class="btn sec btn split" data-a="clean" data-id="${it.id}"><span>${m.cat==='shoes'?'Чистка кроссовок':'Химчистка'} → «хорошее»</span><span>${rub(cleanCost(it))}</span></button>`);
+ acts.push(`<button class="btn sec btn split" data-a="pawnAsk" data-id="${it.id}"><span>Сдать в скупку сразу</span><span>деньги сейчас</span></button>`);
+ const b=`<div class="photo">${itemSVG(it)}<div class="stk">${authTag(it)}${it.lim?'<span class="tag p">Лимитка</span>':liqTag(it.m)}</div></div>
+ <div class="card"><h3>${iName(it)}</h3><div class="spec"><div><span>Размер</span>${sizeTxt(it)}</div><div><span>Состояние</span>${COND[it.cond].n}</div><div><span>Сегмент</span>${TIER[m.tier].n}</div><div><span>Откуда</span>${esc(it.src||'—')}</div></div>
+ <div class="kv"><span>Себестоимость</span><span>${rub(it.cost)}</span></div>
+ <div class="kv"><span>На рынке как ориг</span><span>~${rub(vo)}</span></div>${m.noname?'':`<div class="kv"><span>Как реплика</span><span>~${rub(it.k==='o'?Math.round(vf/100)*100:vf)}</span></div>`}
+ <div class="kv"><span>Ликвидность модели</span><span>${S.tg.pro>S.t||liq(it.m)>=85?liq(it.m)+'%':'смотри Хайп-радар'}</span></div>
+ ${it.prot>S.t?`<div class="warn">Защита покупателя Авитки: ещё ${it.prot-S.t} ч. Продавец писал «${it.protDecl==='o'?'оригинал':'реплика'}». Если легит-чек покажет паль — можно открыть спор.</div>`:''}
+ ${it.k==='?'&&!m.noname?'<div class="muted">Подлинность не проверена. Продашь паль как ориг — рискуешь рейтингом.</div>':''}</div>
+ ${ths.length?`<div class="card"><h3>Покупатели</h3>${ths.map(t=>`<button class="btn sec full btn split" data-a="go" data-r="${t.plat}/thread/${t.id}"><span>${esc(t.name)} · ${t.plat==='tg'?'канал':'Авитка'}</span><span>${t.b.agreed?'договорились '+rub(t.b.price):rub(t.b.offer)}</span></button>`).join('')}</div>`:''}
+ ${it.sale?`<div class="card"><h3>Объявление</h3><div class="kv"><span>Цена</span><span>${rub(it.sale.price)}</span></div><div class="kv"><span>Заявлено как</span><span class="${it.sale.orig&&it.k!=='o'?'neg':''}">${it.sale.orig?'оригинал':'реплика'}</span></div><div class="kv"><span>Где</span><span>${[it.sale.avito?'Авитка':'',it.sale.tg?'мой канал':''].filter(Boolean).join(', ')}</span></div><div class="kv"><span>Просмотры</span><span>${it.sale.views}</span></div>${it.sale.avito&&S.t-Math.max(it.sale.t,it.sale.up||0)>48&&!(it.sale.boost>S.t)?'<div class="warn">Объявление опустилось в поиске, покупатели пишут реже. Подними его.</div>':''}<div class="muted">${sellHint(it,it.sale.price,it.sale.orig,it.sale.avito,it.sale.tg)}</div></div>`:''}
+ <div class="card"><h3>Действия</h3><div style="display:grid;gap:8px">${acts.join('')}</div></div>`;
+ return {t:m.b+' '+m.n,b}}
+const boostCost=it=>Math.round(clamp(99+it.sale.price*.01,99,1500)/10)*10;
+const cleanCost=it=>MODELS[it.m].cat==='shoes'?900:MODELS[it.m].cat==='puffer'?1500:700;
+function sellHint(it,price,orig,av,tg){const tmp={...it,sale:{price,orig,boost:0,tgT:S.t,t:S.t,views:0}};let p=0;if(av&&S.ban<=S.t)p+=buyP(tmp,'avito');if(tg&&S.tg.has)p+=buyP(tmp,'tg');const per=p*15;const base=orig?valueOrig(it):valueFake(it),r=price/base;
+ return `≈ ${per<.3?'меньше одного покупателя':per.toFixed(1)+' покупателя'} в день · ${r>1.08?'дорого, будут торговаться':r<.9?'дёшево, уйдёт быстро':'в рынке'} · прибыль ${price-it.cost>=0?'+':''}${rub(price-it.cost)}`}
+
+/* ---------- BANK ---------- */
+function loanMax(){const r=rating();const rk=r==null?1:clamp(.5+(r-3)*.35,.4,1.2);return Math.max(0,Math.floor(loanCap()*rk/1000)*1000-Math.ceil(S.loans.reduce((a,L)=>a+L.P,0)/1000)*1000)}
+VIEWS.bank=()=>{const pend=S.pend.filter(p=>p.type==='payout'&&!dealById(p.deal)?.disp).reduce((a,p)=>a+p.amt,0),max=loanMax();
+ const ui=S.ui.loan||(S.ui.loan={a:Math.min(max,5000),w:4});const amt=Math.max(0,Math.min(ui.a,max));const [w,r]=LOANT.find(x=>x[0]===ui.w)||LOANT[1];const pp=annuity(Math.max(amt,1000),r,w);
+ const b=`<div class="hero" style="background:#1a1a1a;color:#fff"><div class="w-label" style="opacity:.7">Дебетовая карта</div><div class="money">${rub(S.money)}</div><div style="font-size:12.5px;opacity:.85">В минус карта не уходит. Не хватает денег — бери кредит.</div>${pend?`<div style="font-size:12.5px;opacity:.85">Ожидает выплаты с Авитки: ${rub(pend)}</div>`:''}</div>
+ ${S.loans.map(L=>{const int=Math.round(L.P*L.r),due=Math.min(L.pay,Math.ceil(L.P+int));return `<div class="card"><div class="row sp"><b>${esc(L.name)} · ${(L.r*100).toFixed(1).replace('.',',')}% в неделю</b><span class="money" style="font-size:16px">${rub(Math.ceil(L.P))}</span></div>
+  <div class="kv"><span>Платёж в понедельник</span><span>${rub(due)}</span></div><div class="kv"><span>Из него проценты</span><span>${rub(int)}</span></div><div class="kv"><span>Осталось платежей</span><span>${loanWeeksLeft(L)}</span></div>
+  ${L.missed?`<div class="warn r">Просрочек: ${L.missed}. Ещё одна — и коллекторы заберут вещи из шкафа.</div>`:''}
+  <div class="muted">Досрочно гасишь тело долга: проценты за следующие недели начисляются уже на меньшую сумму.</div>
+  <div class="offer"><input class="inp num" id="rp${L.id}" inputmode="numeric" value="${Math.max(0,Math.min(due,S.money))}" aria-label="Сумма досрочного платежа"><button class="btn sm" data-a="repayPart" data-id="${L.id}">Внести</button></div>
+  <button class="btn sec full btn split" data-a="repayAll" data-id="${L.id}" ${S.money<Math.ceil(L.P)?'disabled':''}><span>Погасить полностью</span><span>${rub(Math.ceil(L.P))}</span></button></div>`}).join('')}
+ <div class="card"><h3>Взять кредит</h3><div class="muted">Доступно сейчас ${rub(max)}. Лимит зависит от уровня магазина и рейтинга: на ${S.lvl} ур. — до ${rub(loanCap())}, на ${S.lvl+1} ур. — до ${rub(LOANLIM[Math.min(S.lvl+1,LOANLIM.length-1)])}. Платёж каждый понедельник, равными частями.</div>
+ ${max>=1000?`<div class="offer"><input class="inp num" id="loanAmt" data-i="loanAmt" inputmode="numeric" value="${amt}" aria-label="Сумма кредита"><button class="btn sm sec" data-a="loanMaxBtn">Макс</button></div>
+  <div class="chips">${LOANT.map(([ww,rr])=>`<button class="chip ${ww===w?'on':''}" data-a="loanW" data-w="${ww}">${ww} нед · ${(rr*100).toFixed(1).replace('.',',')}%</button>`).join('')}</div>
+  <div class="kv"><span>Платёж в неделю</span><span id="loanPay">${rub(pp)}</span></div><div class="kv"><span>Переплата</span><span id="loanOver">${rub(pp*w-Math.max(amt,1000))}</span></div>
+  <button class="btn full" data-a="loanTake">Получить деньги</button>`:'<div class="muted">Лимит исчерпан. Погаси текущие кредиты или подними уровень магазина.</div>'}</div>
+ <div class="card"><div class="row sp"><h3>Вклад</h3><span class="money" style="font-size:16px">${rub(S.dep)}</span></div><div class="muted">0,05% в день. Снять можно в любой момент.</div><div class="row wrap"><button class="btn sm" data-a="dep" data-v="10000" ${S.money<10000?'disabled':''}>+10 000</button><button class="btn sm" data-a="dep" data-v="100000" ${S.money<100000?'disabled':''}>+100 000</button><button class="btn sm sec" data-a="depOut" ${S.dep<=0?'disabled':''}>Снять всё</button></div></div>
+ <div class="card"><h3>История</h3>${S.tx.slice(0,30).map(x=>`<div class="kv"><span>${esc(x.x)}<br><small>${dateStr(x.t)}, ${String(x.t%24).padStart(2,'0')}:00</small></span><span class="${x.a>=0?'pos':''}">${x.a>=0?'+':''}${rub(x.a)}</span></div>`).join('')||'<div class="muted">Пусто</div>'}</div>`;
+ return {t:'Банк',b}};
+
+/* ---------- POST ---------- */
+VIEWS.post=()=>{const L=S.ships.slice().sort((a,b)=>a.eta-b.eta);
+ return {t:'Посылки',b:(L.map(s=>{const pr=clamp((S.t-s.start)/(s.eta-s.start),0,1);const stage=pr<.25?'Собирают на складе':pr<.6?(s.cn?'Едет из Китая':'Передана в доставку'):pr<.9?(s.cn?'На таможне':'В пути'):'Скоро у тебя';
+  return `<div class="ship"><div class="row sp"><b>${esc(s.name)}</b><span class="muted">${s.items.length} шт</span></div><div class="bar"><i style="width:${pr*100}%"></i></div><div class="row sp"><span class="muted">${stage}</span><span class="muted">${dateStr(s.eta)}, ${clock(s.eta)}</span></div></div>`}).join('')||'<div class="empty">Посылок нет. Заказать можно на Пойзоне, у поставщиков в Телеге или на Авитке с доставкой.</div>')}};
+
+/* ---------- SHOP ---------- */
+VIEWS.shop=()=>{const need=xpNeed(S.lvl),r=rating(),Hh=S.hist;
+ let chart='';if(Hh.length>1){const mn=Math.min(...Hh.map(h=>h.v)),mx=Math.max(...Hh.map(h=>h.v)),W=300,Ht=100;const pts=Hh.map((h,i)=>[i/(Hh.length-1)*W,Ht-8-((h.v-mn)/((mx-mn)||1))*(Ht-20)]);
+  chart=`<div class="card chart"><div class="row sp"><h3>Капитал по дням</h3><span class="muted">${rub(mn)} – ${rub(mx)}</span></div><svg viewBox="0 0 300 100" preserveAspectRatio="none"><path d="M0 100 ${pts.map(p=>'L'+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ')} L300 100Z" fill="rgba(122,70,214,.12)"/><polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#7a46d6" stroke-width="2" vector-effect="non-scaling-stroke"/></svg></div>`}
+ const b=`<div class="hero" style="background:#7a46d6"><div class="w-label" style="opacity:.8">${statusOf(S.lvl)} · уровень ${S.lvl}</div><div class="money">${rub(netWorth())}</div><div style="font-size:12.5px;opacity:.9">Капитал: деньги, вещи, посылки, вклад минус кредиты</div><div class="bar" style="background:rgba(255,255,255,.25)"><i style="width:${S.xp/need*100}%;background:#fff"></i></div><div style="font-size:12px;opacity:.85">${S.xp} / ${need} XP до следующего уровня</div></div>
+ ${(()=>{const R2=[...S.rivals.map(r=>({n:r.n,nw:r.nw})),{n:'Ты',nw:netWorth(),me:1}].sort((a,b)=>b.nw-a.nw);return `<div class="card"><div class="row sp"><h3>Топ перекупов Москвы</h3><span class="tag p">Ты №${myRank()}</span></div>${R2.map((r,i)=>`<div class="kv"${r.me?' style="font-weight:700"':''}><span${r.me?' style="color:var(--ink)"':''}>${i+1}. ${esc(r.n)}</span><span>${rub(r.nw)}</span></div>`).join('')}<div class="muted">Капитал конкурентов растёт каждый день. Обгони всех.</div></div>`})()}
+ <div class="card"><div class="row sp"><h3>Рейтинг магазина</h3><span class="stars" style="font-size:16px">${r==null?'—':'★ '+r.toFixed(2)}</span></div><div class="muted">Единица за паль весит как три пятёрки. С рейтингом ниже 4 покупатели на Авитке почти не пишут.</div>
+  ${S.reviews.slice(0,6).map(x=>`<div class="kv"><span>${esc(x.x)}<br><small>${dateStr(x.t)} · ${x.plat==='tg'?'канал':'Авитка'}</small></span><span class="stars">${'★'.repeat(x.s)}${'☆'.repeat(5-x.s)}</span></div>`).join('')||'<div class="muted">Отзывов пока нет</div>'}</div>
+ <div class="card"><div class="row sp"><h3>Навыки</h3><span class="tag ${S.sp?'g':''}">Очков: ${S.sp}</span></div>
+  ${SKILLS.map(s=>`<div class="sk"><div><b>${s.n}</b><div class="muted">${s.d}</div><div class="pips">${Array.from({length:10},(_,i)=>`<i class="${i<S.sk[s.k]?'on':''}"></i>`).join('')}</div></div><button class="btn sm" data-a="skill" data-k="${s.k}" ${!S.sp||S.sk[s.k]>=10?'disabled':''}>+1</button></div>`).join('')}</div>
+ <div class="card"><h3>Хранение · ${capacity()} мест</h3>${STOR.map(s=>{const has=S.stor[s.id],lock=S.lvl<s.lvl;return `<div class="kv"><span><b style="color:var(--ink)">${s.n}</b> · +${s.cap}<br><small>${s.d}${s.rent?' Аренда '+rub(s.rent)+'/нед.':''}</small></span><span>${has?'<span class="tag g">Есть</span>':lock?`<span class="tag">ур. ${s.lvl}</span>`:`<button class="btn sm" data-a="buyStor" data-id="${s.id}">${s.p?rub(s.p):'Арендовать'}</button>`}</span></div>`}).join('')}</div>
+ <div class="card"><h3>Свой бренд</h3><div class="muted">Финал карьеры: свой лейбл, свои дропы, очередь у шоурума. Нужен 15 уровень и 3 000 000 ₽.</div>${S.flags.brand?'<span class="tag g">Запущен</span>':`<button class="btn full" data-a="brand" ${S.lvl>=15&&S.money>=3e6?'':'disabled'}>Запустить бренд · 3 000 000 ₽</button>`}</div>
+ ${chart}
+ <div class="card"><h3>Статистика</h3><div class="kv"><span>Дней в деле</span><span>${dayOf()+1}</span></div><div class="kv"><span>Продано вещей</span><span>${S.stats.sold}</span></div><div class="kv"><span>Прибыль всего</span><span class="${S.stats.profit>=0?'pos':'neg'}">${rub(S.stats.profit)}</span></div><div class="kv"><span>Лучшая сделка</span><span>${rub(S.stats.best)}</span></div><div class="kv"><span>Паль продано как ориг</span><span>${S.stats.fakeOrig}</span></div><div class="kv"><span>Из них спалили</span><span>${S.stats.caught}</span></div><div class="kv"><span>Подписчиков</span><span>${fmtN(S.tg.subs)}</span></div></div>
+ <div class="card"><h3>Последние сделки</h3>${S.deals.slice(0,15).map(d=>`<div class="kv"><span>${esc(d.n)} · ${d.size}<br><small>${dateStr(d.t)} · ${d.plat==='tg'?'канал':'Авитка'}${d.ret?' · возврат':d.disp?' · спор проигран':''}${d.ord?' · заказ':''}</small></span><span class="${d.prof>=0?'pos':'neg'}">${d.prof>=0?'+':''}${rub(d.prof)}</span></div>`).join('')||'<div class="muted">Сделок пока нет</div>'}</div>`;
+ return {t:'Магазин',b}};
+
+VIEWS.job=()=>{const h=hourOf(),done=S.jobDay===dayOf();
+ return {t:'Подработка',b:`<div class="card"><h3>Смены</h3><div class="muted">Когда совсем туго с деньгами. Одна смена в день, и время на неё уходит.</div></div>${JOBS.map(j=>{const ok=!done&&h>=j.from&&h<=j.to&&h+j.h<=23;return `<div class="card"><div class="row sp"><b>${j.n}</b><span class="money" style="font-size:15px">${fmtN(j.pay[0])}–${rub(j.pay[1])}</span></div><div class="muted">${j.d} ${j.h} ч · берут с ${j.from}:00 до ${j.to}:00.</div><button class="btn" data-a="job" data-id="${j.id}" ${ok?'':'disabled'}>${done?'Сегодня уже работал':'Выйти на смену'}</button></div>`}).join('')}`}};
+VIEWS.goals=()=>{const open=MISSIONS.filter(m=>!S.done[m.id]),done=MISSIONS.filter(m=>S.done[m.id]);
+ const row=(m,d)=>`<div class="mission ${d?'done':''}"><div class="ck">${d?'✓':''}</div><div class="mn">${m.n}</div><span class="muted">${m.m?'+'+rub(m.m):''}</span></div>`;
+ return {t:'Цели',b:`<div class="card"><h3>Дальше</h3>${open.slice(0,5).map(m=>row(m,false)).join('')||'<div class="muted">Все цели выполнены. Легенда рынка.</div>'}</div><div class="card"><h3>Выполнено · ${done.length} из ${MISSIONS.length}</h3>${done.map(m=>row(m,true)).join('')||'<div class="muted">Пока ничего</div>'}</div>`}};
+VIEWS.settings=()=>({t:'Настройки',b:`<div class="card"><h3>Как играть</h3><p class="muted" style="font-size:13.5px;line-height:1.55">
+1. Покупай дешевле рынка: в Секонде (завоз раз в неделю, в понедельник к 10:00 — ликвид разбирают за пару часов; половина бренда там паль, а ассортимент растёт с уровнем), на Авитке, на Пойзоне и у поставщиков в Телеге.<br>
+2. Следи за трендами в «Хайп-радаре». Ликвид продаётся за день, неликвид висит неделями. Сезон тоже важен: пуховики зимой, футболки летом.<br>
+3. Паль бывает плохая (видно сразу) и «один в один». Проверяй легит-чеком в Шкафу. Товар с Авитки с доставкой можно вернуть через спор в течение 24 часов.<br>
+4. Продавать паль как реплику — честно, но рейтинг немного просядет. Как оригинал — выгодно, но покупатель может проверить. Тогда 1★, жалоба, а после трёх жалоб — блок на Авитке.<br>
+5. Выставляй в «Шкафу» на Авитку и в свой канал. Канал нужно вести: посты, реклама, розыгрыши.<br>
+6. Время идёт само: 1 секунда — 1 игровая минута. Ждать можно с главного экрана. В 00:00 ты засыпаешь до 8:00.<br>
+7. Каждый день 500 ₽ на жизнь. По понедельникам — аренда комнаты 5 000 ₽, платежи по кредитам и аренда складов. В минус карта не уходит: не хватит на обязательный платёж — банк сам выдаст дорогой микрозайм. Кредит новичку — до 5 000 ₽, лимит растёт с уровнем.<br>
+8. По воскресеньям в Телеге открываются раффлы: запишись за 300 ₽, при победе выкупишь лимитку по ретейлу, а на ресейле она стоит вдвое дороже.<br>
+9. В личку пишут с лотами (мешки, партии реплик, гардеробы), а подписчики канала — с заказами выше рынка.<br>
+10. На Авитке объявления со временем опускаются в поиске — поднимай их. За 15+ отзывов и 4.8★ дают значок «Надёжный продавец».<br>
+11. Обгони конкурентов в «Топе перекупов Москвы» в «Магазине». Финал — свой бренд.<br>
+12. Опыт дают только отзывы покупателей: 5★ +35, 4★ +15, 3★ 0, 2★ −25, 1★ −60.<br>
+13. Смахни баннер уведомления вверх, чтобы убрать его. Потяни вниз от верхнего края экрана — откроются все уведомления.</p></div>
+<div class="card"><h3>Игра</h3><div class="muted">Прогресс сохраняется в этом браузере автоматически.</div><button class="btn bad" data-a="resetAsk">Начать заново</button></div>`});
+
+/* ================= ACTIONS ================= */
+const A={};
+A.home=()=>{closeModal();go(null)};
+A.back=()=>back();
+A.open_app=d=>go(d.id,'main');
+A.go=d=>{const [a,v,i]=d.r.split('/');go(a,v||'main',i?+i:null)};
+A.nav=d=>{const [a,v,i]=d.r.split('/');S.ui.view=v||'main';S.ui.id=i?+i:null;render()};
+A.bannerGo=()=>{const r=bannerRoute;hideBanner();if(r){ncClose(true);goRoute(r)}};
+function nVisible(n){const m=n.route&&n.route.match(/\/thread\/(\d+)/);if(m){const th=getT(m[1]);return S.t-n.t<48&&!!th&&!th.closed&&!th.hidden}return S.t-n.t<24}
+function nPrune(){S.nlog=(S.nlog||[]).filter(nVisible)}
+function ncHTML(){nPrune();const L=S.nlog;return `<div class="nc-h"><b>Уведомления</b>${L.length?'<button class="btn sm" style="background:rgba(255,255,255,.18);color:#fff" data-a="ncClear">Очистить</button>':''}</div><div class="nc-list">${L.map(n=>{const ap=n.route?(n.route.startsWith('chan:')?'tg':n.route.split('/')[0]):'settings',a=APP[ap]||APP.tg;return `<div class="nc-i" data-nid="${n.id}" role="button" tabindex="0"><div class="bi" style="background:${a.bg}">${icon(a.id)}</div><div style="min-width:0"><div class="row sp"><span class="t">${esc(n.title||a.n)}</span><small>${ago(n.t)}</small></div><div class="x">${esc(n.text)}</div></div></div>`}).join('')||'<div class="empty" style="color:rgba(255,255,255,.6)">Нет уведомлений</div>'}</div><div class="nc-foot"><div class="nc-grab"></div><div class="nc-hint">Смахни вверх — закрыть · влево или вправо — убрать уведомление</div></div>`}
+function ncFill(){const n=$('#nc');n.innerHTML=ncHTML();ncBind()}
+function ncSet(y,anim){const n=$('#nc');n.style.transition=anim?'transform .26s cubic-bezier(.2,.8,.2,1)':'none';n.style.transform=`translateY(${y}px)`}
+function ncOpen(){const n=$('#nc');ncFill();n.hidden=false;ncSet(-n.offsetHeight,false);n.getBoundingClientRect();ncSet(0,true);hideBanner()}
+function ncClose(fast){const n=$('#nc');if(n.hidden)return;if(fast){n.hidden=true;ncSet(0,false);return}ncSet(-n.offsetHeight,true);setTimeout(()=>{n.hidden=true;ncSet(0,false)},260)}
+function ncRemove(el,dir){const id=+el.dataset.nid;el.style.transition='transform .2s ease, opacity .2s ease';el.style.transform=`translateX(${dir>0?120:-120}%)`;el.style.opacity='0';
+ setTimeout(()=>{el.style.transition='max-height .18s ease, padding .18s ease';el.style.maxHeight=el.offsetHeight+'px';el.getBoundingClientRect();el.style.maxHeight='0px';el.style.paddingTop='0px';el.style.paddingBottom='0px';
+  setTimeout(()=>{S.nlog=S.nlog.filter(n=>n.id!==id);save();el.remove();if(!S.nlog.length)ncFill()},190)},200)}
+function ncBind(){for(const el of document.querySelectorAll('#nc .nc-i')){let x0=null,y0=0,dx=0,dy=0,horiz=false;
+ el.addEventListener('pointerdown',e=>{if(e.button>0)return;x0=e.clientX;y0=e.clientY;dx=dy=0;horiz=false;el.style.transition='none'});
+ el.addEventListener('pointermove',e=>{if(x0==null)return;dx=e.clientX-x0;dy=e.clientY-y0;if(!horiz&&Math.abs(dx)>8&&Math.abs(dx)>Math.abs(dy)){horiz=true;try{el.setPointerCapture(e.pointerId)}catch(_){}}
+  if(horiz){el.style.transform=`translateX(${dx}px)`;el.style.opacity=String(Math.max(.15,1-Math.abs(dx)/260))}});
+ el.addEventListener('pointerup',()=>{if(x0==null)return;x0=null;
+  if(horiz&&Math.abs(dx)>80)ncRemove(el,dx);
+  else if(!horiz&&Math.abs(dx)<6&&Math.abs(dy)<6){const n=S.nlog.find(n=>n.id===+el.dataset.nid);ncClose(true);if(n&&n.route)goRoute(n.route)}
+  else{el.style.transition='transform .2s ease, opacity .2s ease';el.style.transform='';el.style.opacity=''}});
+ el.addEventListener('pointercancel',()=>{x0=null;el.style.transition='transform .2s ease, opacity .2s ease';el.style.transform='';el.style.opacity=''});
+ el.addEventListener('keydown',e=>{if(e.key==='Enter'){const n=S.nlog.find(n=>n.id===+el.dataset.nid);ncClose(true);if(n&&n.route)goRoute(n.route)}if(e.key==='Delete')ncRemove(el,1)})}}
+A.ncClear=()=>{const els=[...document.querySelectorAll('#nc .nc-i')];els.forEach((el,i)=>setTimeout(()=>{el.style.transition='transform .2s ease, opacity .2s ease';el.style.transform='translateX(120%)';el.style.opacity='0'},i*35));setTimeout(()=>{S.nlog=[];save();ncFill()},els.length*35+220)};
+function swipe(el,cap,onMove,onEnd){let y0=null,dy=0;
+ el.addEventListener('pointerdown',e=>{if(e.button>0)return;y0=e.clientY;dy=0;if(cap){try{el.setPointerCapture(e.pointerId)}catch(_){}}});
+ el.addEventListener('pointermove',e=>{if(y0==null)return;dy=e.clientY-y0;if(onMove)onMove(dy)});
+ el.addEventListener('pointerup',()=>{if(y0==null)return;const d=dy;y0=null;onEnd(d)});
+ el.addEventListener('pointercancel',()=>{y0=null;if(onMove)onMove(0)})}
+A.closeModal=()=>closeModal();
+A.tgTab=d=>{S.ui.tgTab=d.s;render()};
+A.thClose=d=>{const th=getT(d.id);if(!th)return;
+ if(!th.closed){if(th.kind==='deal'){msg(th,'me','Не интересно.')}else if(th.kind==='order'){S.tg.trust=clamp(S.tg.trust-1,0,100)}else if((th.kind==='abuyer'||th.kind==='tbuyer')&&th.b&&th.b.agreed){msg(th,'me','Извините, передумал.')}}
+ th.closed=true;th.unread=0;th.hidden=true;S.threads=S.threads.filter(x=>x!==th||x.kind==='aseller');save();render()};
+A.more=()=>{S.ui.lim+=30;render()};
+A.fCat=d=>{S.filt.cat=d.s;S.filt.m='all';S.filt.size='all';S.ui.lim=30;render()};
+A.aSearch=()=>{const i=$('#aq');S.filt.q=i?i.value:'';S.ui.lim=30;render()};
+A.fReset=()=>{S.filt={cat:'all',sort:S.filt.sort,m:'all',size:'all',mode:'all',q:''};render()};
+A.pzfCat=d=>{S.pzf.cat=d.s;render()};
+A.pSearch=()=>{const i=$('#pq');S.pzf.q=i?i.value:'';render()};
+A.shkTab=d=>{S.shkTab=d.s;render()};
+A.wait=d=>{advance(+d.h);render()};
+A.sleep=()=>doSleep(false);
+A.timeSheet=()=>{const h=hourOf();modal(`<h2>${clock()} · ${dateStr()}</h2><p>Время идёт само: 1 секунда — 1 минута. В 00:00 ты засыпаешь до 8:00. Покупатели пишут с 9 до 23, секонд работает с 10 до 21.</p>
+ <div style="display:grid;gap:8px"><button class="btn sec full" data-a="waitM" data-h="1">Подождать час</button><button class="btn sec full" data-a="waitM" data-h="3">Подождать 3 часа</button>${h<19&&h>=7?`<button class="btn sec full" data-a="waitM" data-h="${19-h}">До 19:00</button>`:''}<button class="btn full" data-a="sleep">Спать до утра</button></div>`)};
+A.waitM=d=>{closeModal();A.wait(d)};
+
+/* seller side (buying on avitka) */
+A.openSellerChat=d=>{const l=getL(d.id);if(!l)return;const th=sellerThread(l);if(!th.msgs.length)msg(th,'sys',iName(l.it)+' · '+rub(l.ask));go('avito','thread',th.id)};
+A.askSeller=d=>{const l=getL(d.id);if(!l)return;const s=l.seller,th=sellerThread(l),q=d.q,it=l.it;s.asked[q]=1;
+ const Q={act:'Здравствуйте! Актуально?',orig:'Это оригинал?',photo:'Можете скинуть фото бирок и швов?',why:'Почему так дёшево?'};msg(th,'me',Q[q]);let a='';
+ if(q==='act')a=s.type==='scam'?'Да, но быстро уходит. Могу забронировать по предоплате.':pick(['Да, актуально','Актуально 👍','Да, в наличии']);
+ if(q==='orig')a={owner:it.auth==='o'?pick(['Да, брал в магазине','Ориг, конечно']):'Да, брал с рук, вроде ориг',reseller:'100% ориг, можем сделать легит-чек',mom:'Ой, не знаю. Сын носил, говорил, что фирма.',replica:'Нет, это реплика, качество 1:1. В описании указано.',liar:pick(['Конечно ориг, есть чек','Ориг 100%, брал в ЦУМе']),scam:'Оригинал, новый, с бирками'}[s.type];
+ if(q==='photo'){l.photos=true;if(s.type==='scam'){a='Фото в объявлении, этого достаточно.';l.photoNote='Продавец не прислал фото'}else{
+  const bad=it.auth==='f'&&R()<clamp((1-it.q)*.85+.05*S.sk.eye,0,.95);l.photoNote=bad?'На фото бирок кривой шрифт и неровные швы.':'Бирки и швы на фото выглядят нормально.';if(bad&&it.k==='?')it.hint='f';a='Скинул 📷'}
+  msg(th,'them',a);msg(th,'sys',l.photoNote);save();render();return}
+ if(q==='why')a={owner:'Да нормальная цена, просто не нужно.',reseller:'Это рынок, дешевле не найдёте.',mom:'Мне просто нужно освободить место.',replica:'Это реплика, поэтому дешевле оригинала.',liar:'Срочно нужны деньги, переезжаю.',scam:'Переезжаю за границу, нужно быстро продать.'}[s.type];
+ msg(th,'them',a);save();render()};
+A.offerSeller=d=>{const l=getL(d.id);if(!l)return;const x=parseNum($('#offer')&&$('#offer').value);if(x<100)return toast('Введи цену');sellerOffer(l,x);save();render()};
+function sellerOffer(l,x){const s=l.seller,th=sellerThread(l);msg(th,'me',`Отдадите за ${rub(x)}?`);if(s.blocked)return;
+ if(s.type==='scam'){msg(th,'them','Цена окончательная. Переведите на карту, и я сразу отправлю почтой.');th.scam=true;return}
+ const minE=rp(s.min*(1-.015*S.sk.bargain));
+ if(x>=s.cur){s.agreed=true;msg(th,'them',pick([`Договорились, ${rub(s.cur)}.`,`Ок, забирайте за ${rub(s.cur)}.`]))}
+ else if(x>=minE){s.cur=x;s.agreed=true;msg(th,'them',pick([`Ладно, ${rub(x)}.`,`Хорошо, договорились на ${rub(x)}.`,`Эх, ну давайте ${rub(x)}.`]))}
+ else{const gap=(minE-x)/l.ask;if(gap>.18){s.pat-=2;msg(th,'them',pick(['Вы серьёзно? Нет.','Смешно. Нет.','Неинтересно.','Это даже не торг.']))}
+  else{s.pat-=1;const nc=rp(Math.max(minE,s.cur-(s.cur-x)*rnd(.3,.5)));s.cur=nc;msg(th,'them',pick([`Могу ${rub(nc)}, не меньше.`,`${rub(nc)} — и забирайте.`,`Минимум ${rub(nc)}.`]))}
+  if(s.pat<=0){s.blocked=true;s.agreed=false;msg(th,'them',pick(['Всё, не пишите мне больше.','До свидания, торгуйтесь с кем-нибудь другим.']));msg(th,'sys','Продавец заблокировал вас');th.closed=true}}}
+A.scamPay=d=>{const l=getL(d.id);if(!l)return;const p=l.seller.cur;if(!canPay(p))return;pay(p,'Перевод продавцу: '+iName(l.it));const th=sellerThread(l);
+ msg(th,'me',`Перевёл ${rub(p)}`);msg(th,'sys','Пользователь удалил аккаунт.');th.closed=true;S.list=S.list.filter(x=>x!==l);S.stats.scammed++;
+ mentor('Ты перевёл деньги на карту?! Это кидала: новый аккаунт, ноль отзывов, цена ниже рынка в два раза и отказ от Авитка Доставки. Считай, заплатил за науку.');save();render()};
+A.buyDelivery=d=>{const l=getL(d.id);if(!l)return;const s=l.seller,th=sellerThread(l);
+ if(s.blocked)return toast('Продавец тебя заблокировал');
+ if(s.type==='scam'){msg(th,'me','Оформляю Авитка Доставку');msg(th,'them','Я не работаю через доставку, там комиссия. Переведите на карту, отправлю сразу.');th.scam=true;save();go('avito','thread',th.id);return}
+ if(l.mode==='meet'){msg(th,'me','Можете отправить Авитка Доставкой?');msg(th,'them','Нет, только встреча у м. '+l.metro+'.');save();go('avito','thread',th.id);return}
+ const price=s.cur,fee=Math.max(199,Math.round(price*.05)),tot=price+fee;
+ if(used()>=capacity())return toast('Шкаф забит. Продай что-нибудь или купи место в «Магазине»');
+ modal(`<h2>Авитка Доставка</h2><p>${esc(iName(l.it))} · ${sizeTxt(l.it)} · ${COND[l.it.cond].s}</p><div class="kv"><span>Цена</span><span>${rub(price)}</span></div><div class="kv"><span>Комиссия сервиса</span><span>${rub(fee)}</span></div><div class="kv"><span><b>Итого</b></span><span><b>${rub(tot)}</b></span></div><div class="muted">Придёт через 1–2 дня. После получения 24 часа на проверку: если продавец писал «оригинал», а это паль — вернёшь деньги через спор.</div><button class="btn full" style="background:#00a046" data-a="buyDeliveryOk" data-id="${l.id}">Оплатить ${rub(tot)}</button><button class="btn sec full" data-a="closeModal">Отмена</button>`)};
+A.buyDeliveryOk=d=>{const l=getL(d.id);if(!l)return closeModal();const s=l.seller,price=s.cur,fee=Math.max(199,Math.round(price*.05)),tot=price+fee;if(!canPay(tot))return;
+ pay(tot,'Авитка: '+iName(l.it));const it=l.it;it.cost=tot;it.src='Авитка';if(l.decl==='f')it.k='f';
+ addShip(iName(it)+' · Авитка',[it],l.mode==='ship'?rnd(2,4):rnd(1,2),{prot:{decl:l.decl,total:tot,seller:s.name}});
+ S.list=S.list.filter(x=>x!==l);const th=sellerThread(l);msg(th,'sys','Заказ оформлен. Посылка уже едет.');th.closed=true;S.stats.bought++;closeModal();checkMissions();save();
+ S.ui.stack=[];go('post','main',null,false);toast('Заказ оформлен')};
+A.meet=d=>{const l=getL(d.id);if(!l)return;const s=l.seller,h=hourOf();
+ if(s.blocked)return toast('Продавец тебя заблокировал');
+ if(s.type==='scam'){const th=sellerThread(l);msg(th,'me','Можно встретиться, посмотреть?');msg(th,'them','Я сейчас не в Москве, могу только отправить. Переведите на карту.');th.scam=true;save();go('avito','thread',th.id);return}
+ if(l.mode==='ship')return toast('Продавец не в Москве ('+l.city+'), только доставка');
+ if(h<9||h>=20)return toast('Продавцы встречаются с 9:00 до 20:00');
+ if(!canPay(150))return;pay(150,'Метро');l.exp=Math.max(l.exp,S.t+4);advance(2);if(!getL(l.id))return toast('Пока ехал, вещь продали');l.met=true;S.ui.meet=l.id;meetModal(l)};
+function meetModal(l){const it=l.it,s=l.seller,price=s.cur;
+ modal(`<h2>Встреча у метро</h2><p>${esc(s.name)} показывает ${esc(iName(it))}, размер ${sizeTxt(it)}.</p><div class="photo" style="height:160px">${itemSVG(it)}</div>
+ ${MODELS[it.m].noname?'':lookBlock(it,l)}
+ ${l.decl==='o'&&!s.accused&&!MODELS[it.m].noname?`<button class="btn sec full" data-a="meetAccuse" data-id="${l.id}">Сказать, что это паль</button>`:''}
+ <div class="offer"><input class="inp num" id="meetOfferIn" inputmode="numeric" value="${rp(price*.9)}" aria-label="Твоя цена"><button class="btn" data-a="meetOffer" data-id="${l.id}">Торг</button></div>
+ <button class="btn full" style="background:#00a046" data-a="meetBuy" data-id="${l.id}">Купить за ${rub(price)} наличными</button><button class="btn ghost" data-a="closeModal">Уйти</button>`)}
+A.meetLook=d=>{const l=getL(d.id);if(!l)return closeModal();examine(l.it);meetModal(l)};
+A.meetOffer=d=>{const l=getL(d.id);if(!l)return closeModal();const x=parseNum($('#meetOfferIn').value);sellerOffer(l,x);if(l.seller.blocked){closeModal();toast('Продавец обиделся и ушёл');render();return}meetModal(l);toast(l.seller.agreed?'Договорились на '+rub(l.seller.cur):'Продавец: '+rub(l.seller.cur))};
+A.meetAccuse=d=>{const l=getL(d.id);if(!l)return closeModal();const s=l.seller,it=l.it;s.accused=true;const th=sellerThread(l);msg(th,'me','Это же паль.');
+ if(it.auth==='f'){const np=rp(valueFake(it)*rnd(1,1.3));s.cur=Math.min(s.cur,np);s.agreed=true;msg(th,'them',s.type==='liar'?`Ну... ладно, реплика. Отдам за ${rub(s.cur)}.`:`Да ладно... Не знал. Ну давайте ${rub(s.cur)}.`);it.k='f';it.hint='f';toast('Продавец признался и сбросил цену до '+rub(s.cur));meetModal(l)}
+ else{s.blocked=true;msg(th,'them','Сам ты паль. Иди отсюда, ничего не продам.');closeModal();toast('Это был оригинал. Продавец обиделся и ушёл');render()}save()};
+A.meetBuy=d=>{const l=getL(d.id);if(!l)return closeModal();const p=l.seller.cur;if(used()>=capacity())return toast('Шкаф забит');if(!canPay(p))return;pay(p,'Наличные: '+iName(l.it));
+ const it=l.it;it.cost=p+150;it.src='Авитка, с рук';it.bt=S.t;if(l.decl==='f')it.k='f';S.items.push(it);S.list=S.list.filter(x=>x!==l);const th=sellerThread(l);msg(th,'sys','Сделка у метро. Вещь твоя.');th.closed=true;S.stats.bought++;closeModal();checkMissions();save();go('shkaf','item',it.id)};
+function examine(it){if(it.look)return it.look;const e=S.sk.eye,x=R();let r;
+ if(it.auth==='f'){const pc=clamp(.35+.6*(1-it.q)+.05*e,.15,.97),pu=clamp(.35*it.q-.02*e,0,.4);r=x<pc?'f':x<pc+pu?'?':'o'}
+ else{const pw=clamp(.1-.01*e,.02,.1),pu=clamp(.22-.02*e,.04,.22);r=x<pw?'f':x<pw+pu?'?':'o'}
+ it.look=r;if(r!=='?'&&it.k==='?')it.hint=r;return r}
+function lookBlock(it,l){let s='';
+ if(l.lc&&it.k!=='?')s+=`<div class="warn${it.k==='f'?' r':''}">Легит-чек: <b>${it.k==='o'?'оригинал ✓':'паль ✗'}</b></div>`;
+ else if(it.look)s+=`<div class="warn${it.look==='f'?' r':''}">${LOOKTXT[it.look]}</div>`;
+ else s+=`<button class="btn sec full" data-a="meetLook" data-id="${l.id}">Рассмотреть бирки и швы</button>`;
+ if(!l.lc)s+=`<button class="btn sec full btn split" data-a="meetLegit" data-id="${l.id}"><span>Легит-чек по фото · 15 мин</span><span>${rub(legitCost(it))}</span></button>`;
+ return s}
+A.meetLegit=d=>{const l=getL(d.id);if(!l)return closeModal();const it=l.it,c=legitCost(it);if(!canPay(c))return;pay(c,'Легит-чек по фото');l.lc=true;it.k=legitResult(it,.95);S.stats.legit++;checkMissions();advanceMin(15);if(getL(l.id)&&!sleeping)meetModal(l)};
+A.lcListing=d=>{const l=getL(d.id);if(!l)return;const c=legitCost(l.it);if(!canPay(c))return;pay(c,'Легит-чек по фото');advance(1);l.lc=true;const r=legitResult(l.it,.93);l.it.k=r;S.stats.legit++;checkMissions();save();render();
+ modal(`<h2>Легит-чек по фото</h2><div class="big-verdict ${r==='o'?'pos':'neg'}">${r==='o'?'ОРИГИНАЛ ✓':'ПАЛЬ ✗'}</div><p>${esc(iName(l.it))}. Точность по фото около 93%.</p><button class="btn full" data-a="closeModal">Понятно</button>`)};
+function legitResult(it,acc){if(it.auth==='o')return R()<acc+.04?'o':'f';if(it.q>.9&&R()<.25)return 'o';return R()<acc?'f':'o'}
+
+/* buyers */
+function bLate(th){const del=S.t-(th.b.lt||S.t);if(del>12&&R()<clamp((del-12)/48,0,.85)){msg(th,'them',pick(['Долго отвечаешь, я уже взял в другом месте.','Ждал больше суток — уже купил другое, не интересно.','Сорри, уже неактуально, долго ждал.']));th.closed=true;th.unread=0;save();render();toast('Покупатель не дождался ответа');return true}return false}
+A.baccept=d=>{const th=getT(d.id),b=th.b;if(bLate(th))return;b.lt=S.t;msg(th,'me',`Согласен на ${rub(b.offer)}`);b.agreed=true;b.price=b.offer;msg(th,'them',th.plat==='tg'?'Супер, кидай реквизиты, переведу.':'Отлично, оформляю через доставку!');save();render()};
+A.bdecline=d=>{const th=getT(d.id);msg(th,'me','Нет, спасибо');msg(th,'them',pick(['Ну как хотите','Ок, удачи']));th.closed=true;save();render()};
+A.bcounter=d=>{const th=getT(d.id),b=th.b,it=getI(b.item);if(!it)return;const x=parseNum($('#offer')&&$('#offer').value);if(x<100)return toast('Введи цену');msg(th,'me',`Могу за ${rub(x)}`);if(bLate(th))return;b.lt=S.t;
+ if(x<=b.offer){b.agreed=true;b.price=x;msg(th,'them','Договорились!')}
+ else if(x<=b.max){b.agreed=true;b.price=x;msg(th,'them',pick([`Ладно, ${rub(x)}.`,`Хорошо, беру за ${rub(x)}.`]))}
+ else{b.pat-=x>b.max*1.15?2:1;if(b.pat<=0){msg(th,'them',pick(['Нет, поищу ещё.','Дороговато, я пас.']));th.closed=true}
+  else{b.offer=rp(Math.min(b.max,b.offer+(b.max-b.offer)*rnd(.4,.7)));msg(th,'them',pick([`Дорого. Могу ${rub(b.offer)}.`,`${rub(b.offer)} — последнее слово.`]))}}
+ save();render()};
+A.bsend=d=>{const th=getT(d.id);if(!th||th.closed)return;const it=getI(th.b.item);if(!it||!it.sale)return toast('Вещь уже не в продаже');finishSale(th,th.b.price)};
+A.phishGo=d=>{const th=getT(d.id);const loss=Math.min(Math.max(S.money,0),ri(5,15)*1000);pay(loss,'Списание: avitka-dostavka-pay.ru');msg(th,'me','Ввёл данные карты');msg(th,'sys',`С карты списали ${rub(loss)}. Это был фишинг.`);th.closed=true;S.stats.scammed++;
+ mentor('Тебя развели по ссылке. Авитка никогда не просит вводить карту, чтобы ПОЛУЧИТЬ деньги. Покупатель с такой ссылкой — всегда мошенник.');save();render()};
+A.phishNo=d=>{const th=getT(d.id);msg(th,'sys','Пользователь заблокирован');th.closed=true;save();render()};
+A.claimRefund=d=>{const th=getT(d.id);const dd=dealById(th.deal);if(dd&&!canPay(dd.price))return;resolveClaim(th,true,false)};
+A.claimRefuse=d=>resolveClaim(getT(d.id),false,false);
+
+/* telegram */
+A.openChan=d=>{S.ui.cid=d.k;S.ui.tgTab='chans';go('tg','chan',null)};
+A.createChan=()=>modal(`<h2>Свой канал</h2><p>Канал — твоя витрина без комиссии. Подписчики покупают охотнее и меньше торгуются. Но за доверием надо следить: паль в канале не прощают.</p><input class="inp" id="chName" maxlength="28" value="Шмот у ${esc(pick(['Тёмы','Дани','Гоши','Сани']))}" aria-label="Название канала"><button class="btn full" style="background:#2a9fd6" data-a="createChanOk">Создать</button>`);
+A.createChanOk=()=>{const n=($('#chName').value||'').trim()||'Мой шмот';S.tg.has=true;S.tg.name=n;S.tg.subs=ri(8,15);S.tg.last=S.t;S.tg.posts.unshift({t:S.t,x:`Всем привет! Это ${n}. Оригинальные шмотки по нормальным ценам. Скоро первые позиции 🔥`});closeModal();checkMissions();save();go('tg','own',null);
+ mentor('Создал канал? Красава. Пока там только друзья. Купи рекламу в маленьком канале и постись хотя бы раз в пару дней.')};
+A.buyPro=()=>{if(!canPay(1490))return;pay(1490,'Хайп-радар PRO');const fresh=S.tg.pro<=S.t;S.tg.pro=Math.max(S.tg.pro,S.t)+7*24;if(fresh)proReport();S.chan.news.unread=0;save();render();toast('PRO подключена до '+dateStr(S.tg.pro))};
+A.trendPost=()=>{if(S.t-S.tg.trendPost<20)return;const top=BRANDED.slice().sort((a,b)=>H(b.i)-H(a.i)).slice(0,3);advance(1);S.tg.trendPost=S.t;S.tg.last=S.t;
+ const g=Math.round((3+S.tg.subs*rnd(.01,.03))*(1+.1*S.sk.smm));S.tg.subs+=g;S.tg.posts.unshift({t:S.t,x:`🔥 Что сейчас носят:\n${top.map(m=>'• '+m.b+' '+m.n).join('\n')}\nПишите в личку — достану любой размер.`});save();render();toast(`Пост вышел · +${g} подписчиков`)};
+A.giveaway=()=>{const I=S.items.filter(i=>!i.sale);if(!I.length)return toast('Нет свободных вещей для розыгрыша');
+ modal(`<h2>Розыгрыш</h2><p>Отдай вещь бесплатно за подписку и репост. Чем ценнее вещь, тем больше придёт людей.</p>${I.map(it=>`<button class="btn sec full btn split" data-a="giveOk" data-id="${it.id}"><span>${iName(it)} · ${sizeTxt(it)}</span><span>~${rub(estFor(it))}</span></button>`).join('')}<button class="btn ghost" data-a="closeModal">Отмена</button>`)};
+A.giveOk=d=>{const it=getI(d.id);if(!it)return;const v=it.k==='f'?valueFake(it):valueOrig(it);const g=Math.round((40+v/35)*rnd(.7,1.3)*(1+.12*S.sk.smm)*(S.tg.subs<200?1:1+Math.log10(S.tg.subs/200)));
+ S.items=S.items.filter(x=>x!==it);S.tg.ads.push({tot:g,left:g});S.tg.trust=clamp(S.tg.trust+5,0,100);S.tg.last=S.t;S.tg.posts.unshift({t:S.t,x:`🎁 РОЗЫГРЫШ: ${iName(it)}, размер ${sizeTxt(it)}!\nПодпишись, сделай репост — итоги через сутки.`});
+ closeModal();save();render();toast(`Розыгрыш запущен · за сутки придёт ~${g} человек`)};
+A.buyAd=d=>{const a=ADS[+d.i];if(!canPay(a.price))return;pay(a.price,'Реклама: '+a.n);const g=Math.round(a.subs*rnd(.006,.014)*a.q*(1+.12*S.sk.smm)*(S.tg.posts.length>2?1:.6));S.tg.ads.push({tot:g,left:g});S.stats.ads++;checkMissions();save();render();
+ toast(`Реклама в «${a.n}» вышла · ждём ~${g} подписчиков за сутки`)};
+A.qty=d=>{const k=d.id;let q=(S.ui.qty[k]||1)+(+d.d);let min=1,max=50;
+ if(String(k).startsWith('pz'))max=20;else{for(const c of Object.keys(SUP)){const p=S.chan[c].posts.find(x=>x.id===+k);if(p){min=SUP[c].minQ;max=p.left;if(!S.ui.qty[k])q=min+(+d.d)}}}
+ S.ui.qty[k]=clamp(q,min,max);render()};
+A.buyPost=d=>{const C=SUP[d.k],p=S.chan[d.k].posts.find(x=>x.id===+d.id);if(!p)return;const m=MODELS[p.m];const q=Math.max(C.minQ,Math.min(p.left,S.ui.qty[p.id]||C.minQ));
+ const shipT=C.ship==='cargo'?cargo(m)*q:C.ship;const tot=p.price*q+shipT;if(used()+q>capacity())return toast(`Не влезет: свободно ${capacity()-used()} мест`);if(!canPay(tot))return;
+ pay(tot,`${C.n}: ${m.b} ${m.n} ×${q}`);p.left-=q;const unit=Math.round(tot/q);const items=[];
+ for(let i=0;i<q;i++){const it=mkItem(p.m,{cond:p.cond,col:p.col,size:p.size||undefined,cost:unit,src:C.n});
+  if(C.kind==='rep'){it.auth='f';it.q=clamp(p.q+rnd(-.04,.04),.02,.98);it.k='f'}
+  else if(C.kind==='trap'){if(R()<p.fake){it.auth='f';it.q=rnd(C.q[0],C.q[1])}}
+  else it.k=R()<.97?'?':'?';
+  if(C.kind==='orig'&&R()<.03){it.auth='f';it.q=rnd(.7,.95)}
+  items.push(it)}
+ const days=rnd(C.eta[0],C.eta[1])*(C.ship==='cargo'?(1-.04*S.sk.logist):1);addShip(`${m.b} ${m.n}${q>1?' ×'+q:''}`,items,days,{rep:C.kind==='rep',cn:C.ship==='cargo'});
+ if(q>=5)S.stats.bulk++;S.stats.bought+=q;checkMissions();save();render();toast(`Оплачено · приедет ${dateStr(S.t+Math.round(days*24))}`);
+ if(C.kind==='trap'&&!S.flags.trapTip){S.flags.trapTip=1;setTimeout(()=>mentor('Брал у «Ориг из Европы»? Нормальные ребята, но паль иногда проскакивает. Как придёт — сразу легит-чек. Чем выше твой уровень и связи, тем реже тебе подсовывают.'),50)}};
+
+/* drops, deals, orders, job */
+A.dropSize=d=>{S.ui.dropSize=d.s;render()};
+A.dropEnter=d=>{const D=S.drop;if(!D||D.done||D.entered)return;if(!canPay(300))return;pay(300,'Взнос за раффл');D.entered=true;D.size=d.s;checkMissions();save();render();toast('Ты в списке раффла · итоги '+dateStr(D.at)+' в 12:00')};
+A.dealTake=d=>{const th=getT(d.id);if(!th||th.closed)return;const o=th.o;if(used()+o.items.length>capacity())return toast(`Не влезет: свободно ${capacity()-used()} мест`);if(!canPay(o.price))return;pay(o.price,'Лот: '+th.sub);
+ const unit=Math.round(o.price/o.items.length);for(const it of o.items){it.cost=unit;it.src=th.name;it.bt=S.t;S.items.push(it)}msg(th,'me','Беру.');msg(th,'sys','Встретились, забрал. Вещи в Шкафу.');th.closed=true;S.stats.lots++;S.stats.bought+=o.items.length;checkMissions();save();render();
+ modal(`<h2>${o.type==='bag'?'Что в мешке':'Лот твой'}</h2><p>${o.items.length} вещей${o.type==='bag'?', брендовых: '+o.items.filter(it=>!MODELS[it.m].noname).length:''}.</p>${o.items.map(it=>`<div class="kv"><span>${esc(iName(it))} · ${sizeTxt(it)}</span><span>${COND[it.cond].s}</span></div>`).join('')}<div class="muted">${o.type==='lot'?'Это реплики — продавай их как реплики или рискуй.':'Подлинность брендовых не проверена — загляни в Шкаф.'}</div><button class="btn full" data-a="closeModal">Разобрать</button>`);advance(1)};
+A.dealHaggle=d=>{const th=getT(d.id);if(!th||th.closed||th.o.haggle)return;th.o.haggle=true;const np=rp(th.o.price*.85);msg(th,'me',`А за ${rub(np)} отдашь?`);
+ if(R()<.5+.04*S.sk.bargain){th.o.price=np;msg(th,'them','Ладно, давай.')}else msg(th,'them','Нет, цена окончательная.');save();render()};
+A.dealNo=d=>{const th=getT(d.id);msg(th,'me','Не, не интересно.');th.closed=true;save();render()};
+A.orderGive=d=>{const th=getT(d.id),it=getI(d.it);if(!th||th.closed||!it)return;const o=th.o;msg(th,'me',`Есть! ${iName(it)}, ${sizeTxt(it)}, ${COND[it.cond].s}.`);
+ for(const t of S.threads)if((t.kind==='abuyer'||t.kind==='tbuyer')&&!t.closed&&t.b.item===it.id){msg(t,'sys','Вещь уже продана');t.closed=true}
+ th.closed=true;
+ if(it.auth==='f'){msg(th,'them','Сделал легит-чек — это паль. Ты серьёзно? Забирай обратно.');it.k='f';it.sale=null;S.tg.trust=clamp(S.tg.trust-12,0,100);addReview(1,3,'Заказал оригинал, прислали паль. Не рекомендую.','tg');save();render();toast('Клиент вернул вещь: это паль');return}
+ S.items=S.items.filter(x=>x!==it);earn(o.budget,'Заказ: '+iName(it));const prof=o.budget-it.cost;S.deals.unshift({id:uid(),n:iName(it),size:it.size,cost:it.cost,price:o.budget,prof,plat:'tg',t:S.t,decl:true,auth:'o',buyer:th.name,it:{...it,sale:null},ord:1});
+ S.stats.sold++;S.stats.orders++;S.stats.profit+=prof;S.stats.best=Math.max(S.stats.best,prof);S.tg.trust=clamp(S.tg.trust+3,0,100);addReview(5,1,'Нашёл то, что я искал, и быстро! Лучший магаз.','tg');
+ msg(th,'them','Огонь, спасибо! Всем друзьям расскажу 🔥');checkMissions();save();render();modal(`<h2>Заказ выполнен</h2><p>${esc(iName(it))} · ${sizeTxt(it)}</p><div class="kv"><span>Клиент заплатил</span><span>${rub(o.budget)}</span></div><div class="kv"><span>Прибыль</span><span class="${prof>=0?'pos':'neg'}">${prof>=0?'+':''}${rub(prof)}</span></div><button class="btn full" data-a="closeModal">Отлично</button>`)};
+A.orderNo=d=>{const th=getT(d.id);msg(th,'me','Сорри, не смогу найти.');msg(th,'them','Ок, жаль.');th.closed=true;save();render()};
+A.orderFind=d=>{go('poizon','item',+d.m)};
+A.job=d=>{const j=JOBS.find(x=>x.id===d.id),h=hourOf();if(!j||S.jobDay===dayOf()||h<j.from||h>j.to||h+j.h>23)return;S.jobDay=dayOf();advance(j.h);const p=Math.round(rnd(j.pay[0],j.pay[1])/10)*10;earn(p,'Подработка: '+j.n);S.stats.jobs++;let extra='';if(j.subs&&S.tg.has){const g=ri(3,10);S.tg.subs+=g;extra=` · +${g} подписчиков`}save();render();toast(`Смена закончилась: +${rub(p)}${extra}`)};
+
+/* poizon */
+A.pzSize=d=>{S.ui.pzSize[d.m]=d.s;render()};
+A.pzBuy=d=>{const m=MODELS[+d.m],q=S.ui.qty['pz'+m.i]||1,size=d.s,opt=q>=5&&S.lvl>=4,ship=pzShip(m,q);
+ if(used()+q>capacity())return toast(`Не влезет: свободно ${capacity()-used()} мест`);
+ const plan=[];let tot=0;for(let i=0;i<q;i++){const sz=size==='mix'?pickSize(m.cat):size;const p=pzPrice(m,sz),unit=(opt?rp(p*.9):p)+ship;tot+=unit;plan.push([sz,unit])}
+ if(!canPay(tot))return;pay(tot,`Пойзон: ${m.b} ${m.n} ×${q}`);
+ const items=plan.map(([sz,unit])=>mkItem(m.i,{cond:0,auth:'o',k:'o',size:sz,col:(m.i*5)%COLS.length,cost:unit,src:'Пойзон'}));
+ const days=rnd(pzEta()[0],pzEta()[1]);addShip(`Пойзон: ${m.b} ${m.n}${q>1?' ×'+q:''}`,items,days,{cn:true});S.stats.pzOrders++;if(q>=5)S.stats.bulk++;S.stats.bought+=q;S.ui.qty['pz'+m.i]=1;checkMissions();save();render();
+ toast(`Заказ оформлен · приедет около ${dateStr(S.t+Math.round(days*24))}`)};
+/* second */
+A.secLook=d=>{const x=S.sec.items.find(y=>y.id===+d.id);if(!x)return;x.seen=true;const r=examine(x.it);save();render();toast(LOOKTXT[r])};
+
+A.secBuy=d=>{const x=S.sec.items.find(y=>y.id===+d.id);if(!x)return;const h=hourOf();if(h<10||h>=21)return toast('Секонд закрыт');if(used()>=capacity())return toast('Шкаф забит');
+ const price=Math.max(30,Math.round(x.p0*wdMult()/10)*10);if(!canPay(price))return;pay(price,'Секонд: '+iName(x.it));const it=x.it;it.cost=price;it.src='Секонд';it.bt=S.t;S.items.push(it);S.sec.items=S.sec.items.filter(y=>y!==x);S.stats.secBuys++;S.stats.bought++;checkMissions();save();render();toast('Куплено: '+iName(it))};
+
+/* shkaf */
+
+
+A.examine=d=>{const it=getI(d.id);if(!it)return;const r=examine(it);save();render();toast(LOOKTXT[r])};
+A.legit=d=>{const it=getI(d.id);if(!it)return;const c=legitCost(it);if(!canPay(c))return;pay(c,'Легит-чек');advance(1);const r=legitResult(it,.97);it.k=r;it.lc=true;S.stats.legit++;checkMissions();save();render();
+ modal(`<h2>Легит-чек</h2><div class="big-verdict ${r==='o'?'pos':'neg'}">${r==='o'?'ОРИГИНАЛ ✓':'ПАЛЬ ✗'}</div><p>${esc(iName(it))} · ${sizeTxt(it)}. Сервис проверяет по фото бирок, швов и кодов. Точность около 97%: суперкопии иногда проходят.</p>${r==='f'&&it.prot>S.t&&it.protDecl==='o'?'<div class="warn">Продавец писал «оригинал». Можно открыть спор в карточке вещи и вернуть деньги.</div>':''}<button class="btn full" data-a="closeModal">Понятно</button>`)};
+A.dispute=d=>{const it=getI(d.id);if(!it||!(it.prot>S.t))return;earn(it.paid,'Авитка: возврат по спору');S.items=S.items.filter(x=>x!==it);save();render();go('shkaf','main',null,false);
+ modal(`<h2>Спор выигран</h2><p>Авитка вернула ${rub(it.paid)}. Вещь уехала обратно продавцу ${esc(it.protName||'')}.</p><button class="btn full" data-a="closeModal">Отлично</button>`)};
+A.photo=d=>{const it=getI(d.id);if(!canPay(500))return;pay(500,'Фотосессия');it.cost+=500;it.ph=1;save();render();toast('Фото как в журнале · покупатели пишут чаще')};
+A.clean=d=>{const it=getI(d.id);const c=cleanCost(it);if(!canPay(c))return;pay(c,'Чистка');it.cost+=c;it.cond=2;it.cl=1;advance(3);render();toast('Как новенькое. Почти')};
+A.pawnAsk=d=>{const it=getI(d.id);const v=it.auth==='f'?Math.round(valueFake(it)*.35/10)*10:Math.round(valueOrig(it)*.45/10)*10;
+ modal(`<h2>Скупка</h2><p>Скупщик осмотрел ${esc(iName(it))}.${it.auth==='f'&&!MODELS[it.m].noname?' «Это паль, брат. Больше не дам.»':''}</p><div class="kv"><span>Предлагает</span><span>${rub(v)}</span></div><div class="kv"><span>Ты вложил</span><span>${rub(it.cost)}</span></div><button class="btn full" data-a="pawnOk" data-id="${it.id}" data-v="${v}">Сдать за ${rub(v)}</button><button class="btn sec full" data-a="closeModal">Не надо</button>`)};
+A.pawnOk=d=>{const it=getI(d.id);if(!it)return closeModal();const v=+d.v;earn(v,'Скупка: '+iName(it));if(it.auth==='f'&&it.k!=='f'&&!MODELS[it.m].noname)it.k='f';
+ for(const t of S.threads)if((t.kind==='abuyer'||t.kind==='tbuyer')&&!t.closed&&t.b.item===it.id){msg(t,'sys','Вещь уже продана');t.closed=true}
+ S.items=S.items.filter(x=>x!==it);S.stats.profit+=v-it.cost;closeModal();save();go('shkaf','main',null,false);toast('Сдано за '+rub(v))};
+A.sellModal=d=>{const it=getI(d.id);if(!it)return;S.ui.sm={id:it.id,orig:it.sale?it.sale.orig:it.k!=='f',av:it.sale?it.sale.avito:S.ban<=S.t,tg:it.sale?it.sale.tg:S.tg.has,price:it.sale?it.sale.price:0};sellModal()};
+function sellModal(){const sm=S.ui.sm,it=getI(sm.id);if(!it)return closeModal();const m=MODELS[it.m];
+ const base=sm.orig?valueOrig(it):valueFake(it);if(!sm.price)sm.price=rp(base*1.02);
+ const warn=sm.orig&&it.k==='f'?'<div class="warn r">Ты знаешь, что это паль. Продавать её как оригинал — обман. Если покупатель проверит, получишь 1★, жалобу и, возможно, блок.</div>':sm.orig&&it.k==='?'&&!m.noname?'<div class="warn">Вещь не проверена. Если это паль, а ты продашь её как ориг — проблемы будут те же.</div>':!sm.orig&&!m.noname?'<div class="warn">Продажа реплик немного снижает рейтинг: покупатели ставят 3–4★, и магазин, торгующий палью, ценят меньше.</div>':'';
+ modal(`<h2>${it.sale?'Изменить объявление':'Выставить на продажу'}</h2><p>${esc(iName(it))} · ${sizeTxt(it)} · ${COND[it.cond].s} · вложено ${rub(it.cost)}</p>
+ ${m.noname?'':`<div class="seg"><button class="${sm.orig?'on':''}" data-a="smSet" data-k="orig" data-v="1">Оригинал</button><button class="${!sm.orig?'on':''}" data-a="smSet" data-k="orig" data-v="0">Реплика</button></div>`}${warn}
+ <div class="muted">Рынок ${sm.orig?'оригиналов':'реплик'} сейчас: ~${rub(base)}</div>
+ <div class="row wrap"><button class="chip" data-a="smPrice" data-v="${rp(base*.88)}">Быстро · ${rub(rp(base*.88))}</button><button class="chip" data-a="smPrice" data-v="${rp(base)}">Рынок · ${rub(rp(base))}</button><button class="chip" data-a="smPrice" data-v="${rp(base*1.15)}">Жадно · ${rub(rp(base*1.15))}</button></div>
+ <input class="inp num" id="smPrice" data-i="smPrice" inputmode="numeric" value="${sm.price}" aria-label="Цена">
+ <button class="chk ${sm.av?'on':''}" data-a="smSet" data-k="av" ${S.ban>S.t?'disabled':''}><i>${sm.av?'✓':''}</i>Авитка${S.ban>S.t?' (заблокирована)':''}</button>
+ <button class="chk ${sm.tg?'on':''}" data-a="smSet" data-k="tg" ${S.tg.has?'':'disabled'}><i>${sm.tg?'✓':''}</i>Мой канал в Телеге${S.tg.has?` · ${fmtN(S.tg.subs)} подп.`:' (сначала создай)'}</button>
+ <div class="muted" id="smHint">${sellHint(it,sm.price,sm.orig,sm.av,sm.tg)}</div>
+ <button class="btn full" data-a="smOk" ${sm.av||sm.tg?'':'disabled'}>${it.sale?'Сохранить':'Опубликовать'}</button><button class="btn ghost" data-a="closeModal">Отмена</button>`)}
+A.smSet=d=>{const sm=S.ui.sm;const i=$('#smPrice');if(i)sm.price=parseNum(i.value);if(d.k==='orig'){const nv=d.v==='1';if(nv!==sm.orig){sm.orig=nv;sm.price=0}}else{if(d.k==='av'&&S.ban>S.t)return;if(d.k==='tg'&&!S.tg.has)return;sm[d.k]=!sm[d.k]}sellModal()};
+A.smPrice=d=>{S.ui.sm.price=+d.v;const i=$('#smPrice');i.value=d.v;$('#smHint').textContent=sellHint(getI(S.ui.sm.id),+d.v,S.ui.sm.orig,S.ui.sm.av,S.ui.sm.tg)};
+A.smOk=()=>{const sm=S.ui.sm,it=getI(sm.id);const p=parseNum($('#smPrice').value);if(p<100)return toast('Укажи цену');
+ const wasTg=it.sale&&it.sale.tg;if(it.sale){Object.assign(it.sale,{price:p,orig:sm.orig,avito:sm.av,tg:sm.tg})}else it.sale={price:p,orig:sm.orig,avito:sm.av,tg:sm.tg,t:S.t,boost:0,views:0,tgT:0};
+ if(sm.tg&&!wasTg)tgPostItem(it);
+ for(const th of S.threads)if((th.kind==='abuyer'||th.kind==='tbuyer')&&!th.closed&&th.b.item===it.id){if((th.kind==='abuyer'&&!sm.av)||(th.kind==='tbuyer'&&!sm.tg)){msg(th,'sys','Объявление снято');th.closed=true}else if(!th.b.agreed&&p<th.b.offer)th.b.offer=p}
+ closeModal();save();render();toast('Опубликовано · покупатели пишут с 9 до 23')};
+function tgPostItem(it){it.sale.tgT=S.t;S.tg.last=S.t;S.tg.posts.unshift({t:S.t,x:`${it.sale.orig?'🔥 В наличии':'⚡ Реплика, качество топ'}: ${iName(it)}\nРазмер ${sizeTxt(it)} · ${COND[it.cond].s}\n${rub(it.sale.price)} · пишите в личку`});if(S.tg.posts.length>60)S.tg.posts.length=60}
+A.repost=d=>{const it=getI(d.id);if(!it||!it.sale)return;tgPostItem(it);save();render();toast('Запостил в канал')};
+A.unlist=d=>{const it=getI(d.id);it.sale=null;for(const th of S.threads)if((th.kind==='abuyer'||th.kind==='tbuyer')&&!th.closed&&th.b.item===it.id){msg(th,'sys','Объявление снято');th.closed=true}save();render()};
+A.boost=d=>{const it=getI(d.id);const c=boostCost(it);if(!canPay(c))return;pay(c,'Поднятие объявления');it.sale.boost=S.t+24;it.sale.up=S.t;save();render();toast('Объявление в топе на сутки')};
+
+/* bank & shop */
+A.dep=d=>{const v=+d.v;if(S.money<v)return;S.money-=v;S.dep+=v;save();render()};
+A.depOut=()=>{S.money+=S.dep;S.dep=0;save();render()};
+A.loanW=d=>{saveLoanAmt();S.ui.loan.w=+d.w;render()};
+function saveLoanAmt(){const i=$('#loanAmt');if(i&&S.ui.loan)S.ui.loan.a=parseNum(i.value)}
+A.loanMaxBtn=()=>{S.ui.loan.a=loanMax();render()};
+A.loanTake=()=>{saveLoanAmt();const a=Math.min(S.ui.loan.a,loanMax());if(a<1000)return toast('Минимум 1 000 ₽');const [w,r]=LOANT.find(x=>x[0]===S.ui.loan.w)||LOANT[1];takeLoan(a,w,r,'Кредит');S.ui.loan.a=Math.min(5000,loanMax());save();render();toast('Деньги на карте: +'+rub(a))};
+A.repayPart=d=>{const L=S.loans.find(x=>x.id===+d.id);if(!L)return;const i=$('#rp'+L.id);const v=Math.min(parseNum(i&&i.value),Math.ceil(L.P));if(v<=0)return toast('Укажи сумму');if(S.money<v)return toast('Не хватает денег на карте');pay(v,L.name+': досрочно');L.P=Math.max(0,L.P-v);if(L.P<1){S.loans=S.loans.filter(x=>x!==L);toast('Кредит закрыт')}else toast('Внесено '+rub(v));save();render()};
+A.repayAll=d=>{const L=S.loans.find(x=>x.id===+d.id);if(!L)return;const v=Math.ceil(L.P);if(S.money<v)return toast('Не хватает денег на карте');pay(v,L.name+': погашение');S.loans=S.loans.filter(x=>x!==L);save();render();toast('Кредит закрыт')};
+A.skill=d=>{if(!S.sp||S.sk[d.k]>=10)return;S.sp--;S.sk[d.k]++;save();render()};
+A.buyStor=d=>{const s=STOR.find(x=>x.id===d.id);if(S.lvl<s.lvl)return;const c=s.p||s.rent;if(!canPay(c))return;pay(c,(s.p?'Покупка: ':'Аренда: ')+s.n);S.stor[s.id]=1;checkMissions();save();render();toast(s.n+' — готово')};
+A.brand=()=>{if(S.lvl<15||S.money<3e6)return;pay(3e6,'Запуск своего бренда');S.flags.brand=1;checkMissions();save();render();
+ modal(`<h2>Свой бренд</h2><p>Ты начинал с потёртой олимпийки, стоптанных Форсов и мутного Теч Флиса от брата. Теперь у тебя свой лейбл, и перекупы ждут твоих дропов.</p><p>Продано вещей: <b>${S.stats.sold}</b>. Прибыль: <b>${rub(S.stats.profit)}</b>. Дней в деле: <b>${dayOf()+1}</b>. Спалили на пали: <b>${S.stats.caught}</b> раз.</p><p>Игра продолжается. Рынок никуда не делся.</p><button class="btn full" data-a="closeModal">Дальше</button>`)};
+A.resetAsk=()=>modal(`<h2>Начать заново?</h2><p>Весь прогресс удалится: деньги, вещи, канал, рейтинг.</p><button class="btn bad full" data-a="reset">Да, начать заново</button><button class="btn sec full" data-a="closeModal">Отмена</button>`);
+A.reset=()=>{closeModal();newGame();S.flags.started=1;save();go(null)};
+A.start=()=>{S.flags.started=1;closeModal();save();render()};
+
+/* ================= EVENTS ================= */
+document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el||el.id==='modal')return;if(el.disabled)return;const f=A[el.dataset.a];if(f){e.preventDefault();f(el.dataset,el)}});
+{const bn=$('#banner');
+ swipe(bn,true,dy=>{bn.style.transform=dy<0?`translateY(${dy}px)`:'';bn.style.opacity=dy<0?String(Math.max(.2,1+dy/120)):''},d=>{bn.style.transform='';bn.style.opacity='';if(d<-25)hideBanner();else if(d>40)ncOpen();else if(Math.abs(d)<8)A.bannerGo()});
+ bn.addEventListener('keydown',e=>{if(e.key==='Enter')A.bannerGo()});
+ const pl=$('#pull');let pulling=false;
+ swipe(pl,true,dy=>{const n=$('#nc');if(dy>6){if(!pulling){pulling=true;ncFill();n.hidden=false;hideBanner()}ncSet(Math.min(0,dy-n.offsetHeight),false)}},
+  d=>{const n=$('#nc');if(pulling){pulling=false;if(d>90)ncSet(0,true);else{ncSet(-n.offsetHeight,true);setTimeout(()=>{n.hidden=true;ncSet(0,false)},260)}}else if(Math.abs(d)<8)A.timeSheet()});
+ const nc=$('#nc');let cy=null,cdy=0;
+ nc.addEventListener('pointerdown',e=>{if(e.button>0||e.target.closest('.nc-i')||e.target.closest('button'))return;cy=e.clientY;cdy=0;try{nc.setPointerCapture(e.pointerId)}catch(_){}});
+ nc.addEventListener('pointermove',e=>{if(cy==null)return;cdy=Math.min(0,e.clientY-cy);ncSet(cdy,false)});
+ nc.addEventListener('pointerup',()=>{if(cy==null)return;cy=null;if(cdy<-70)ncClose();else ncSet(0,true)});
+ nc.addEventListener('pointercancel',()=>{cy=null;ncSet(0,true)});
+ nc.addEventListener('keydown',e=>{if(e.key==='Escape')ncClose()})}
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal'&&!S.flags.bankrupt)closeModal()});
+document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)return;const f=S.filt;
+ if(c==='fSort')f.sort=el.value;else if(c==='fModel')f.m=el.value;else if(c==='fSize')f.size=el.value;else if(c==='fMode')f.mode=el.value;else if(c==='pzTier')S.pzf.tier=el.value;else if(c==='pzSort')S.pzf.sort=el.value;else return;S.ui.lim=30;save();render()});
+document.addEventListener('input',e=>{const el=e.target;if(el.dataset.i==='loanAmt'&&S.ui.loan){S.ui.loan.a=parseNum(el.value);const [w,r]=LOANT.find(x=>x[0]===S.ui.loan.w)||LOANT[1];const a=Math.max(1000,Math.min(S.ui.loan.a,loanMax()));const pp=annuity(a,r,w);const lp=$('#loanPay'),lo=$('#loanOver');if(lp)lp.textContent=rub(pp);if(lo)lo.textContent=rub(pp*w-a)}if(el.dataset.i==='smPrice'&&S.ui.sm){const sm=S.ui.sm;sm.price=parseNum(el.value);const h=$('#smHint');if(h)h.textContent=sellHint(getI(sm.id),sm.price,sm.orig,sm.av,sm.tg)}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='aq'){A.aSearch();return}if(e.key==='Enter'&&e.target.id==='pq'){A.pSearch();return}if(e.key==='Enter'&&e.target.id==='offer'){const b=e.target.parentElement.querySelector('[data-a]');if(b)b.click()}});
+
+/* ================= BOOT ================= */
+window.__game={get S(){return S},newGame,advance,A,netWorth,valueOrig,valueFake,buyP,rating,genBuyer,finishSale,myRank,orderMatch,MODELS};
+if(!load()||!S||S.v!==6)newGame();
+S.ui.stack=S.ui.stack||[];S.ui.qty=S.ui.qty||{};S.ui.pzSize=S.ui.pzSize||{};
+render();
+function updateClock(){const a=$('#sclock');if(a)a.textContent=clock();const b=$('#hclock');if(b)b.textContent=clock()}
+setInterval(()=>{if(!S||!S.flags.started||S.flags.bankrupt||document.hidden||sleeping)return;S.mi=(S.mi||0)+1;
+ if(S.mi>=60){S.mi=0;advance(1);if(hourOf()===0)return;const ae=document.activeElement;if(ae&&ae.closest&&ae.closest('#screen')&&/INPUT|SELECT|TEXTAREA/.test(ae.tagName)){updateClock();return}render()}
+ else updateClock()},1000);
+if(!S.flags.started)modal(`<h2>Перекуп шмота</h2><p>Понедельник, сентябрь, 8 утра. На карте 5 000 ₽, в шкафу три поношенные вещи. Комната стоит 5 000 в неделю. В 10:00 завоз в секонде — не проспи.</p><p>Скупай дешёвое в секонде, на Авитке и в Китае, лови тренды в Телеге и продавай дороже. Цель — свой шоурум, а потом и свой бренд.</p><p>В Телеге ждёт Тимур, он расскажет базу.</p><button class="btn full" style="background:#7a46d6" data-a="start">Погнали</button>`);
+})();
+</script>

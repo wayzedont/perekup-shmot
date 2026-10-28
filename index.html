@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b0a0e">
+<meta name="description" content="Симулятор перекупа одежды: секонд, Авитка, Пойзон, паль и оригиналы.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Перекуп шмота</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Golos+Text:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="styles/app.css">
+</head>
+<body>
+<div id="stage">
+  <div id="phone">
+    <div id="screen" role="main"></div>
+    <div id="statusbar" aria-hidden="false"></div>
+    <div id="homebar"><button id="homebtn" data-act="goHome" aria-label="На главный экран"></button></div>
+    <div id="sheet" hidden></div>
+    <div id="banner" hidden role="button" tabindex="0" aria-label="Уведомление"></div>
+    <div id="pulltab" aria-label="Потяни вниз — уведомления"></div>
+    <div id="notifcenter" hidden></div>
+    <div id="toast" hidden aria-live="polite"></div>
+  </div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
