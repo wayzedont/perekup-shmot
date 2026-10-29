@@ -56,6 +56,7 @@ import {
   toast,
   pushNotification,
   bindGestures,
+  bindInputGuards,
   updateClock,
   fillNotifCenter,
   isNotifOpen,
@@ -1353,6 +1354,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 bindGestures();
+bindInputGuards();
 
 /* ======================= ИГРОВОЙ ЦИКЛ ======================= */
 
@@ -1372,12 +1374,7 @@ setInterval(() => {
   }
   if (S.t !== before) {
     saveGame(S);
-    // Не перерисовываем экран, пока пользователь что-то печатает.
-    const active = document.activeElement;
-    if (active && /INPUT|SELECT|TEXTAREA/.test(active.tagName)) {
-      updateClock();
-      return;
-    }
+    // Проверку фокуса делает сам render(): он знает про выпадающие списки.
     scheduleRender();
   } else {
     updateClock();

@@ -280,7 +280,14 @@ export function declineBuyer(S, th) {
 export function authOptions(S, th) {
   const item = buyerItem(S, th);
   if (!item) return [];
-  const keys = ['swearOrig', 'sayOrig', 'hedge'];
+  const hasProof = item.legitDone && item.verdict === 'orig';
+  const keys = [];
+  // Есть чек — есть что прислать, и врать про него больше незачем: вариант
+  // «клянусь, чек делал» из лжи превращается в правду, поэтому вместо него
+  // стоит сам чек.
+  if (hasProof) keys.push('proof');
+  else keys.push('swearOrig');
+  keys.push('sayOrig', 'hedge');
   // Признаться можно только если это и правда реплика или есть сомнения.
   if (item.verdict === 'fake' || item.verdict === 'unknown') keys.push('confess');
   return keys.map((k) => ({ key: k, ...AUTH_ANSWERS[k] }));
@@ -294,7 +301,7 @@ export function answerAuth(S, th, key) {
   const A = AUTH_ANSWERS[key];
   if (!A) return null;
 
-  say(S, th, 'me', A.n);
+  say(S, th, 'me', A.said || A.n);
   const hasProof = item.legitDone && item.verdict === 'orig';
   const res = reactToAuthAnswer(rng, b, key, item, hasProof);
   say(S, th, 'them', res.reply);

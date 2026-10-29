@@ -37,34 +37,193 @@ export function registerActions(map) {
 
 /* ======================= РЕНДЕР ======================= */
 
+/**
+ * Перерисовка откладывается до ближайшего кадра, но не только до него.
+ *
+ * Раньше здесь был голый requestAnimationFrame, и это намертво вешало игру на
+ * телефоне. Браузер приостанавливает кадры, когда вкладка уходит в фон,
+ * гаснет экран или система решает сэкономить батарею. Нажатие в этот момент
+ * выставляло флаг, кадр не приходил никогда, и дальше КАЖДЫЙ вызов выходил по
+ * `if (frame) return` — экран замирал навсегда, и работала только полоска
+ * «домой». Поэтому рядом с кадром всегда висит обычный таймер: что сработает
+ * первым, то и рисует.
+ */
 let frame = null;
+let timer = null;
+
+function clearPending() {
+  if (frame) cancelAnimationFrame(frame);
+  if (timer) clearTimeout(timer);
+  frame = null;
+  timer = null;
+}
+
 export function scheduleRender() {
-  if (frame) return;
-  frame = requestAnimationFrame(() => {
-    frame = null;
+  if (frame || timer) return;
+  const run = () => {
+    clearPending();
     render();
-  });
+  };
+  frame = requestAnimationFrame(run);
+  timer = setTimeout(run, 80);
+}
+
+/**
+ * Пока игрок возится с выпадающим списком или полем ввода, перерисовывать
+ * нельзя: `innerHTML` заменяет весь экран, и список захлопывается сам собой.
+ * Именно отсюда брались «нажал „все модели“, оно открылось и закрылось» и
+ * «листнул категории, а они вернулись обратно».
+ */
+function busyWithInput() {
+  const a = document.activeElement;
+  if (!a) return false;
+  if (/INPUT|SELECT|TEXTAREA/.test(a.tagName)) return true;
+  return false;
+}
+
+/**
+ * Пока список прокручивается — тоже не перерисовываем.
+ *
+ * На компьютере это незаметно, а на телефоне видно рывок в конце прокрутки.
+ * Причина в том, что перерисовка заменяет экран целиком и возвращает
+ * прокрутку на то место, где она была в момент замера. Палец в этот момент
+ * уже уехал дальше, инерция продолжается — и позиция дёргается назад. Хуже
+ * всего в самом конце списка, где к этому добавляется отскок края.
+ *
+ * Поэтому ждём, пока прокрутка успокоится. Время идёт как шло, ждёт только
+ * перерисовка.
+ */
+const SCROLL_SETTLE = 220;
+/** Насколько палец должен проехать, чтобы это считалось прокруткой, а не тычком. */
+const DRAG_SLOP = 8;
+
+let dragging = false;
+let lastScrollAt = 0;
+
+function busyScrolling() {
+  return dragging || Date.now() - lastScrollAt < SCROLL_SETTLE;
 }
 
 export function render() {
   const S = UI.S;
   if (!S) return;
+  if (busyWithInput() || busyScrolling()) {
+    // Перерисуем, как только список закроется или прокрутка встанет:
+    // слушатели ниже разбудят, а если нет — следующий тик часов.
+    UI.dirty = true;
+    return;
+  }
+  UI.dirty = false;
   UI.lastRev = S.rev;
   const screen = $('#screen');
   const key = S.ui.app + '/' + S.ui.view + '/' + S.ui.id;
   const prevBody = screen.querySelector('.body');
   const keepScroll = key === UI.lastKey && prevBody ? prevBody.scrollTop : 0;
+  // Горизонтальные ленты категорий и вкладок тоже держат прокрутку, иначе
+  // она отскакивает в начало на каждом игровом тике.
+  const keepStrips = key === UI.lastKey ? [...screen.querySelectorAll('.chips, .tabs')].map((el) => el.scrollLeft) : [];
 
   renderStatusbar(S);
-  screen.innerHTML = S.ui.app ? renderApp(S) : renderHome(S);
+  // Ошибка внутри одного экрана не должна убивать игру целиком. Раньше
+  // исключение при отрисовке оставляло пустой `#screen`, и дальше не
+  // нажималось вообще ничего, кроме полоски «домой», — прогресс при этом был
+  // цел, но добраться до него было нельзя. Теперь падает только этот экран,
+  // а из него есть выход.
+  try {
+    screen.innerHTML = S.ui.app ? renderApp(S) : renderHome(S);
+  } catch (e) {
+    console.error('Ошибка отрисовки экрана', S.ui.app, S.ui.view, e);
+    screen.innerHTML = `<div class="app" style="--acc:#b23b3b;--acc-ink:#fff;--acc-text:#b23b3b">
+      <div class="app-head"><button class="back" data-act="back" aria-label="Назад">‹</button><h1>Ошибка экрана</h1></div>
+      <div class="body">
+        <div class="callout danger">Этот экран не отрисовался: ${esc(String((e && e.message) || e))}</div>
+        <div class="muted">Прогресс цел и сохранён. Вернись назад или на главный экран — остальная игра работает.</div>
+        <button class="btn full" data-act="goHome">На главный экран</button>
+      </div></div>`;
+  }
 
   const body = screen.querySelector('.body');
   if (body) {
     if (S.ui.view === 'thread') body.scrollTop = body.scrollHeight;
     else body.scrollTop = keepScroll;
   }
+  if (keepStrips.length) {
+    const strips = screen.querySelectorAll('.chips, .tabs');
+    for (let i = 0; i < strips.length && i < keepStrips.length; i++) {
+      if (keepStrips[i]) strips[i].scrollLeft = keepStrips[i];
+    }
+  }
   if (!S.ui.app) fitHome();
   UI.lastKey = key;
+}
+
+/**
+ * Следим за тем, когда перерисовывать нельзя, и дорисовываем отложенное,
+ * как только станет можно.
+ */
+export function bindInputGuards() {
+  const wake = () => {
+    if (UI.dirty) scheduleRender();
+  };
+  const later = () => setTimeout(wake, 0);
+
+  document.addEventListener('focusout', later, true);
+  document.addEventListener('change', later, true);
+
+  // Событие прокрутки не всплывает, но до слушателя на фазе перехвата
+  // доходит из любого вложенного элемента — поэтому один слушатель покрывает
+  // и списки, и ленты категорий, которые пересоздаются при каждой отрисовке.
+  document.addEventListener(
+    'scroll',
+    () => {
+      lastScrollAt = Date.now();
+      setTimeout(wake, SCROLL_SETTLE + 20);
+    },
+    true,
+  );
+
+  // Пока палец ВЕДЁТ, не перерисовываем вовсе: иначе список уезжает из-под
+  // пальца. Но простой тычок задерживать нельзя — иначе каждое нажатие
+  // отвечало бы через четверть секунды, и игра казалась бы тормозной.
+  // Поэтому прокруткой считается только движение дальше нескольких пикселей.
+  let sx = 0;
+  let sy = 0;
+  document.addEventListener(
+    'touchstart',
+    (e) => {
+      const t = e.touches && e.touches[0];
+      sx = t ? t.clientX : 0;
+      sy = t ? t.clientY : 0;
+      dragging = false;
+    },
+    { passive: true, capture: true },
+  );
+  document.addEventListener(
+    'touchmove',
+    (e) => {
+      if (dragging) return;
+      const t = e.touches && e.touches[0];
+      if (!t) return;
+      if (Math.abs(t.clientX - sx) > DRAG_SLOP || Math.abs(t.clientY - sy) > DRAG_SLOP) {
+        dragging = true;
+        lastScrollAt = Date.now();
+      }
+    },
+    { passive: true, capture: true },
+  );
+  const release = () => {
+    if (dragging) {
+      // Палец отпустили на ходу — дальше пойдёт инерция, ждём её конца.
+      lastScrollAt = Date.now();
+      setTimeout(wake, SCROLL_SETTLE + 20);
+    } else {
+      // Это был тычок: рисуем сразу, без задержки.
+      later();
+    }
+    dragging = false;
+  };
+  document.addEventListener('touchend', release, { passive: true, capture: true });
+  document.addEventListener('touchcancel', release, { passive: true, capture: true });
 }
 
 /**

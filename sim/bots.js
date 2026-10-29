@@ -46,7 +46,7 @@ import { STAFF, hired } from '../src/core/staff.js';
 export const STRATEGIES = {
   careful: {
     name: 'Аккуратный честный',
-    inspectBudget: 9, // сколько вещей готов осмотреть за визит в секонд
+    inspectBudget: 26, // сколько вещей готов осмотреть за визит в секонд
     tellsPerItem: 2,
     maxSuspicion: 0.12,
     maxPriceRatio: 0.62, // доля рынка, дороже не берёт
@@ -66,7 +66,7 @@ export const STRATEGIES = {
   },
   smart: {
     name: 'Сильный игрок',
-    inspectBudget: 12,
+    inspectBudget: 34,
     tellsPerItem: 2,
     maxSuspicion: 0.12,
     maxPriceRatio: 0.64,
@@ -95,7 +95,7 @@ export const STRATEGIES = {
     // переписки за день рук не хватает. Именно на нём и видно, что даёт
     // помощник.
     name: 'Сильный, но занятой',
-    inspectBudget: 12,
+    inspectBudget: 34,
     tellsPerItem: 2,
     maxSuspicion: 0.12,
     maxPriceRatio: 0.64,
@@ -122,7 +122,7 @@ export const STRATEGIES = {
   },
   greedy: {
     name: 'Жадный: паль как ориг',
-    inspectBudget: 6,
+    inspectBudget: 18,
     tellsPerItem: 1,
     maxSuspicion: 1,
     maxPriceRatio: 0.7,
@@ -141,7 +141,7 @@ export const STRATEGIES = {
   },
   lazy: {
     name: 'Ленивый',
-    inspectBudget: 2,
+    inspectBudget: 6,
     tellsPerItem: 1,
     maxSuspicion: 1,
     maxPriceRatio: 0.65,
@@ -159,7 +159,7 @@ export const STRATEGIES = {
   },
   leveraged: {
     name: 'Кредитный маньяк',
-    inspectBudget: 8,
+    inspectBudget: 24,
     tellsPerItem: 1,
     maxSuspicion: 0.4,
     maxPriceRatio: 0.72,

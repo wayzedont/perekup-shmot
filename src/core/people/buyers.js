@@ -217,9 +217,20 @@ export function counterOffer(rng, buyer, amount) {
 // пойдёт ли покупатель проверять.
 
 export const AUTH_ANSWERS = {
+  // Доступен только когда чек реально сделан и показал оригинал. Это не
+  // уговоры, а документ: его принимают все, включая параноика.
+  proof: {
+    n: 'Скинуть легит-чек',
+    // Кнопка называется действием, а в переписке человек пишет словами.
+    said: 'Вот результат проверки, смотрите 📄 Сервис подтвердил оригинал.',
+    d: 'У тебя есть результат проверки. Это снимает вопрос совсем',
+    pressure: -1,
+    convinces: 1,
+    needsProof: true,
+  },
   swearOrig: {
     n: 'Клянусь, оригинал. Легит-чек делал',
-    d: 'Наглая ложь. Если проверит — будет максимально больно',
+    d: 'Ложь про чек, которого нет. Если попросит показать — будет больно',
     pressure: 0.55,
     convinces: 0.75,
   },
@@ -286,6 +297,19 @@ export function reactToAuthAnswer(rng, buyer, answer, item, hasProof) {
   buyer.pressure = clamp(buyer.pressure + A.pressure, -1, 1);
   const T = BUYER_TYPES[buyer.type];
 
+  // Присланный чек закрывает вопрос у кого угодно. Раньше проверка влияла
+  // только на параноика, а остальным игрок будто бы просто божился — и это
+  // при том, что чек был сделан и оплачен.
+  if (answer === 'proof' && hasProof) {
+    return {
+      reply: rng.pick([
+        'О, с чеком — другое дело. Беру.',
+        'Вижу проверку, вопросов нет. Оформляем.',
+        'Отлично, что проверено. Давайте оплачу.',
+      ]),
+    };
+  }
+
   if (answer === 'confess') {
     return {
       reply: rng.pick([
@@ -296,7 +320,7 @@ export function reactToAuthAnswer(rng, buyer, answer, item, hasProof) {
     };
   }
 
-  if (T.requiresProof && !hasProof && answer !== 'confess') {
+  if (T.requiresProof && !hasProof) {
     if (answer === 'swearOrig') {
       // Солгал параноику про чек — он попросит показать.
       return {
@@ -308,7 +332,10 @@ export function reactToAuthAnswer(rng, buyer, answer, item, hasProof) {
     return { reply: 'Без проверки — не рискну. Удачи.', leaves: true };
   }
 
-  const convinced = rng.chance(clamp(A.convinces - (T.detectBonus || 0), 0.05, 0.95));
+  // Сделанная проверка помогает и тогда, когда игрок не стал ею козырять:
+  // вещь действительно оригинал, и это чувствуется по тому, как он отвечает.
+  const proofBonus = hasProof ? 0.3 : 0;
+  const convinced = rng.chance(clamp(A.convinces + proofBonus - (T.detectBonus || 0), 0.05, 0.98));
   if (!convinced) {
     if (answer === 'hedge') {
       return {

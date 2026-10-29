@@ -18,6 +18,7 @@ import {
   staleK,
   buyersPerDay,
   hypePct,
+  rhythmLabel,
 } from '../../core/economy.js';
 import { itemName, sizeLabel, shownCondition, colorwayName } from '../../core/items.js';
 import { knowledgeOf } from '../../core/notebook.js';
