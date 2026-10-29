@@ -90,7 +90,7 @@ export function unitCost(S, cat, qualityId) {
  * Дальше всё режется доверием, качеством, ценой и тем, как давно был
  * прошлый дроп: частить нельзя, люди не покупают по худи в неделю.
  */
-export function demandFor(S, { cat, price, quality }) {
+export function demandFor(S, { cat, price, quality, partnerReach }) {
   if (!S.tg.has) return 0;
   const q = QUALITY_BY_ID[quality] || QUALITY[1];
 
@@ -111,7 +111,10 @@ export function demandFor(S, { cat, price, quality }) {
   const since = S.brand && S.brand.lastDropAt ? (S.t - S.brand.lastDropAt) / 24 : 999;
   const rest = clamp(since / 21, 0.35, 1);
 
-  return Math.max(0, Math.round(base * trust * priceK * rest));
+  // Партнёр по коллабу приводит свою аудиторию поверх твоей.
+  const collab = 1 + (partnerReach || 0);
+
+  return Math.max(0, Math.round(base * trust * priceK * rest * collab));
 }
 
 /** Насколько прогноз может не сбыться. Дроп — ставка, а не расчёт. */
@@ -128,8 +131,10 @@ export function forecast(S, params) {
   const lo = Math.round(demand * (1 - DEMAND_SPREAD));
   const hi = Math.round(demand * (1 + DEMAND_SPREAD));
   const expected = Math.min(params.qty, demand);
-  const spend = cost * params.qty;
-  const revenue = expected * params.price;
+  // В коллабе ты платишь свою долю производства и получаешь свою долю выручки.
+  const mine = 1 - (params.partnerShare || 0);
+  const spend = Math.round(cost * params.qty * mine);
+  const revenue = Math.round(expected * params.price * mine);
   return {
     cost,
     spend,
@@ -138,8 +143,9 @@ export function forecast(S, params) {
     hi,
     expected,
     revenue,
-    worst: Math.min(params.qty, lo) * params.price - spend,
-    best: Math.min(params.qty, hi) * params.price - spend,
+    mine,
+    worst: Math.round(Math.min(params.qty, lo) * params.price * mine) - spend,
+    best: Math.round(Math.min(params.qty, hi) * params.price * mine) - spend,
     profit: revenue - spend,
     sellThrough: params.qty ? expected / params.qty : 0,
   };

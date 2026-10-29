@@ -4,10 +4,31 @@ import { esc, rub, num, shortNum, plural } from '../../core/util.js';
 import { dateLabel } from '../../core/time.js';
 import { SKILLS, STORAGE, MAX_SKILL, xpToNext, statusOf, UNLOCKS } from '../../core/data/progress.js';
 import { CATS } from '../../core/data/catalog.js';
-import { netWorth, capacity, ratingOf, fastReplyBadge, FAST_REPLY_DAYS } from '../../core/economy.js';
+import {
+  netWorth,
+  capacity,
+  ratingOf,
+  fastReplyBadge,
+  FAST_REPLY_DAYS,
+  daysHeld,
+  buyersPerDay,
+} from '../../core/economy.js';
 import { RIVAL_NAME } from '../../core/rival.js';
 import { STAFF, hired, HANDOFF_HOURS } from '../../core/staff.js';
-import { FITTINGS, hasShowroom, comfort, walkInRate, walkInPriceK } from '../../core/showroom.js';
+import {
+  FITTINGS,
+  hasShowroom,
+  comfort,
+  walkInRate,
+  walkInPriceK,
+  windowIds,
+  windowItems,
+  windowBonus,
+  windowCooldown,
+  canSetWindow,
+  WINDOW_SLOTS,
+  WINDOW_WEIGHT,
+} from '../../core/showroom.js';
 import {
   BRAND_LEVEL,
   BRAND_PRICE,
@@ -21,10 +42,12 @@ import {
   unitCost,
   forecast,
 } from '../../core/brand.js';
+import { partners, findPartner, canCollab, riskLabel, reachLabel } from '../../core/market/collab.js';
 import { seasonProgress, seasonDaysLeft } from '../../core/events.js';
 import { studiedCount } from '../../core/notebook.js';
 import { loyalCount } from '../../core/people/clients.js';
 import { sparkline, starsRow, emptyState, sectionLabel } from '../components.js';
+import { itemName } from '../../core/items.js';
 
 export const view = (S) => {
   if (S.ui.view === 'showroom') return showroomView(S);
@@ -66,7 +89,7 @@ export const view = (S) => {
   const streak = S.streak.days || 0;
   const ratingCard = `<div class="card">
     <div class="row between"><h3>Рейтинг магазина</h3><span class="stars" style="font-size:16px">${rating === null ? '—' : '★ ' + rating.toFixed(2)}</span></div>
-    <div class="muted">Единица за паль весит как три пятёрки. С рейтингом ниже четырёх покупатели почти не пишут.</div>
+    <div class="muted">Считается по последним сорока отзывам. Единица за пойманную паль весит втрое, двойка за враньё про легит-чек — вдвое; обычный отзыв весит единицу. Спрос режет так: при 4,5 пишут на 20% реже, при 4,0 — на треть, при 3,0 — втрое реже.</div>
     <div class="kv"><span>Отвечаешь без задержек</span><span class="${fastReplyBadge(S) ? 'pos' : ''}">${
       fastReplyBadge(S)
         ? `${streak} ${plural(streak, 'день', 'дня', 'дней')} подряд · значок есть`
@@ -122,7 +145,9 @@ export const view = (S) => {
              <span class="tag good">${rub(def.wage)} в неделю</span></div>
            <div class="kv"><span>Закрыл сделок</span><span>${S.staff.sold}</span></div>
            <div class="kv"><span>Продал пали как ориг</span><span class="${S.staff.blunders ? 'neg' : ''}">${S.staff.blunders}</span></div>
-           <div class="muted">Берёт на себя переписки, до которых ты не дошёл за ${HANDOFF_HOURS} ${plural(HANDOFF_HOURS, 'час', 'часа', 'часов')}, и занимает очередь в секонд к открытию. Соглашается от ${Math.round(def.floorShare * 100)}% твоей цены.</div>
+           <div class="muted">Берёт на себя переписки, до которых ты не дошёл за ${HANDOFF_HOURS} ${plural(HANDOFF_HOURS, 'час', 'часа', 'часов')}: держит цену от ${Math.round(def.targetShare * 100)}%, отдаёт не ниже ${Math.round(def.floorShare * 100)}%.${
+             def.goesToSecond ? ' Занимает очередь в секонд к открытию и откладывает тебе одну вещь.' : ''
+           }${def.managesStock ? ' Сам ведёт витрину: режет цену на залежавшемся и поднимает объявления.' : ''}</div>
            <button class="btn sec full" data-act="fireStaff">Уволить</button>`
         : `<div class="muted">Чем крупнее магазин, тем меньше успеваешь сам. Помощник освобождает руки, но продаёт дешевле тебя и иногда отдаёт вещь не проверив.</div>
            ${STAFF.map((st) => {
@@ -261,6 +286,49 @@ function showroomView(S) {
     }).join('')}
   </div>`;
 
+  // Витрина: три вещи на подиуме у входа. Решение не очевидное — ставить
+  // стоит не ходовое, а залежавшееся, и экран должен это подсказать.
+  const picked = S.ui.windowPick || windowIds(S);
+  const set = canSetWindow(S);
+  const left = windowCooldown(S);
+  const listed = S.items
+    .filter((i) => i.sale)
+    .map((i) => ({ i, days: Math.floor(daysHeld(S, i)), per: buyersPerDay(S, i) }))
+    .sort((a, b) => b.days - a.days)
+    .slice(0, 14);
+  const changed = picked.join(',') !== windowIds(S).join(',');
+
+  const windowCard = `<div class="card">
+    <div class="row between"><h3>Витрина</h3>
+      <span class="tag ${windowItems(S).length ? 'good' : ''}">${windowItems(S).length} из ${WINDOW_SLOTS}</span></div>
+    <div class="muted">Человек у входа видит эти три вещи, а не всю вешалку, — и берёт почти не глядя на то, в моде модель или нет. Плюс сама витрина приводит больше прохожих. Ставить туда ходовое — значит продать то, что и так уйдёт: витрина для того, что залежалось.</div>
+    <div class="kv"><span>Людей с улицы</span><span>${
+      windowItems(S).length ? `+${Math.round((windowBonus(S) - 1) * 100)}% к потоку` : 'без витрины'
+    }</span></div>
+    ${
+      listed.length
+        ? `<div class="stack">${listed
+            .map((row) => {
+              const on = picked.includes(row.i.id);
+              const stale = row.days >= 10;
+              return `<button class="lever ${on ? 'strong' : ''}" data-act="windowPick" data-id="${row.i.id}">
+                <b>${on ? '◉ ' : '○ '}${esc(itemName(row.i))}</b>
+                <span>${rub(row.i.sale.price)} · лежит ${row.days} ${plural(row.days, 'день', 'дня', 'дней')}${
+                  stale ? ' · залежалась' : ''
+                } · ${row.per < 0.05 ? 'почти не пишут' : '≈' + row.per.toFixed(1) + ' покупателя в день'}</span></button>`;
+            })
+            .join('')}</div>`
+        : '<div class="muted">Сначала выставь что-нибудь на продажу.</div>'
+    }
+    ${
+      set.ok
+        ? `<button class="btn full" data-act="setWindow" ${changed ? '' : 'disabled'}>${
+            changed ? 'Поставить на витрину' : 'Витрина уже такая'
+          }</button>`
+        : `<button class="btn full" disabled>Менять можно раз в сутки: ещё ${Math.ceil(left)} ч</button>`
+    }
+  </div>`;
+
   const recent = S.deals.filter((d) => d.platform === 'showroom').slice(0, 10);
   const log = `<div class="card"><h3>Забрали с вешалки</h3>
     ${
@@ -272,7 +340,7 @@ function showroomView(S) {
         .join('') || '<div class="muted">Пока никто не заходил</div>'
     }</div>`;
 
-  return { title: 'Шоурум', body: hero + facts + fittings + log };
+  return { title: 'Шоурум', body: hero + facts + windowCard + fittings + log };
 }
 
 /* ======================= СВОЙ БРЕНД ======================= */
@@ -322,11 +390,44 @@ function brandView(S) {
   const quality = S.ui.dropQuality || 'normal';
   const qty = S.ui.dropQty || 50;
   const price = S.ui.dropPrice || fairPrice(S, cat);
-  const f = forecast(S, { cat, qty, price, quality });
+  const list = partners(S);
+  const collab = canCollab(S);
+  const pt = S.ui.dropPartner && collab.ok ? findPartner(S, S.ui.dropPartner) : null;
+  const f = forecast(S, {
+    cat,
+    qty,
+    price,
+    quality,
+    partnerReach: pt ? pt.reach : 0,
+    partnerShare: pt ? pt.share : 0,
+  });
 
   const cats = `<div class="chips">${DROP_CATS.map(
     (c) => `<button class="chip ${c === cat ? 'on' : ''}" data-act="dropCat" data-val="${c}">${esc(CATS[c].n)}</button>`,
   ).join('')}</div>`;
+
+  // Коллаб: партнёр приводит аудиторию, но забирает долю и может пропасть.
+  const partnerRow = `<div class="card">
+    <div class="row between"><h3>Вместе с кем</h3>
+      ${pt ? `<span class="tag good">${esc(pt.name)}</span>` : '<span class="tag">сам</span>'}</div>
+    ${
+      collab.ok
+        ? `<div class="muted">Партнёр приводит свою аудиторию, но забирает долю тиража и выручки. Договор на словах: мелкий может пропасть с деньгами, тот, кто дорожит именем, — почти никогда.</div>
+           <div class="stack">
+             <button class="lever ${pt ? '' : 'strong'}" data-act="dropPartner" data-val="">
+               <b>Делаю сам</b><span>Вся выручка твоя, аудитория только твоя</span></button>
+             ${list
+               .map((p) => {
+                 const r = riskLabel(p);
+                 return `<button class="lever ${pt && pt.name === p.name ? 'strong' : ''}" data-act="dropPartner" data-val="${esc(p.name)}">
+                   <b>${esc(p.name)}${p.rival ? ' · соперник' : ''}</b>
+                   <span>Забирает ${Math.round(p.share * 100)}% · ${esc(reachLabel(p))} · ${esc(r.n)}</span></button>`;
+               })
+               .join('')}
+           </div>`
+        : `<div class="muted">${esc(collab.why)}</div>`
+    }
+  </div>`;
 
   const quals = `<div class="stack">${QUALITY.map(
     (q) => `<button class="lever ${q.id === quality ? 'strong' : ''}" data-act="dropQuality" data-val="${q.id}">
@@ -361,9 +462,15 @@ function brandView(S) {
   const since = b.lastDropAt ? Math.floor((S.t - b.lastDropAt) / 24) : null;
   const plan = `<div class="card">
     <h3>Что получится</h3>
-    <div class="kv"><span>Производство</span><span class="neg">−${rub(f.spend)}</span></div>
+    <div class="kv"><span>Производство${pt ? ', твоя доля' : ''}</span><span class="neg">−${rub(f.spend)}</span></div>
     <div class="kv"><span>Аудитория выкупит</span><span>${f.lo}–${f.hi} шт</span></div>
     <div class="kv"><span>Значит продашь</span><span>${Math.min(qty, f.lo)}–${Math.min(qty, f.hi)} из ${qty}</span></div>
+    ${
+      pt
+        ? `<div class="kv"><span>Тебе достанется</span><span>${Math.round(f.mine * 100)}% выручки</span></div>
+           <div class="callout ${pt.risk >= 0.12 ? 'danger' : ''}">${esc(pt.name)}: ${esc(riskLabel(pt).n)}. Если пропадёт с деньгами, товар всё равно разойдётся — но мимо тебя.</div>`
+        : ''
+    }
     ${
       f.worst === f.best
         ? `<div class="kv"><span>Заработаешь</span><span class="${f.best >= 0 ? 'pos' : 'neg'}">${f.best >= 0 ? '+' : ''}${rub(f.best)}</span></div>`
@@ -394,7 +501,7 @@ function brandView(S) {
 
   return {
     title: esc(b.name),
-    body: hero + cats + quals + qtyRow + priceRow + plan + go + dropLog(S),
+    body: hero + cats + quals + qtyRow + priceRow + partnerRow + plan + go + dropLog(S),
   };
 }
 
@@ -404,7 +511,7 @@ function dropLog(S) {
     ${
       list
         .map(
-          (d) => `<div class="kv"><span>${esc(d.name)}<small>${esc(dateLabel(d.at))} · ${d.sold} из ${d.qty} шт по ${rub(d.price)}</small></span>
+          (d) => `<div class="kv"><span>${esc(d.name)}<small>${esc(dateLabel(d.at))} · ${d.sold} из ${d.qty} шт по ${rub(d.price)}${d.partner ? ' · с ' + esc(d.partner) + (d.cheated ? ', кинул' : '') : ''}</small></span>
             <span class="${d.profit >= 0 ? 'pos' : 'neg'}">${d.profit >= 0 ? '+' : ''}${rub(d.profit)}</span></div>`,
         )
         .join('') || '<div class="muted">Дропов пока не было</div>'

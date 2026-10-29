@@ -14,6 +14,7 @@ import {
   statusOf,
 } from './data/progress.js';
 import { LIFE_EVENTS } from './data/content.js';
+import { ONBOARDING } from './data/onboarding.js';
 import {
   dayIndex,
   hourIndex,
@@ -50,6 +51,7 @@ import {
   closeThread,
   mentorSay,
   mentorOnce,
+  mentorFlush,
   addReview,
   schedule,
   bump,
@@ -180,6 +182,8 @@ export function hourTick(S) {
   if (SCHEDULE.orderHours.includes(h)) maybeOrder(S, rng);
   if (h === SCHEDULE.briefingHour) morningBriefing(S, rng);
 
+  onboardingTick(S);
+  mentorFlush(S);
   raffleTick(S, rng);
   tickAds(S, rng);
   if (isBuyerTime(S.t)) generateBuyers(S, rng);
@@ -473,7 +477,8 @@ function rivalBlunder(S, rng) {
   const text = res.text
     .replace('{item}', name)
     .replace('{price}', rub(Math.max(3000, Math.round(res.loss * rng.range(0.5, 1.1)))));
-  let th = S.threads.find((t) => t.kind === 'rival');
+  // Именно Мирон: в чатах той же природы могут сидеть партнёры по коллабу.
+  let th = S.threads.find((t) => t.kind === 'rival' && t.name === RIVAL_NAME);
   if (!th) {
     th = newThread(S, { kind: 'rival', name: RIVAL_NAME, sub: 'конкурент', platform: 'tg' });
   }
@@ -491,7 +496,8 @@ function rivalBlunder(S, rng) {
 function rivalTaunt(S, rng, kind, vars) {
   const text = taunt(S, rng, kind, { ...vars, nw: rub(S.rival.nw) });
   if (!text) return;
-  let th = S.threads.find((t) => t.kind === 'rival');
+  // Именно Мирон: в чатах той же природы могут сидеть партнёры по коллабу.
+  let th = S.threads.find((t) => t.kind === 'rival' && t.name === RIVAL_NAME);
   if (!th) {
     th = newThread(S, {
       kind: 'rival',
@@ -591,6 +597,21 @@ function rivalAtSecond(S, rng, h) {
       'rivalSecond',
       'Мирон в секонде к десяти как на работу. Хочешь ликвид — будь там к открытию сам, иначе будешь покупать то, что он не взял.',
     );
+  }
+}
+
+/* ---------- Тимур ведёт первые часы ---------- */
+//
+// За раз приходит только один шаг — первый несработавший, у которого
+// выполнено условие. Поэтому игрок, который сразу побежал в секонд, не
+// получит сначала лекцию про шкаф, а все шаги не свалятся кучей.
+
+function onboardingTick(S) {
+  for (const step of ONBOARDING) {
+    if (S.flags[step.id]) continue;
+    if (!step.when(S)) continue;
+    mentorOnce(S, step.id, step.text, { first: true });
+    return;
   }
 }
 

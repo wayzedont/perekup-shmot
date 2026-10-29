@@ -150,11 +150,32 @@ export function mentorSay(S, text) {
   notify(S, { route: 'tg/thread/' + th.id, title: 'Тимур', text, scope: 'client' });
 }
 
-/** Подсказка наставника, которая срабатывает один раз. */
-export function mentorOnce(S, flag, text) {
+/**
+ * Подсказка наставника, которая срабатывает один раз.
+ *
+ * Встаёт в очередь, а не вываливается сразу. Иначе за одну минуту можно
+ * получить три сообщения подряд: выставил вещь — подсказка, пришёл лот —
+ * подсказка, Мирон забрал вещь — ещё одна. Живой человек так не пишет, да и
+ * читать это невозможно. Флаг ставится сразу, поэтому повториться она не
+ * может, даже если доставка отложится на час.
+ */
+export function mentorOnce(S, flag, text, opts) {
   if (S.flags[flag]) return false;
   S.flags[flag] = 1;
-  mentorSay(S, text);
+  if (!S.mentorQueue) S.mentorQueue = [];
+  // Шаги онбординга идут вперёд очереди: иначе случайная подсказка про
+  // ликвидность приезжает раньше, чем то, к чему она следует, и разговор
+  // читается задом наперёд.
+  if (opts && opts.first) S.mentorQueue.unshift(text);
+  else S.mentorQueue.push(text);
+  touch(S);
+  return true;
+}
+
+/** Отдаёт из очереди одно сообщение. Вызывается раз в игровой час. */
+export function mentorFlush(S) {
+  if (!S.mentorQueue || !S.mentorQueue.length) return false;
+  mentorSay(S, S.mentorQueue.shift());
   return true;
 }
 

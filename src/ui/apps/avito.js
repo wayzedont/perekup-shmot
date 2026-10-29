@@ -223,7 +223,7 @@ function buyAdCard(S) {
   return `<div class="card">
     <div class="row between"><h3>«Скупаю шмот»</h3>
       ${queued ? `<span class="tag good">ещё напишут: ${queued}</span>` : ''}</div>
-    <div class="muted">Пост в своём канале: не ты ищешь вещи, а их приносят тебе. Просят 30–60% рынка, потому что деньги нужны сегодня, приезжают сами и осмотреть дают всё без спешки.</div>
+    <div class="muted">Пост в своём канале: не ты ищешь вещи, а их приносят тебе. Просят 30–70% рынка, потому что деньги нужны сегодня, приезжают сами и осмотреть дают всё без спешки.</div>
     <div class="kv"><span>Откликнется</span><span>${esc(howMany)}</span></div>
     <div class="kv"><span>Понесут</span><span class="${what.tone === 'bad' ? 'neg' : what.tone === 'good' ? 'pos' : ''}">${esc(what.n)}</span></div>
     <div class="kv"><span>Из них паль</span><span class="${fakes > 35 ? 'neg' : ''}">примерно ${fakes}%</span></div>

@@ -19,8 +19,22 @@ import {
   forecast,
   hasBrand,
 } from '../brand.js';
-import { rngOf, pay, earn, canPay, notify, toast, touch, mentorSay, mentorOnce, schedule } from '../kernel.js';
+import {
+  rngOf,
+  pay,
+  earn,
+  canPay,
+  notify,
+  toast,
+  touch,
+  newThread,
+  say,
+  mentorSay,
+  mentorOnce,
+  schedule,
+} from '../kernel.js';
 import { post as channelPost } from '../channel.js';
+import { findPartner } from '../market/collab.js';
 import { dayIndex } from '../time.js';
 import { checkGoals } from '../progression.js';
 
@@ -39,7 +53,17 @@ export function launchBrand(S, name) {
   const title = (name || '').trim().slice(0, 24) || S.tg.name || 'Без названия';
   pay(S, BRAND_PRICE, 'Запуск бренда «' + title + '»');
   S.flags.brand = 1;
-  S.brand = { name: title, drop: null, hits: 0, flops: 0, lastDropAt: 0, drops: [] };
+  S.brand = {
+    name: title,
+    drop: null,
+    hits: 0,
+    flops: 0,
+    collabHits: 0,
+    cheated: 0,
+    lastDropAt: 0,
+    lastCollabAt: 0,
+    drops: [],
+  };
   channelPost(
     S,
     'brand',
@@ -54,6 +78,16 @@ export function launchBrand(S, name) {
   return { name: title, stats: S.stats, days: dayIndex(S.t) + 1 };
 }
 
+/** Переписка с партнёром по коллабу — там же, где все перекупы. */
+function rivalChat(S, name) {
+  let th = S.threads.find((t) => t.kind === 'rival' && t.name === name);
+  if (!th) {
+    th = newThread(S, { kind: 'rival', name, sub: 'коллаб', platform: 'tg' });
+  }
+  th.closed = false;
+  return th;
+}
+
 /* ======================= ДРОП ======================= */
 
 export const MIN_QTY = 20;
@@ -65,7 +99,7 @@ export function canDrop(S) {
   return { ok: true };
 }
 
-export function startDrop(S, { cat, name, qty, price, quality }) {
+export function startDrop(S, { cat, name, qty, price, quality, partner }) {
   const check = canDrop(S);
   if (!check.ok) {
     toast(S, check.why);
@@ -76,17 +110,29 @@ export function startDrop(S, { cat, name, qty, price, quality }) {
   const p = Math.max(300, Math.round(price || 0));
   const q = QUALITY_BY_ID[quality] ? quality : 'normal';
   const unit = unitCost(S, cat, q);
-  const spend = unit * n;
+
+  // В коллабе тираж и выручка делятся. Партнёр фиксируется в момент запуска,
+  // чтобы его доля и надёжность потом не поехали вместе с капиталом.
+  const pt = partner ? findPartner(S, partner) : null;
+  if (partner && !pt) {
+    toast(S, 'С этим человеком уже не договориться');
+    return null;
+  }
+  const mine = pt ? 1 - pt.share : 1;
+  const spend = Math.round(unit * n * mine);
   if (!canPay(S, spend)) return null;
 
-  pay(S, spend, `Производство: ${n} шт ${CATS[cat].one}`);
+  pay(S, spend, `Производство: ${n} шт ${CATS[cat].one}` + (pt ? ` (твоя доля)` : ''));
   const title = (name || '').trim().slice(0, 28) || CATS[cat].n;
   // Настоящий спрос разыгрывается здесь и игроку не показывается:
   // на экране была вилка, а угадал он или нет — выяснится по дням.
   const rng = rngOf(S);
   const demand = Math.max(
     0,
-    Math.round(demandFor(S, { cat, price: p, quality: q }) * rng.range(1 - DEMAND_SPREAD, 1 + DEMAND_SPREAD)),
+    Math.round(
+      demandFor(S, { cat, price: p, quality: q, partnerReach: pt ? pt.reach : 0 }) *
+        rng.range(1 - DEMAND_SPREAD, 1 + DEMAND_SPREAD),
+    ),
   );
   S.brand.drop = {
     cat,
@@ -103,13 +149,21 @@ export function startDrop(S, { cat, name, qty, price, quality }) {
     reviews: 0,
     startedAt: S.t,
     endsAt: S.t + DROP_DAYS * 24,
+    partner: pt ? { name: pt.name, share: pt.share, risk: pt.risk, reach: pt.reach } : null,
+    // Кинет он или нет, решается прямо сейчас и игроку не показывается.
+    // Узнает он об этом на первой выплате — когда производство уже оплачено.
+    cheated: pt ? rng.chance(pt.risk) : false,
   };
+  if (S.brand.drop.cheated) S.brand.cheated = (S.brand.cheated || 0) + 1;
   S.brand.lastDropAt = S.t;
+  if (pt) S.brand.lastCollabAt = S.t;
 
   channelPost(
     S,
     'drop',
-    `🔥 ДРОП: ${title}\n${CATS[cat].n} · ${QUALITY_BY_ID[q].n}\n${rub(p)} · тираж ${n} шт\n\nКто не успел — тот не успел.`,
+    pt
+      ? `🔥 ДРОП: ${title}\nСовместно с ${pt.name}\n${CATS[cat].n} · ${QUALITY_BY_ID[q].n}\n${rub(p)} · тираж ${n} шт`
+      : `🔥 ДРОП: ${title}\n${CATS[cat].n} · ${QUALITY_BY_ID[q].n}\n${rub(p)} · тираж ${n} шт\n\nКто не успел — тот не успел.`,
   );
   notify(S, {
     route: 'shop/brand',
@@ -157,11 +211,36 @@ export function dropTick(S, rng) {
   d.demandLeft = Math.max(0, d.demandLeft - n);
   d.left -= n;
   d.sold += n;
-  const money = n * d.price;
-  d.revenue += money;
-  earn(S, money, `Дроп «${d.name}»: ${n} шт`);
-  S.stats.revenue += money;
-  S.stats.profit += money - n * d.unit;
+  // В коллабе до тебя доходит только твоя доля — и то если партнёр честный.
+  const mine = d.partner ? 1 - d.partner.share : 1;
+  const money = Math.round(n * d.price * mine);
+  if (d.cheated) {
+    // Партнёр не переводит ничего с самого начала: товар уходит, денег нет.
+    // Узнаёшь об этом на первой же выплате, но производство уже оплачено.
+    d.stolen = (d.stolen || 0) + money;
+    if (!d.told) {
+      d.told = true;
+      say(S, rivalChat(S, d.partner.name), 'them', rng.pick([
+        'Слушай, с деньгами задержка. Как решу — скину. Не теряй.',
+        'Я на связи, просто сейчас запара. Потом разберёмся по деньгам.',
+      ]));
+      notify(S, {
+        route: 'shop/brand',
+        title: d.partner.name + ' не переводит деньги',
+        text: `Товар по дропу «${d.name}» уходит, а выплат нет. Производство ты уже оплатил.`,
+      });
+      mentorOnce(
+        S,
+        'collabCheat',
+        'Кинули на коллабе? Увы, это рынок: договор был на словах. С мелкими партнёрами так бывает часто, с теми, кто дорожит именем, — почти никогда. В следующий раз смотри не на долю, а на репутацию.',
+      );
+    }
+  } else {
+    d.revenue += money;
+    earn(S, money, `Дроп «${d.name}»: ${n} шт` + (d.partner ? ' (твоя доля)' : ''));
+    S.stats.revenue += money;
+    S.stats.profit += money - Math.round(n * d.unit * mine);
+  }
 
   // Отзывы — единственный источник опыта в игре, и свой бренд тут не
   // исключение: дропами тоже растёшь, просто медленнее, чем зарабатываешь.
@@ -188,7 +267,9 @@ export function dropTick(S, rng) {
   notify(S, {
     route: 'shop/brand',
     title: `Дроп «${d.name}»: ${n} шт`,
-    text: `+${rub(money)} · осталось ${d.left} из ${d.qty}`,
+    text: d.cheated
+      ? `Деньги у ${d.partner.name}, до тебя не дошли. Осталось ${d.left} из ${d.qty}`
+      : `+${rub(money)} · осталось ${d.left} из ${d.qty}`,
   });
   touch(S);
 }
@@ -199,19 +280,38 @@ function closeDrop(S, rng) {
   d.closed = true;
   const through = d.qty ? d.sold / d.qty : 0;
 
+  const mine = d.partner ? 1 - d.partner.share : 1;
   let salvage = 0;
   if (d.left > 0) {
-    salvage = Math.round(d.left * d.unit * SALVAGE_K);
+    salvage = Math.round(d.left * d.unit * SALVAGE_K * mine);
     earn(S, salvage, `Аутлет: остаток дропа «${d.name}», ${d.left} шт`);
     S.stats.revenue += salvage;
-    S.stats.profit += salvage - d.left * d.unit;
+    S.stats.profit += salvage - Math.round(d.left * d.unit * mine);
   }
+  // d.revenue — то, что реально дошло; украденное в него не попадает.
   const profit = d.revenue + salvage - d.spend;
 
-  if (through >= 0.8) {
+  if (d.cheated) {
+    // Партнёр исчез с деньгами. Аудитория про это узнаёт, и доверие падает:
+    // для подписчиков это ты выпустил дроп с кидалой.
+    S.tg.trust = clamp(S.tg.trust - 6, 0, 100);
+    channelPost(
+      S,
+      'drop',
+      `По поводу «${d.name}»: с ${d.partner.name} мы больше не работаем. Кому не доехало — пишите мне.`,
+    );
+  } else if (through >= 0.8) {
     S.brand.hits++;
-    channelPost(S, 'drop', `«${d.name}» разобрали. Спасибо всем 🖤 Следующий дроп скоро.`);
-    S.tg.trust = clamp(S.tg.trust + 4, 0, 100);
+    // Удачный коллаб — ещё и знакомство: партнёр остаётся в хороших руках.
+    channelPost(
+      S,
+      'drop',
+      d.partner
+        ? `«${d.name}» разобрали. Спасибо ${d.partner.name} за коллаб 🖤`
+        : `«${d.name}» разобрали. Спасибо всем 🖤 Следующий дроп скоро.`,
+    );
+    S.tg.trust = clamp(S.tg.trust + (d.partner ? 6 : 4), 0, 100);
+    if (d.partner) S.brand.collabHits = (S.brand.collabHits || 0) + 1;
   } else if (through < 0.45) {
     S.brand.flops++;
     S.tg.trust = clamp(S.tg.trust - 3, 0, 100);
@@ -230,6 +330,8 @@ function closeDrop(S, rng) {
     price: d.price,
     quality: d.quality,
     profit,
+    partner: d.partner ? d.partner.name : null,
+    cheated: !!d.cheated,
     at: S.t,
   });
   if (S.brand.drops.length > 20) S.brand.drops.length = 20;
@@ -237,7 +339,9 @@ function closeDrop(S, rng) {
   notify(S, {
     route: 'shop/brand',
     title: `Дроп «${d.name}» закрыт`,
-    text: `Продано ${d.sold} из ${d.qty} · ${profit >= 0 ? '+' : ''}${rub(profit)}`,
+    text: d.cheated
+      ? `Продано ${d.sold} из ${d.qty}, но деньги забрал ${d.partner.name}. Минус ${rub(-profit)}.`
+      : `Продано ${d.sold} из ${d.qty} · ${profit >= 0 ? '+' : ''}${rub(profit)}`,
   });
   S.brand.drop = null;
   checkGoals(S);

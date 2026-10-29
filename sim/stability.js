@@ -71,27 +71,18 @@ const METRICS = [
     hi: 90000,
     f: (rs) => quantiles(rs.map((r) => at(r.snapshots, DAYS - 1))).med,
   },
+
   {
     who: 'careful',
-    n: 'Самый быстрый до 50 000 ₽',
+    n: 'Десятый процентиль до 50 000 ₽',
     unit: 'день',
     lo: 15,
     f: (rs) => {
-      const d = rs.map((r) => dayAtWorth(r.snapshots, 50000)).filter((x) => x !== null);
-      return d.length ? Math.min(...d) : null;
-    },
-  },
-  {
-    who: 'careful',
-    n: 'Разбогател раньше 15-го дня',
-    unit: '%',
-    hi: 2,
-    f: (rs) => {
-      const early = rs.filter((r) => {
-        const d = dayAtWorth(r.snapshots, 50000);
-        return d !== null && d < 15;
-      });
-      return (early.length / rs.length) * 100;
+      const d = rs
+        .map((r) => dayAtWorth(r.snapshots, 50000))
+        .filter((x) => x !== null)
+        .sort((a, b) => a - b);
+      return d.length ? d[Math.floor(d.length * 0.1)] : null;
     },
   },
   {

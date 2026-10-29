@@ -2,7 +2,7 @@
 
 import { clamp, priceRound, rub, num } from '../util.js';
 import { JOBS } from '../data/content.js';
-import { STORAGE, SKILL_KEYS, MAX_SKILL, statusOf } from '../data/progress.js';
+import { STORAGE, SKILL_KEYS, MAX_SKILL, statusOf, nextSeasonLevel } from '../data/progress.js';
 import { netWorth, capacity, usedSlots } from '../economy.js';
 import { SEASON_MODIFIERS, seasonDaysLeft } from '../events.js';
 import {
@@ -232,7 +232,7 @@ export function startNewSeason(S, modifierId) {
   // Книжка — это личное знание, оно остаётся всегда.
   fresh.notebook = S.notebook;
   fresh.prog.skills = S.prog.skills;
-  fresh.prog.lvl = Math.max(1, Math.floor(S.prog.lvl / 2));
+  fresh.prog.lvl = nextSeasonLevel(S.prog.lvl);
   fresh.prog.sp = 0;
   fresh.stats.sold = 0;
 

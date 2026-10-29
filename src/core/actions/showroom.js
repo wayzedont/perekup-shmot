@@ -6,7 +6,18 @@
 import { rub, clamp } from '../util.js';
 import { MODELS } from '../data/models.js';
 import { itemName } from '../items.js';
-import { FITTING_BY_ID, canBuyFitting, walkInRate, walkInPriceK, hasShowroom } from '../showroom.js';
+import {
+  FITTING_BY_ID,
+  canBuyFitting,
+  walkInRate,
+  walkInPriceK,
+  hasShowroom,
+  canSetWindow,
+  windowIds,
+  onWindow,
+  WINDOW_SLOTS,
+  WINDOW_WEIGHT,
+} from '../showroom.js';
 import { rngOf, pay, notify, toast, touch, newThread, say, closeThread, mentorOnce } from '../kernel.js';
 import { makeBuyer, buyerName } from '../people/buyers.js';
 import { completeSale } from './selling.js';
@@ -35,6 +46,44 @@ export function buyFitting(S, id) {
   return { name: f.n };
 }
 
+/* ======================= ВИТРИНА ======================= */
+
+/**
+ * Собрать витрину заново. Переставлять можно раз в сутки, поэтому решение
+ * не отменишь: что поставил с утра, то и стоит весь день.
+ */
+export function setWindow(S, ids) {
+  const check = canSetWindow(S);
+  if (!check.ok) {
+    toast(S, check.why);
+    return null;
+  }
+  const valid = (ids || [])
+    .map((id) => S.items.find((i) => i.id === +id && i.sale))
+    .filter(Boolean)
+    .slice(0, WINDOW_SLOTS)
+    .map((i) => i.id);
+  S.showroom.window = valid;
+  S.showroom.windowAt = S.t;
+  mentorOnce(
+    S,
+    'windowTip',
+    'С подиума снимают в разы чаще, чем с вешалки. Поэтому ставить туда ходовое — значит продать то, что и так уйдёт. Ставь залежавшееся: это единственный способ разморозить деньги, не роняя цену.',
+  );
+  touch(S);
+  return { count: valid.length };
+}
+
+/** Снять проданное с подиума, чтобы место не пустовало зря. */
+export function cleanWindow(S) {
+  const before = windowIds(S).length;
+  const alive = windowIds(S).filter((id) => S.items.some((i) => i.id === id && i.sale));
+  if (alive.length !== before) {
+    S.showroom.window = alive;
+    touch(S);
+  }
+}
+
 /* ======================= ЛЮДИ С УЛИЦЫ ======================= */
 
 /**
@@ -50,7 +99,8 @@ export function walkInTick(S, rng) {
   const onSale = S.items.filter((i) => i.sale);
   if (!onSale.length) return;
   // Выбирают глазами: чем ликвиднее вещь, тем вероятнее её снимут с вешалки.
-  const item = rng.weighted(onSale, (i) => 0.25 + S.market.h[i.m]);
+  // Но с подиума у входа снимают в разы чаще — ради этого витрину и ставят.
+  const item = rng.weighted(onSale, (i) => (onWindow(S, i) ? WINDOW_WEIGHT : 0.25 + S.market.h[i.m]));
   const k = walkInPriceK(S);
   const price = Math.round(item.sale.price * k);
 
@@ -87,6 +137,7 @@ export function walkInTick(S, rng) {
     closeThread(S, th);
     return;
   }
+  cleanWindow(S);
   S.showroom.walkIns = (S.showroom.walkIns || 0) + 1;
   S.showroom.revenue = (S.showroom.revenue || 0) + price;
   notify(S, {

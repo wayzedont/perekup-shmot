@@ -5,6 +5,8 @@ import { MODELS, BRANDED } from './core/data/models.js';
 import { CONDS, TIERS } from './core/data/catalog.js';
 import { COST_ROOM_WEEK, COST_FOOD_DAY } from './core/data/progress.js';
 import { SEASON_MODIFIERS, isSeasonOver, seasonDaysLeft } from './core/events.js';
+import { seasonTitle, seasonMoments, seasonCarry, seasonLose } from './core/season.js';
+import { RIVAL_NAME } from './core/rival.js';
 import { dateLabel, dateLabelFull, clockLabel, hourIndex, nextRestock, SCHEDULE } from './core/time.js';
 import {
   netWorth,
@@ -126,7 +128,7 @@ function introSheet() {
   sheet(`<h2>Перекуп шмота</h2>
     <p>Понедельник, 7 сентября, 8 утра. На карте 5 000 ₽, в шкафу три поношенные вещи. Комната стоит ${rub(COST_ROOM_WEEK)} в неделю, еда и проезд — ${rub(COST_FOOD_DAY)} в день. Первый раз за комнату платить через семь дней.</p>
     <p>Правила простые: бери дешевле, проверяй, продавай дороже. Сложность в том, что половина рынка — подделки, а посмотреть на вещь стоит времени, которого всегда не хватает.</p>
-    <p>Сезон идёт до Нового года. В Телеге ждёт Тимур.</p>
+    <p>Сезон идёт до Нового года. Начать проще всего с того, что уже лежит в шкафу, — Тимур написал в Телегу, с чего именно.</p>
     <button class="btn full" style="background:#7a46d6" data-act="startGame">Погнали</button>`);
 }
 
@@ -240,18 +242,35 @@ function bankruptSheet() {
     <button class="btn bad full" data-act="resetOk">Начать заново</button>`);
 }
 
+/**
+ * Итоги сезона. Сначала кем ты стал и что с тобой произошло, потом цифры:
+ * четыре месяца игры заслуживают истории, а не только таблицы.
+ */
 function seasonEndSheet() {
   const sum = Finance.seasonSummary(S);
-  sheet(`<h2>Сезон ${sum.no} закончен</h2>
-    <p>31 декабря. Рынок замер, пора считать.</p>
-    <div class="kv"><span>Капитал</span><span>${rub(sum.netWorth)}</span></div>
-    <div class="kv"><span>Продано вещей</span><span>${sum.sold}</span></div>
-    <div class="kv"><span>Прибыль за сезон</span><span class="${sum.profit >= 0 ? 'pos' : 'neg'}">${rub(sum.profit)}</span></div>
-    <div class="kv"><span>Уровень</span><span>${sum.level} · ${esc(sum.status)}</span></div>
-    <div class="kv"><span>Постоянных клиентов</span><span>${sum.clients}</span></div>
-    <div class="kv"><span>Моделей изучено</span><span>${sum.studied}</span></div>
-    <div class="kv"><span>Мирон побеждён</span><span>${sum.rivalBeaten ? 'да' : 'нет'}</span></div>
-    <p>Новый сезон начинается заново, но знания из книжки и навыки остаются с тобой. Выбери, с чем войдёшь в него.</p>
+  const title = seasonTitle(S);
+  const moments = seasonMoments(S);
+  const carry = seasonCarry(S);
+
+  sheet(`<h2>Сезон ${sum.no}: ${esc(title.n)}</h2>
+    <p class="muted">31 декабря, ${sum.days} ${plural(sum.days, 'день', 'дня', 'дней')} в деле. Рынок замер, пора считать.</p>
+    <p>${esc(title.d)}</p>
+    ${
+      moments.length
+        ? `<div class="card tight">${moments
+            .map((m) => `<div class="kv"><span><b style="color:var(--ink)">${esc(m.n)}</b><small>${esc(m.t)}</small></span></div>`)
+            .join('')}</div>`
+        : ''
+    }
+    <div class="card tight">
+      <div class="kv"><span>Капитал</span><span class="money">${rub(sum.netWorth)}</span></div>
+      <div class="kv"><span>Прибыль за сезон</span><span class="${sum.profit >= 0 ? 'pos' : 'neg'}">${rub(sum.profit)}</span></div>
+      <div class="kv"><span>Продано вещей</span><span>${sum.sold}</span></div>
+      <div class="kv"><span>Уровень</span><span>${sum.level} · ${esc(sum.status)}</span></div>
+      <div class="kv"><span>Место в топе</span><span>${sum.rivalBeaten ? 'выше ' + esc(RIVAL_NAME) + 'а' : 'ниже ' + esc(RIVAL_NAME) + 'а'}</span></div>
+    </div>
+    <p class="muted"><b style="color:var(--ink)">Переносится:</b> ${esc(carry.join('; '))}.<br><b style="color:var(--ink)">Остаётся в прошлом:</b> ${esc(seasonLose(S).join('; '))}.</p>
+    <p>Выбери, с чем войдёшь в новый.</p>
     <div class="stack">${SEASON_MODIFIERS.map(
       (m) => `<button class="choice" data-act="newSeason" data-id="${m.id}"><b>${esc(m.n)}</b><span>${esc(m.d)}</span></button>`,
     ).join('')}</div>`);
@@ -1089,6 +1108,25 @@ A.buyFitting = (d) => {
   if (res) toast(res.name + ' — поставили');
   after();
 };
+A.windowPick = (d) => {
+  const id = +d.id;
+  const cur = (S.ui.windowPick || S.showroom.window || []).slice();
+  const at = cur.indexOf(id);
+  if (at >= 0) cur.splice(at, 1);
+  else if (cur.length < 3) cur.push(id);
+  else cur[cur.length - 1] = id;
+  S.ui.windowPick = cur;
+  touch(S);
+  after();
+};
+A.setWindow = () => {
+  const res = Showroom.setWindow(S, S.ui.windowPick || []);
+  if (res) {
+    S.ui.windowPick = null;
+    toast(res.count ? `На витрине ${res.count} ${plural(res.count, 'вещь', 'вещи', 'вещей')}` : 'Витрина пустая');
+  }
+  after();
+};
 A.hireStaff = (d) => {
   const res = Staff.hire(S, d.id);
   if (res) toast(`${res.name} выходит с завтрашнего дня`);
@@ -1133,6 +1171,11 @@ A.dropQuality = (d) => {
   touch(S);
   after();
 };
+A.dropPartner = (d) => {
+  S.ui.dropPartner = d.val || null;
+  touch(S);
+  after();
+};
 A.dropQty = (d) => {
   S.ui.dropQty = Math.max(20, Math.min(1000, (S.ui.dropQty || 50) + +d.d));
   touch(S);
@@ -1153,8 +1196,12 @@ A.startDrop = () => {
     qty: S.ui.dropQty || 50,
     price: S.ui.dropPrice || fairPrice(S, cat),
     quality: S.ui.dropQuality || 'normal',
+    partner: S.ui.dropPartner || null,
   });
-  if (res) toast('Дроп запущен. Продажи пойдут по дням');
+  if (res) {
+    S.ui.dropPartner = null;
+    toast(res.drop.partner ? 'Коллаб запущен. Продажи пойдут по дням' : 'Дроп запущен. Продажи пойдут по дням');
+  }
   after();
 };
 

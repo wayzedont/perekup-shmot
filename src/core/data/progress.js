@@ -25,6 +25,15 @@ export const STATUSES = [
   [20, 'Легенда рынка'],
 ];
 
+/**
+ * С каким уровнем начинается следующий сезон.
+ * Одно место на всю игру: и для самого перехода, и для текста в итогах, —
+ * иначе экран обещает одно, а код делает другое.
+ */
+export function nextSeasonLevel(lvl) {
+  return Math.max(1, Math.floor(lvl / 2));
+}
+
 export function statusOf(lvl) {
   let s = STATUSES[0][1];
   for (const [l, n] of STATUSES) if (lvl >= l) s = n;

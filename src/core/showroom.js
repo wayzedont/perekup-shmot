@@ -102,7 +102,7 @@ export function walkInRate(S) {
   const fit = 1 + 0.5 * fittingsOwned(S).reduce((s, f) => s + f.flow, 0);
   // Должно быть что показывать: пустая витрина никого не удержит.
   const stock = clamp(S.items.filter((i) => i.sale).length / 25, 0, 1);
-  return 0.09 * trust * fame * fit * stock;
+  return 0.09 * trust * fame * fit * stock * windowBonus(S);
 }
 
 /**
@@ -118,6 +118,64 @@ export function walkInPriceK(S) {
   const skill = 0.004 * S.prog.skills.sales;
   return clamp(base + bonus + skill, 0.76, 0.95);
 }
+
+/* ======================= ВИТРИНА ======================= */
+//
+// Три вещи на подиуме у входа. Прохожие смотрят именно на них, поэтому
+// витрина делает две вещи сразу: приводит больше людей с улицы и почти
+// предопределяет, что они снимут с вешалки.
+//
+// Решение тут неочевидное, и в этом смысл. Поставить на подиум ходовое —
+// значит продать то, что и так продастся. Поставить залежавшееся — значит
+// вытащить замороженные деньги. Переставлять можно раз в сутки, так что
+// это ровно то маленькое решение, ради которого стоит зайти утром.
+
+export const WINDOW_SLOTS = 3;
+
+export function windowIds(S) {
+  return (S.showroom && S.showroom.window) || [];
+}
+
+/** Вещи на подиуме: только те, что ещё в продаже. */
+export function windowItems(S) {
+  const ids = windowIds(S);
+  return S.items.filter((i) => ids.includes(i.id) && i.sale);
+}
+
+export function onWindow(S, item) {
+  return windowIds(S).includes(item.id);
+}
+
+/** Через сколько часов витрину можно переставить. */
+export function windowCooldown(S) {
+  const set = (S.showroom && S.showroom.windowAt) || -9999;
+  return Math.max(0, set + 24 - S.t);
+}
+
+export function canSetWindow(S) {
+  if (!hasShowroom(S)) return { ok: false, why: 'Сначала нужен шоурум' };
+  const left = windowCooldown(S);
+  if (left > 0) return { ok: false, why: `Витрину меняют раз в сутки: ещё ${Math.ceil(left)} ч` };
+  return { ok: true };
+}
+
+/** Насколько оформленная витрина добавляет людей с улицы. */
+export function windowBonus(S) {
+  const n = windowItems(S).length;
+  if (!n) return 1;
+  return 1 + 0.1 * n;
+}
+
+/**
+ * Вес вещи с подиума при выборе.
+ *
+ * Именно вес, а не множитель: человек у входа видит эти три вещи, а не всю
+ * вешалку, и его выбор почти не зависит от того, в моде модель или нет.
+ * Множитель бы здесь не сработал — у мёртвой модели вес 0,25, у горячей
+ * 1,25, и даже вчетверо усиленный неликвид проигрывал бы ходовому с вешалки.
+ * А витрина нужна ровно для того, чтобы вытаскивать залежавшееся.
+ */
+export const WINDOW_WEIGHT = 3.2;
 
 export function canBuyFitting(S, id) {
   const f = FITTING_BY_ID[id];
