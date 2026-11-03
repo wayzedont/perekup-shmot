@@ -9,6 +9,9 @@
     "sim": "node sim/run.js",
     "test": "node tools/test.js && node tools/views.js",
     "test:core": "node tools/test.js",
-    "test:views": "node tools/views.js"
+    "test:views": "node tools/views.js",
+    "fuzz": "node sim/fuzz.js 40 50",
+    "e2e": "node tools/tutorial-e2e.js 390 844",
+    "audit": "node tools/audit-screens.js 375 667 30"
   }
 }
