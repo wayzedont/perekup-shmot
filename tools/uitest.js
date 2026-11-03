@@ -15,7 +15,7 @@ const BLOCKED = new Set([
   'launchBrand',
 ]);
 
-const GARBAGE = /\bNaN\b|\bundefined\b|\[object |\bInfinity\b|\bnull\b|\bNo n\b/;
+const GARBAGE = /\bNaN\b|\bundefined\b|\[object |\bInfinity\b|\bnull\b|\bNo n\b|Этот экран не отрисовался/;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -36,6 +36,8 @@ export async function seed(S, core) {
   S.prog.storage.rack = 1;
   S.prog.storage.wardrobe = 1;
   S.prog.unlocks.showcase = 1;
+  // Разогнанная игра — все приложения уже на телефоне.
+  if (S.apps) for (const id of ['avito', 'tg', 'second', 'poizon', 'parcels', 'shop', 'notebook']) S.apps[id] = S.apps[id] || { at: 0 };
 }
 
 export async function run(clicks = 600, opts = {}) {
@@ -48,6 +50,7 @@ export async function run(clicks = 600, opts = {}) {
   const errors = [];
   const acts = new Set();
   const views = new Set();
+  const blocked = new Set([...BLOCKED, ...(opts.block || [])]);
   let clicked = 0;
 
   const onError = (e) => errors.push({ kind: 'js', text: String(e.message || e.reason || e) });
@@ -56,7 +59,7 @@ export async function run(clicks = 600, opts = {}) {
 
   for (let i = 0; i < clicks; i++) {
     const candidates = Array.from(document.querySelectorAll('[data-act]')).filter(
-      (el) => !el.disabled && !BLOCKED.has(el.dataset.act) && el.offsetParent !== null,
+      (el) => !el.disabled && !blocked.has(el.dataset.act) && el.offsetParent !== null,
     );
     if (!candidates.length) {
       g.actions.goHome({});

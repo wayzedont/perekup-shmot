@@ -15,7 +15,7 @@
 import { createGame } from '../src/core/engine.js';
 import { listItem } from '../src/core/actions/selling.js';
 import { legitCheck } from '../src/core/actions/items.js';
-import { sellerThread } from '../src/core/actions/buying.js';
+import { sellerThread, sendPhotos } from '../src/core/actions/buying.js';
 import { hire } from '../src/core/actions/staff.js';
 import { buyFitting, setWindow } from '../src/core/actions/showroom.js';
 import { launchBrand, startDrop } from '../src/core/actions/brand.js';
@@ -38,11 +38,16 @@ import * as BankApp from '../src/ui/apps/bank.js';
 import * as ShopApp from '../src/ui/apps/shop.js';
 import * as NotebookApp from '../src/ui/apps/notebook.js';
 import { parcels, goals, job, settings } from '../src/ui/apps/misc.js';
+import * as StoreApp from '../src/ui/apps/store.js';
+import { startDownload, finishDownload } from '../src/ui/apps/store.js';
+import { ALL_APPS } from '../src/core/data/apps.js';
 
 /** Состояние, в котором есть всё, что умеет показывать интерфейс. */
 function richState() {
-  const S = createGame(4242);
+  const S = createGame(4242, { tutorial: 'skip' });
   S.flags.started = 1;
+  // Богатое состояние — всё обучение позади, все приложения на телефоне.
+  for (const id of ALL_APPS) S.apps[id] = S.apps[id] || { at: 0 };
   S.money = 3000000;
   S.prog.lvl = 16;
   S.prog.sp = 2;
@@ -66,9 +71,20 @@ function richState() {
   // Переписки всех видов.
   const listing = S.listings[0];
   if (listing) {
-    sellerThread(S, listing);
+    const sth = sellerThread(S, listing);
     listing.photosAsked = true;
+    listing.photosSent = true;
+    sendPhotos(S, sth);
     listing.met = true;
+  }
+  // Объявление с подменой фото и уже сделанным чеком по фото.
+  const swapped = S.listings.find((l) => l.photoItem) || S.listings[1];
+  if (swapped) {
+    const wth = sellerThread(S, swapped);
+    swapped.photosAsked = true;
+    swapped.photosSent = true;
+    sendPhotos(S, wth);
+    swapped.photoVerdict = 'orig';
   }
   const item = S.items[0];
   const buyer = makeBuyer(S, rng, item, 'avito', item.sale.price);
@@ -111,12 +127,13 @@ const APPS = {
   second: { mod: SecondApp, views: ['main', 'item'] },
   wardrobe: { mod: WardrobeApp, views: ['main', 'item'] },
   bank: { mod: BankApp, views: ['main'] },
-  shop: { mod: ShopApp, views: ['main', 'showroom', 'brand'] },
+  shop: { mod: ShopApp, views: ['main', 'showroom', 'brand', 'chronicle'] },
   notebook: { mod: NotebookApp, views: ['main', 'item'] },
   parcels: { mod: parcels, views: ['main'] },
   goals: { mod: goals, views: ['main'] },
   job: { mod: job, views: ['main'] },
   settings: { mod: settings, views: ['main'] },
+  store: { mod: StoreApp, views: ['main', 'avito', 'tg', 'second', 'poizon'] },
 };
 
 const GARBAGE = /\bNaN\b|\bundefined\b|\[object |\bInfinity\b/;
@@ -136,39 +153,49 @@ function idsFor(app) {
   return [null];
 }
 
-for (const [app, { mod, views }] of Object.entries(APPS)) {
-  for (const view of views) {
-    for (const id of idsFor(app)) {
-      S.ui.app = app;
-      S.ui.view = view;
-      S.ui.id = id;
-      S.ui.channel = 'radar';
-      checked++;
-      let res = null;
-      try {
-        res = mod.view(S);
-      } catch (e) {
-        failed++;
-        console.error(`  ✗ ${app}/${view}${id === null ? '' : ' #' + id} — ${e.message}`);
-        continue;
-      }
-      const html = [res && res.title, res && res.tabs, res && res.aside, res && res.body, res && res.foot]
-        .filter(Boolean)
-        .join(' ');
-      if (!html) {
-        failed++;
-        console.error(`  ✗ ${app}/${view}${id === null ? '' : ' #' + id} — пустой экран`);
-        continue;
-      }
-      const text = html.replace(/<[^>]*>/g, ' ');
-      const bad = text.match(GARBAGE);
-      if (bad) {
-        failed++;
-        console.error(`  ✗ ${app}/${view}${id === null ? '' : ' #' + id} — на экране «${bad[0]}»`);
-      }
-    }
+/** Отрисовать один экран и поискать в нём исключения, пустоту и мусор. */
+function probe(state, app, mod, view, id, label = '') {
+  state.ui.app = app;
+  state.ui.view = view;
+  state.ui.id = id;
+  state.ui.channel = 'radar';
+  checked++;
+  const name = `${label}${app}/${view}${id === null ? '' : ' #' + id}`;
+  let res = null;
+  try {
+    res = mod.view(state);
+  } catch (e) {
+    failed++;
+    console.error(`  ✗ ${name} — ${e.message}`);
+    return;
+  }
+  const html = [res && res.title, res && res.tabs, res && res.aside, res && res.body, res && res.foot].filter(Boolean).join(' ');
+  if (!html) {
+    failed++;
+    console.error(`  ✗ ${name} — пустой экран`);
+    return;
+  }
+  const bad = html.replace(/<[^>]*>/g, ' ').match(GARBAGE);
+  if (bad) {
+    failed++;
+    console.error(`  ✗ ${name} — на экране «${bad[0]}»`);
   }
 }
+
+for (const [app, { mod, views }] of Object.entries(APPS)) {
+  for (const view of views) {
+    for (const id of idsFor(app)) probe(S, app, mod, view, id);
+  }
+}
+
+// Апстор на свежем телефоне: Авитку можно качать (одна — с кольцом
+// загрузки), остальное — «Скоро».
+const STORE_VIEWS = ['main', 'avito', 'tg', 'second', 'poizon'];
+const fresh = createGame(4243);
+for (const view of STORE_VIEWS) probe(fresh, 'store', StoreApp, view, null, 'свежий телефон: ');
+startDownload('avito');
+for (const view of STORE_VIEWS) probe(fresh, 'store', StoreApp, view, null, 'идёт загрузка: ');
+finishDownload('avito');
 
 console.log(
   failed

@@ -24,6 +24,21 @@ const TYPES = {
   '.md': 'text/markdown; charset=utf-8',
 };
 
+/** Самая свежая правка среди файлов, из которых состоит игра. */
+function latestChange() {
+  let latest = 0;
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else latest = Math.max(latest, fs.statSync(p).mtimeMs);
+    }
+  };
+  for (const d of ['src', 'styles']) walk(path.join(ROOT, d));
+  latest = Math.max(latest, fs.statSync(path.join(ROOT, 'index.html')).mtimeMs);
+  return Math.round(latest);
+}
+
 const server = http.createServer((req, res) => {
   let urlPath;
   try {
@@ -33,6 +48,14 @@ const server = http.createServer((req, res) => {
     return res.end('Bad request');
   }
   if (urlPath === '/') urlPath = '/index.html';
+
+  // Версия игры — время последней правки её файлов. Страница спрашивает её
+  // и предлагает обновиться: иначе телефон часами показывает старую версию,
+  // потому что игра — одна страница и сама не перезагружается.
+  if (urlPath === '/__version') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(String(latestChange()));
+  }
 
   const filePath = path.join(ROOT, urlPath);
   // Не выпускаем за пределы папки проекта.

@@ -106,8 +106,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 #statusbar .speed { font-size: 11px; opacity: .8; }
 
 #homebar { position: absolute; bottom: 0; left: 0; right: 0; height: 22px; z-index: 26; display: flex; justify-content: center; align-items: center; }
-#homebar button { width: 132px; height: 5px; border-radius: 3px; background: rgba(22, 21, 26, .45); }
-#homebar.on-dark button { background: rgba(255, 255, 255, .8); }
+/* Нажимается вся полоса снизу, а не пятипиксельная чёрточка: пальцем в
+   неё было не попасть. Чёрточку рисует ::after. */
+#homebar button { width: 160px; height: 22px; display: grid; place-items: center; }
+#homebar button::after { content: ""; width: 132px; height: 5px; border-radius: 3px; background: rgba(22, 21, 26, .45); }
+#homebar.on-dark button::after { background: rgba(255, 255, 255, .8); }
 /* Под полоской-домой у самого телефона своё место — не лезем под неё. */
 @media (max-width: 540px), (max-height: 680px) {
   #homebar { height: calc(18px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -170,9 +173,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .dock {
   position: absolute; left: 12px; right: 12px; bottom: 28px;
   background: rgba(255, 255, 255, .15); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  border-radius: 30px; padding: 11px 8px; display: grid; grid-template-columns: repeat(4, 1fr);
+  border-radius: 30px; padding: 11px 8px; display: flex; justify-content: space-evenly; min-height: 79px;
 }
+.dock .app-ico { flex: 0 0 25%; }
 .dock .app-ico span { display: none; }
+
+/* Новое приложение: синяя точка перед названием (в доке — под иконкой)
+   и прыжок на экран, когда игрок видит его впервые. */
+.app-ico .fresh-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #3aa0ff; margin-right: 4px; vertical-align: 1px; }
+.dock .app-ico.fresh::after { content: ''; position: absolute; bottom: -7px; left: calc(50% - 3px); width: 6px; height: 6px; border-radius: 50%; background: #3aa0ff; }
+.app-ico.pop { animation: app-pop .7s cubic-bezier(.2, .9, .3, 1.35) both; }
+@keyframes app-pop { 0% { transform: scale(.2); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: none; opacity: 1; } }
 
 .tips { position: relative; margin-top: 10px; display: grid; gap: 5px; }
 .tip {
@@ -182,6 +193,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .tip svg { width: 19px; height: 19px; flex-shrink: 0; stroke: #fff; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .tip b { font-weight: 600; }
 .tips .tip:nth-child(n+4) { display: none; }
+/* Когда позвонит Тимур — фиолетовым, как всё, что связано с обучением. */
+.tip.call-tip { background: rgba(122, 70, 214, .62); }
 
 /* Главный экран не должен прокручиваться ни на одном телефоне.
    Если содержимое не влезает, оболочка сама ставит сюда класс
@@ -228,7 +241,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 
 .body { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 14px 40px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
 .body > * { flex-shrink: 0; }
-.foot { background: var(--card); border-top: 1px solid var(--line); padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 20px)); display: grid; gap: 8px; flex-shrink: 0; }
+/* Снизу — место под полоску «домой» (18–22 px плюс вырез телефона): иначе она ложится на поле ответа. */
+.foot { background: var(--card); border-top: 1px solid var(--line); padding: 10px 12px calc(22px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; flex-shrink: 0; }
 
 /* ======================= ЭЛЕМЕНТЫ ======================= */
 
@@ -265,8 +279,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 
 .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; flex-shrink: 0; }
 .chips::-webkit-scrollbar { display: none; }
+/* Короткий выбор, где важен каждый вариант (сроки кредита): переносим, а не прячем за край. */
+.chips.wrap { flex-wrap: wrap; overflow-x: visible; }
 .chip { white-space: nowrap; padding: 7px 11px; border-radius: 20px; background: var(--card); font-size: 12.5px; font-weight: 600; border: 1px solid var(--line); }
 .chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.chip.lever-chip { background: var(--card-2); }
+.chip.lever-chip.strong { background: var(--good-bg); color: var(--good); border-color: var(--good); }
 
 .tag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 3px 6px; border-radius: 6px; background: var(--bg); color: var(--mute); white-space: nowrap; }
 .tag.good { background: var(--good-bg); color: var(--good); }
@@ -392,6 +410,19 @@ select.sel, input.inp {
 .bubble.me { background: var(--acc); color: var(--acc-ink, #fff); align-self: flex-end; border-bottom-right-radius: 6px; }
 .bubble.system { align-self: center; background: transparent; color: var(--mute); font-size: 12px; text-align: center; max-width: 94%; }
 .bubble:last-child { animation: pop .22s ease-out; }
+/* Фото от продавца: общий вид и пара крупных планов — как в настоящем чате. */
+.bubble.photos { max-width: 92%; padding: 5px 5px 8px; display: grid; gap: 6px; }
+.bubble.photos > div:last-child { padding: 0 6px; }
+.shots { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 4px; }
+.shot { margin: 0; position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 1; display: grid; place-items: center; }
+.shot:first-child { border-bottom-left-radius: 14px; }
+.shot .shot-art { width: 100%; height: 100%; }
+.shot .shot-art svg { width: 100%; height: 100%; display: block; }
+.shot.zoom .shot-art svg { transform: scale(2.4); transform-origin: var(--zo, 50% 50%); }
+.shot figcaption {
+  position: absolute; left: 4px; bottom: 4px; font-size: 10px; font-weight: 600; color: #fff;
+  background: rgba(10, 8, 14, .55); padding: 1px 6px; border-radius: 6px;
+}
 @keyframes pop { from { transform: translateY(6px); opacity: .3; } to { transform: none; opacity: 1; } }
 
 .chat-context { background: var(--card); border-radius: 16px; padding: 8px; display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: center; text-align: left; width: 100%; box-shadow: var(--shadow-card); }
@@ -442,6 +473,9 @@ select.sel, input.inp {
   display: grid; gap: 12px; max-height: 92%; overflow: auto; animation: rise .22s ease-out; --acc: var(--ink);
 }
 .sheet-card h2 { margin: 0; font-family: var(--f-disp); font-weight: 400; font-size: 20px; text-wrap: balance; }
+/* Длинное окно (утренняя сводка на маленьком телефоне) прокручивается, а его
+   главная кнопка внизу — нет: её видно всегда, над ней мягкий переход. */
+.sheet-card > .btn.full:last-child { position: sticky; bottom: 0; box-shadow: 0 -14px 16px 4px var(--card); }
 .sheet-card p { margin: 0; font-size: 14px; line-height: 1.48; color: var(--ink-2); }
 @keyframes rise { from { transform: translateY(42px); opacity: .4; } to { transform: none; opacity: 1; } }
 
@@ -504,6 +538,7 @@ select.sel, input.inp {
   box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
 }
 @keyframes fadeUp { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+#toast.top { bottom: auto; top: 52px; }
 
 /* ======================= ГРАФИКИ ======================= */
 
@@ -515,6 +550,9 @@ select.sel, input.inp {
 .goal.done .mark { background: var(--good); border-color: var(--good); }
 .goal.done .gn { color: var(--mute); text-decoration: line-through; }
 .goal .gh { font-size: 11.5px; color: var(--mute); }
+.daily .streak { font-size: 13px; font-weight: 700; color: var(--mute); padding: 3px 9px; border-radius: 99px; background: var(--chip, rgba(0,0,0,.05)); }
+.daily .streak.on { color: #c2410c; background: #ffedd5; }
+.daily .goal + .goal { margin-top: 2px; }
 
 .skill { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
 .pips { display: flex; gap: 3px; margin-top: 4px; }
@@ -523,4 +561,228 @@ select.sel, input.inp {
 
 .stars { color: #e8a200; letter-spacing: 1px; }
 
+/* ======================= АПСТОР ======================= */
+
+.st-tile { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; flex-shrink: 0; box-shadow: 0 3px 10px -4px rgba(0, 0, 0, .35); }
+.st-tile svg { width: 27px; height: 27px; stroke: #fff; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.st-tile.big { width: 64px; height: 64px; border-radius: 17px; }
+.st-tile.big svg { width: 33px; height: 33px; }
+.st-tile.huge { width: 96px; height: 96px; border-radius: 24px; }
+.st-tile.huge svg { width: 50px; height: 50px; }
+
+.st-hero {
+  border-radius: 22px; padding: 16px; color: #fff; display: grid; gap: 12px;
+  background: linear-gradient(135deg, #1d8bf2 0%, #7a46d6 100%); box-shadow: 0 12px 28px -14px rgba(29, 139, 242, .8);
+}
+.st-label { font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .85; }
+.st-hero-row { display: flex; gap: 12px; align-items: center; }
+.st-hero .st-text b { font-family: var(--f-disp); font-size: 20px; font-weight: 400; }
+.st-hero .st-text span { color: rgba(255, 255, 255, .85); }
+.st-hero-btn { display: flex; }
+.st-hero .st-tile { box-shadow: 0 6px 16px -6px rgba(0, 0, 0, .5); }
+
+.st-text { display: grid; gap: 2px; min-width: 0; text-align: left; }
+.st-text b { font-size: 15px; }
+.st-text span { font-size: 12.5px; color: var(--mute); line-height: 1.35; }
+.st-text small { font-size: 11.5px; color: #e0a100; letter-spacing: .02em; }
+
+.st-sec { font-family: var(--f-disp); font-size: 18px; margin: 4px 2px -2px; }
+.st-list { gap: 0; padding: 4px 14px; }
+.st-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+.st-row + .st-row { border-top: 1px solid var(--line); }
+.st-main { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.st-note { text-align: center; padding: 0 12px; }
+
+/* Кнопка как в настоящем магазине приложений: капсула или кольцо загрузки. */
+.st-btn { flex-shrink: 0; min-width: 84px; height: 32px; border-radius: 16px; font-size: 13.5px; font-weight: 700; display: inline-grid; place-items: center; padding: 0 14px; }
+.st-btn.get { background: #1d8bf2; color: #fff; }
+.st-btn.open { background: var(--bg); color: #1d8bf2; }
+.st-btn.soon { background: var(--bg); color: var(--mute); font-weight: 600; }
+.st-hero .st-btn.get { background: #fff; color: #1d8bf2; }
+.st-hero .st-btn.open { background: rgba(255, 255, 255, .22); color: #fff; }
+.st-btn.ring { min-width: 84px; padding: 0; position: relative; }
+.st-btn.ring svg { width: 30px; height: 30px; transform: rotate(-90deg); }
+.st-btn.ring circle { fill: none; stroke-width: 3; }
+.st-btn.ring .track { stroke: rgba(29, 139, 242, .2); }
+.st-btn.ring .prog { stroke: #1d8bf2; stroke-linecap: round; stroke-dasharray: 94.25; stroke-dashoffset: 94.25; animation-name: st-load; animation-timing-function: ease-in-out; animation-fill-mode: forwards; }
+.st-btn.ring i { position: absolute; width: 8px; height: 8px; border-radius: 2px; background: #1d8bf2; left: calc(50% - 4px); top: calc(50% - 4px); }
+.st-hero .st-btn.ring .track { stroke: rgba(255, 255, 255, .3); }
+.st-hero .st-btn.ring .prog { stroke: #fff; }
+.st-hero .st-btn.ring i { background: #fff; }
+@keyframes st-load { to { stroke-dashoffset: 0; } }
+
+.st-detail { display: flex; gap: 14px; align-items: center; }
+.st-detail .st-text { gap: 4px; }
+.st-detail .st-text b { font-family: var(--f-disp); font-size: 22px; font-weight: 400; }
+.st-detail .st-btn { justify-self: start; margin-top: 4px; }
+.st-stats { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow-card); padding: 10px 4px; }
+.st-stats > div { display: grid; justify-items: center; gap: 1px; }
+.st-stats > div + div { border-left: 1px solid var(--line); }
+.st-stats b { font-size: 17px; }
+.st-stats span { font-size: 11.5px; color: var(--mute); }
+.st-stats small { font-size: 10.5px; color: var(--mute); }
+
+/* Итог главы обучения: какие главы позади. */
+.part-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.part-chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 12px; background: var(--bg); color: var(--mute); }
+.part-chip.done { background: var(--good-bg); color: var(--good); }
+.part-chip.now { box-shadow: 0 0 0 2px var(--good); }
+
+/* Плашка «вышла новая версия» — выше всего, даже обучения и звонка.
+   В строке состояния, между часами и батареей: не перекрывает ни шапки
+   приложений, ни пузырь Тимура. */
+#updatePill {
+  position: absolute; top: calc(3px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 120;
+  background: #7a46d6; color: #fff; font-weight: 700; font-size: 12.5px; padding: 5px 12px; border-radius: 14px;
+  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, .5); white-space: nowrap; animation: c-pop .3s ease-out;
+}
+
+/* ======================= ОБУЧЕНИЕ: ТИМУР ПОДСКАЗЫВАЕТ ======================= */
+/* Экран не блокируется: нужная кнопка обведена пульсирующей рамкой, а
+   нажимать и листать можно что угодно. Рамка и стрелка касаний не ловят. */
+
+#coach { position: absolute; inset: 0; z-index: 80; pointer-events: none; }
+#coach .c-ring {
+  position: absolute; border-radius: 14px; pointer-events: none;
+  border: 3px solid #7a46d6; box-shadow: 0 0 0 3px rgba(255, 255, 255, .9), 0 0 22px 4px rgba(122, 70, 214, .45);
+  transition: left .2s ease, top .2s ease, width .2s ease, height .2s ease;
+  animation: c-pulse 1.3s ease-in-out infinite;
+}
+#coach .c-ring.soft { animation: none; border-style: dashed; border-color: rgba(122, 70, 214, .7); box-shadow: none; }
+@keyframes c-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(255, 255, 255, .9), 0 0 16px 2px rgba(122, 70, 214, .35); }
+  50% { box-shadow: 0 0 0 3px rgba(255, 255, 255, .9), 0 0 30px 9px rgba(122, 70, 214, .6); }
+}
+#coach .c-arrow {
+  position: absolute; left: 50%; transform: translateX(-50%); pointer-events: auto;
+  background: #7a46d6; color: #fff; font-weight: 700; font-size: 13.5px; padding: 8px 15px; border-radius: 18px;
+  box-shadow: 0 8px 20px -6px rgba(0, 0, 0, .45); white-space: nowrap; animation: c-bob 1.1s ease-in-out infinite;
+}
+@keyframes c-bob { 0%, 100% { transform: translateX(-50%); } 50% { transform: translateX(-50%) translateY(4px); } }
+
+#coach .c-bubble {
+  position: absolute; left: 12px; right: 12px; pointer-events: auto; background: #fff; color: var(--ink);
+  border-radius: 18px; padding: 11px 13px 12px; box-shadow: 0 18px 44px -12px rgba(0, 0, 0, .55);
+  border: 2px solid #7a46d6;
+  display: grid; gap: 7px; transition: top .22s ease; animation: c-pop .26s cubic-bezier(.2, .9, .3, 1.3);
+}
+@keyframes c-pop { from { transform: translateY(8px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+#coach .c-head { display: flex; align-items: center; gap: 9px; }
+#coach .c-ava {
+  width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+  background: linear-gradient(135deg, #7a46d6, #d94a8c); color: #fff; font-family: var(--f-disp); font-size: 15px;
+}
+#coach .c-who { display: grid; line-height: 1.2; min-width: 0; flex: 1; }
+#coach .c-who b { font-size: 14px; }
+#coach .c-who span { font-size: 11.5px; color: var(--mute); }
+#coach .c-skip { font-size: 11.5px; color: var(--mute); padding: 4px 6px; border-radius: 8px; }
+#coach .c-fold { width: 28px; height: 28px; border-radius: 8px; color: #7a46d6; font-size: 14px; background: #f3edfd; }
+#coach .c-bar { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
+#coach .c-bar i { display: block; height: 100%; background: linear-gradient(90deg, #7a46d6, #d94a8c); transition: width .3s ease; }
+#coach .c-text { font-size: 14.5px; line-height: 1.42; min-height: 2.8em; white-space: pre-line; }
+#coach .c-hintline { font-size: 13.5px; line-height: 1.38; background: #f3edfd; color: #4b2a8a; padding: 7px 9px; border-radius: 11px; }
+#coach .c-lost { font-size: 13px; color: var(--bad); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#coach .c-lost button { background: #7a46d6; color: #fff; font-weight: 700; padding: 6px 12px; border-radius: 10px; font-size: 13px; }
+#coach .c-foot { display: flex; justify-content: flex-end; align-items: center; min-height: 30px; }
+#coach .c-next { background: #7a46d6; color: #fff; font-weight: 700; font-size: 14px; padding: 8px 18px; border-radius: 12px; }
+#coach .c-dots { display: flex; gap: 4px; }
+#coach .c-dots i { width: 7px; height: 7px; border-radius: 50%; background: #b9a6e6; animation: c-dot 1s infinite; }
+#coach .c-dots i:nth-child(2) { animation-delay: .15s; }
+#coach .c-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes c-dot { 0%, 80%, 100% { transform: none; opacity: .5; } 40% { transform: translateY(-4px); opacity: 1; } }
+/* Свёрнутый пузырь — одна строка, чтобы не мешал смотреть экран. */
+#coach .c-bubble.folded { padding: 7px 10px; gap: 0; }
+#coach .c-bubble.folded > :not(.c-head):not(.c-foot) { display: none; }
+#coach .c-bubble.folded .c-ava { width: 26px; height: 26px; font-size: 13px; }
+
+#coach .c-burst { position: absolute; left: 50%; top: 40%; width: 0; height: 0; pointer-events: none; }
+#coach .c-burst .c-done {
+  position: absolute; transform: translate(-50%, -50%); white-space: nowrap; opacity: 0;
+  background: #0f7a4a; color: #fff; font-weight: 700; padding: 8px 16px; border-radius: 20px; font-size: 15px;
+}
+#coach .c-burst i { position: absolute; width: 8px; height: 8px; border-radius: 2px; background: var(--c); opacity: 0; }
+#coach .c-burst.go .c-done { animation: c-done 1.4s ease-out forwards; }
+#coach .c-burst.go i { animation: c-bit .9s ease-out forwards; }
+@keyframes c-done {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.6); }
+  15% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+  25% { transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -80%); }
+}
+@keyframes c-bit {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  100% { opacity: 0; transform: translate(var(--x), var(--y)) rotate(200deg); }
+}
+
+
+/* ======================= ВХОДЯЩИЙ ЗВОНОК ======================= */
+
+#call {
+  position: absolute; inset: 0; z-index: 90; color: #fff; display: flex; flex-direction: column;
+  background: radial-gradient(120% 80% at 50% 0%, #3a2466 0%, #160f26 55%, #08060d 100%);
+  padding: calc(var(--status-h) + 30px) 22px 40px;
+}
+#call.waiting { background: transparent; }
+#call .call-top { display: grid; justify-items: center; gap: 8px; text-align: center; }
+#call .call-ava {
+  position: relative; width: 112px; height: 112px; border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(135deg, #7a46d6, #d94a8c); font-family: var(--f-disp); font-size: 46px;
+}
+#call .call-ava span { position: relative; z-index: 1; }
+#call .call-ava i {
+  position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(217, 74, 140, .6);
+  animation: ring-wave 2s ease-out infinite;
+}
+#call .call-ava i + i { animation-delay: 1s; }
+@keyframes ring-wave { from { transform: scale(1); opacity: .9; } to { transform: scale(1.9); opacity: 0; } }
+#call .call-name { font-family: var(--f-disp); font-size: 30px; margin-top: 10px; }
+#call .call-sub { font-size: 14px; opacity: .7; font-variant-numeric: tabular-nums; }
+#call.ringing .call-ava { animation: ring-shake 1.6s ease-in-out infinite; }
+@keyframes ring-shake {
+  0%, 60%, 100% { transform: none; }
+  64%, 72%, 80% { transform: rotate(-6deg); }
+  68%, 76% { transform: rotate(6deg); }
+}
+#call .call-btns { margin-top: auto; display: flex; justify-content: space-around; }
+#call .call-btn { display: grid; justify-items: center; gap: 8px; }
+#call .call-btn span { width: 70px; height: 70px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; }
+#call .call-btn small { font-size: 13px; opacity: .85; }
+#call .call-btn.no span { background: #e5483b; }
+#call .call-btn.no svg { transform: rotate(135deg); }
+#call .call-btn.yes span { background: #2fbf5b; animation: yes-bounce 1.2s ease-in-out infinite; }
+@keyframes yes-bounce { 0%, 100% { transform: none; } 50% { transform: translateY(-7px); } }
+
+#call .call-top.small .call-ava { width: 64px; height: 64px; font-size: 26px; }
+#call .call-top.small .call-name { font-size: 20px; margin-top: 2px; }
+#call .call-lines { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; padding: 22px 0 14px; scrollbar-width: none; }
+#call .call-lines::-webkit-scrollbar { display: none; }
+#call .call-line {
+  max-width: 86%; padding: 10px 13px; border-radius: 16px; font-size: 15px; line-height: 1.4;
+  animation: c-pop .24s ease-out;
+}
+#call .call-line.t { background: rgba(255, 255, 255, .13); border-bottom-left-radius: 5px; align-self: flex-start; }
+#call .call-line.me { background: #7a46d6; border-bottom-right-radius: 5px; align-self: flex-end; }
+#call .call-controls { min-height: 64px; display: grid; align-items: end; }
+#call .call-tap { text-align: center; font-size: 13px; opacity: .6; animation: c-dot 1.6s infinite; }
+#call .call-choice { display: grid; gap: 8px; }
+#call .call-choice button { background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .25); padding: 12px; border-radius: 14px; font-weight: 600; }
+#call .call-hang { background: #e5483b; padding: 14px; border-radius: 16px; font-weight: 700; font-size: 16px; }
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ===== Сок: конфетти, пульс банка, счётчик ===== */
+.confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 60; }
+.confetti i { position: absolute; top: -12px; width: 8px; height: 12px; border-radius: 2px; opacity: 0;
+  animation: confetti-fall 1.6s cubic-bezier(.2,.7,.4,1) forwards; }
+@keyframes confetti-fall {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  100% { opacity: 0; transform: translate(var(--dx), 92vh) rotate(var(--rot)); }
+}
+.app-ico.pulse { animation: ico-pulse .6s ease-out; }
+@keyframes ico-pulse { 0% { transform: scale(1); } 35% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.hero .money.up { color: #7dffa8; transition: color .2s; }
+.hero .money.down { color: #ffb3b3; transition: color .2s; }
+@media (prefers-reduced-motion: reduce) { .app-ico.pulse { animation: none; } }
+.st-pro { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .04em; padding: 1px 5px; border-radius: 5px;
+  background: linear-gradient(135deg, #ffb347, #ff6b35); color: #fff; vertical-align: 2px; }
