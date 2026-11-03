@@ -83,13 +83,3 @@ export class Rng {
     return copy.slice(0, Math.min(n, copy.length));
   }
 }
-
-/** Детерминированный хеш строки — для стабильных «случайностей», привязанных к id. */
-export function hash32(str) {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}

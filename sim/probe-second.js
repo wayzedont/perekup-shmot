@@ -1,15 +1,14 @@
 // Что реально лежит на завозе и что из этого может позволить себе новичок.
 
 import { createGame } from '../src/core/engine.js';
-import { rngOf } from '../src/core/kernel.js';
 import { MODELS } from '../src/core/data/models.js';
 import { sizeDemand } from '../src/core/data/catalog.js';
-import { valueOrig, netWorth } from '../src/core/economy.js';
-import { restock, priceNow, secondPool } from '../src/core/market/second.js';
+import { valueOrig } from '../src/core/economy.js';
+import { priceNow, secondPool } from '../src/core/market/second.js';
 import { rub, num, quantiles } from '../src/core/util.js';
 import { advanceHours } from '../src/core/tick.js';
 
-const S = createGame(Number(process.argv[2] || 1000));
+const S = createGame(Number(process.argv[2] || 1000), { tutorial: 'skip' });
 S.flags.started = 1;
 advanceHours(S, 2); // до 10:00, завоз
 

@@ -20,7 +20,7 @@ import { clamp, priceRound } from '../util.js';
 import { MODELS } from '../data/models.js';
 import { METRO } from '../data/content.js';
 import { makeItem, hideDefects } from '../items.js';
-import { valueOrig, valueFake, netWorth } from '../economy.js';
+import { valueOrig, netWorth } from '../economy.js';
 import { makeSeller, rollSignals } from '../people/sellers.js';
 import { nextListingId } from './avito.js';
 
@@ -49,11 +49,6 @@ export function cooldownLeft(S) {
 /** Объявление ещё работает: кто-то из откликнувшихся пока не написал. */
 export function adActive(S) {
   return !!(S.buyAd && S.buyAd.queue && S.buyAd.queue.length);
-}
-
-export function adHoursLeft(S) {
-  if (!adActive(S)) return 0;
-  return Math.max(0, Math.max(...S.buyAd.queue) - S.t);
 }
 
 /**
@@ -102,12 +97,6 @@ export function planResponses(S, rng) {
     queue.push(at <= S.t ? S.t + rng.int(2, 8) : at);
   }
   return queue.sort((a, b) => a - b);
-}
-
-/** Кто из очереди уже должен написать. */
-export function dueResponses(S) {
-  if (!adActive(S)) return 0;
-  return S.buyAd.queue.filter((at) => at <= S.t).length;
 }
 
 /** Что именно тебе несут — словами, чтобы связь с каналом была видна. */
@@ -197,8 +186,12 @@ export function makeIncoming(S, rng) {
     seller,
     signals: rollSignals(rng, type, ask / Math.max(1, fair), 'meet'),
     photosAsked: true, // фото он прислал сразу
+    photosSent: true,
     photoNote: 'Прислал фото сам',
-    photoLegit: false,
+    // Привезёт сам — подменять нечего: что на фото, то и в руках.
+    photoItem: null,
+    photoVerdict: null,
+    handLegit: false,
     threadId: null,
     incoming: true,
     why: why.text,

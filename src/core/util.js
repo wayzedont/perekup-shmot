@@ -77,11 +77,6 @@ export function plural(n, one, few, many) {
   return many;
 }
 
-/** «5 вещей» одной строкой. */
-export function countOf(n, one, few, many) {
-  return num(n) + NBSP + plural(n, one, few, many);
-}
-
 /** Минуты -> «1 ч 20 мин». */
 export function dur(mins) {
   const h = Math.floor(mins / 60);
@@ -89,33 +84,6 @@ export function dur(mins) {
   if (!h) return m + NBSP + 'мин';
   if (!m) return h + NBSP + 'ч';
   return h + NBSP + 'ч' + NBSP + m + NBSP + 'мин';
-}
-
-/** Глубокая копия через структурное клонирование, с запасным вариантом. */
-export function clone(x) {
-  if (typeof structuredClone === 'function') {
-    try {
-      return structuredClone(x);
-    } catch (e) {
-      /* объекты с функциями — ниже */
-    }
-  }
-  return JSON.parse(JSON.stringify(x));
-}
-
-/** Сумма по полю. */
-export const sumBy = (arr, f) => arr.reduce((a, x) => a + (f(x) || 0), 0);
-
-/** Группировка в Map. */
-export function groupBy(arr, f) {
-  const m = new Map();
-  for (const x of arr) {
-    const k = f(x);
-    const list = m.get(k);
-    if (list) list.push(x);
-    else m.set(k, [x]);
-  }
-  return m;
 }
 
 /** Медиана и квартили — для балансовых отчётов. */

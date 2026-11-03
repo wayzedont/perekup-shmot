@@ -1,17 +1,15 @@
 // Банк, магазин, подработка, сезон.
 
-import { clamp, priceRound, rub, num } from '../util.js';
+import { clamp } from '../util.js';
 import { JOBS } from '../data/content.js';
-import { STORAGE, SKILL_KEYS, MAX_SKILL, statusOf, nextSeasonLevel } from '../data/progress.js';
-import { netWorth, capacity, usedSlots } from '../economy.js';
-import { SEASON_MODIFIERS, seasonDaysLeft } from '../events.js';
+import { STORAGE, SKILL_KEYS, statusOf, nextSeasonLevel } from '../data/progress.js';
+import { netWorth, capacity } from '../economy.js';
+import { SEASON_MODIFIERS } from '../events.js';
 import {
   available,
-  creditLimit,
   takeLoan as makeLoan,
   annuity,
   termsList,
-  debtTotal,
 } from '../bank.js';
 import {
   rngOf,
@@ -24,15 +22,20 @@ import {
   bump,
   spendSkillPoint,
   mentorOnce,
+  tutorialLock,
+  installed,
+  fx,
 } from '../kernel.js';
 import { advanceHours } from '../tick.js';
 import { hourIndex, dayIndex } from '../time.js';
 import { checkGoals } from '../progression.js';
 import { newGame, SEASON_DAYS } from '../state.js';
+import { UPGRADES, upgraded } from '../data/apps.js';
 
 /* ======================= БАНК ======================= */
 
 export function takeCredit(S, amount, weeks) {
+  if (tutorialLock(S)) return null;
   const max = available(S);
   const sum = Math.min(amount, max);
   if (sum < 1000) {
@@ -50,7 +53,7 @@ export function repayPart(S, loanId, amount) {
   const loan = S.loans.find((l) => l.id === loanId);
   if (!loan) return null;
   const sum = Math.min(amount, Math.ceil(loan.principal));
-  if (sum <= 0) {
+  if (!(sum > 0)) {
     toast(S, 'Укажи сумму');
     return null;
   }
@@ -78,7 +81,8 @@ export function repayAll(S, loanId) {
 }
 
 export function depositMoney(S, amount) {
-  if (S.money < amount) return null;
+  if (tutorialLock(S)) return null;
+  if (!(amount > 0) || S.money < amount) return null;
   S.money -= amount;
   S.deposit += amount;
   touch(S);
@@ -115,8 +119,10 @@ export function spendSkill(S, key) {
 }
 
 export function buyStorage(S, id) {
+  if (tutorialLock(S)) return null;
   const def = STORAGE.find((s) => s.id === id);
   if (!def) return null;
+  if (S.prog.storage[id]) return null;
   if (S.prog.lvl < def.lvl) {
     toast(S, `Откроется на ${def.lvl} уровне`);
     return null;
@@ -250,10 +256,59 @@ export function startNewSeason(S, modifierId) {
 
   fresh.suppliers.orig.unlocked = true;
   fresh.clients = S.clients.filter((c) => c.status === 'vip').map((c) => ({ ...c, lastAt: 0 }));
+  // Pro-версии куплены «навсегда» — так написано в Апсторе, так и есть.
+  fresh.upgrades = { ...(S.upgrades || {}) };
+  // Серия дел Тимура — про игрока, а не про сезон: смена сезона не пропуск.
+  if (S.daily) {
+    fresh.daily = { ...fresh.daily, streak: S.daily.streak, best: S.daily.best, legitFree: S.daily.legitFree, lastFull: -9 };
+    fresh.daily.carried = S.daily.lastFull;
+  }
 
   return fresh;
 }
 
-export function seasonTimeLeft(S) {
-  return seasonDaysLeft(S);
+/* ======================= ПРОКАЧКА В АПСТОРЕ ======================= */
+
+/** Почему Pro-версию пока нельзя купить; null — можно. */
+export function upgradeBlock(S, id) {
+  const u = UPGRADES[id];
+  if (!u) return 'Нет такого';
+  if (upgraded(S, id)) return 'Уже куплено';
+  if (!installed(S, u.app)) return 'Сначала скачай приложение';
+  if (S.prog.lvl < u.lvl) return `С ${u.lvl} уровня магазина`;
+  if (u.app === 'tg' && !S.tg.has) return 'Сначала заведи свой канал';
+  return null;
+}
+
+export function buyUpgrade(S, id) {
+  if (tutorialLock(S)) return null;
+  const why = upgradeBlock(S, id);
+  if (why) {
+    toast(S, why);
+    return null;
+  }
+  const u = UPGRADES[id];
+  if (!canPay(S, u.price)) return null;
+  pay(S, u.price, 'Апстор: ' + u.n);
+  if (!S.upgrades) S.upgrades = {};
+  S.upgrades[id] = S.t;
+  fx('buy');
+  notify(S, { route: 'store/up-' + id, title: u.n, text: 'Подключено: ' + u.perks[0] });
+  touch(S);
+  return true;
+}
+
+/** Мешок-клуб: раз в день отложить вещь на полке на три часа. */
+export function reserveSlot(S, slot) {
+  if (!slot || !upgraded(S, 'secondClub')) return null;
+  const day = dayIndex(S.t);
+  if (S.second.reserveDay === day) {
+    toast(S, 'Сегодня ты уже откладывал — завтра снова можно');
+    return null;
+  }
+  slot.reserved = S.t + 3;
+  S.second.reserveDay = day;
+  toast(S, 'Отложено на 3 часа — никто не возьмёт');
+  touch(S);
+  return true;
 }

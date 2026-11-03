@@ -150,11 +150,6 @@ export function rollSignals(rng, type, priceRatio, mode) {
   return [...new Set(out)];
 }
 
-/** Суммарная «мутность» — для внутренних расчётов, игроку не показывается числом. */
-export function sketchiness(signals) {
-  return signals.reduce((a, s) => a + (SIGNALS[s] ? SIGNALS[s].weight : 0), 0);
-}
-
 /* ======================= СОЗДАНИЕ ======================= */
 
 export function sellerName(rng, type) {
@@ -271,6 +266,16 @@ export function applyLever(rng, seller, lever, bargainSkill, extra) {
     return { ok: false, reply: 'Это ты уже говорил.', price: seller.current, repeat: true };
   }
   seller.used[lever] = true;
+
+  // Учебный продавец уступает по сценарию (tutorial.js), без кубика.
+  if (seller.script && seller.script[lever]) {
+    const sc = seller.script[lever];
+    const next = priceRound(seller.current * (1 - sc.cut));
+    seller.current = next;
+    seller.floor = Math.min(seller.floor, next);
+    seller.mood = clamp(seller.mood + 0.2, -1, 1);
+    return { ok: true, reply: sc.reply + ' ' + rub(next), price: next };
+  }
 
   if (lever === 'walk') {
     seller.patience -= 1;

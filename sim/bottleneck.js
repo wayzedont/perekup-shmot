@@ -14,14 +14,14 @@ import {
 import { debtTotal, available } from '../src/core/bank.js';
 import { dayIndex, hourIndex } from '../src/core/time.js';
 import { advanceHours, sleep } from '../src/core/tick.js';
-import { rub, num, quantiles } from '../src/core/util.js';
+import { rub, num } from '../src/core/util.js';
 import { STRATEGIES, botStep } from './bots.js';
 
 const KEY = process.argv[2] || 'smart';
 const DAYS = Number(process.argv[3] || 90);
 const SEED = Number(process.argv[4] || 1000);
 
-const S = createGame(SEED);
+const S = createGame(SEED, { tutorial: 'skip' });
 S.flags.started = 1;
 const bot = STRATEGIES[KEY];
 

@@ -16,7 +16,7 @@
 
 import { createGame } from '../src/core/engine.js';
 import { quantiles, rub } from '../src/core/util.js';
-import { STRATEGIES, runBot } from './bots.js';
+import { runBot } from './bots.js';
 
 const POOL = Number(process.argv[2] || 144);
 const SAMPLE = Number(process.argv[3] || 72);
@@ -194,7 +194,7 @@ console.log(`\nГоняем ${POOL} прогонов × ${DAYS} дней на к
 for (const key of need) {
   const runs = [];
   for (let i = 0; i < POOL; i++) {
-    const S = createGame(1000 + i * 7919);
+    const S = createGame(1000 + i * 7919, { tutorial: 'skip' });
     S.flags.started = 1;
     const res = runBot(S, key, DAYS);
     if (res.error) continue;

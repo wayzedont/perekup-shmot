@@ -1,12 +1,15 @@
 // Небольшие приложения: Посылки, Цели, Подработка, Настройки.
 
-import { esc, rub, num, plural } from '../../core/util.js';
-import { dateLabel, clockLabel, hourIndex } from '../../core/time.js';
+import { esc, rub, num } from '../../core/util.js';
+import { dateLabel, clockLabel } from '../../core/time.js';
 import { GOALS, openGoals, doneGoals } from '../../core/goals.js';
 import { UNLOCKS } from '../../core/data/progress.js';
 import { availableJobs } from '../../core/actions/finance.js';
-import { itemName } from '../../core/items.js';
-import { emptyState, sectionLabel, thumb } from '../components.js';
+import { dailyLabel, progressOf, nextReward, rewardText } from '../../core/daily.js';
+import { dayIndex } from '../../core/time.js';
+import { prefs } from '../sfx.js';
+
+import { emptyState } from '../components.js';
 
 /* ======================= ПОСЫЛКИ ======================= */
 
@@ -52,6 +55,42 @@ export const parcels = {
 
 /* ======================= ЦЕЛИ ======================= */
 
+const daysWord = (n) => (n % 10 === 1 && n % 100 !== 11 ? 'день' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'дня' : 'дней');
+
+/** Три дела от Тимура на сегодня, серия и ближайшая награда. */
+function dailyCard(S) {
+  const D = S.daily;
+  if (!D) return '';
+  const today = D.day === dayIndex(S.t);
+  const tasks = today
+    ? D.tasks
+        .map((t) => {
+          const p = progressOf(S, t);
+          const shown = t.need >= 1000 ? `${num(p)} / ${rub(t.need)}` : `${p} / ${t.need}`;
+          return `<div class="goal ${t.done ? 'done' : ''}">
+            <div class="mark">${t.done ? '✓' : ''}</div>
+            <div class="gn">${esc(dailyLabel(S, t))}</div>
+            <span class="muted">${t.done ? '' : esc(shown)}</span>
+          </div>`;
+        })
+        .join('')
+    : '<div class="muted">Новые дела Тимур пришлёт утром.</div>';
+  const next = nextReward(D.streak || 0);
+  const allDone = today && D.tasks.length && D.tasks.every((t) => t.done);
+  return `<div class="card daily" data-tut="daily">
+    <div class="row between"><h3>Дела на сегодня</h3>
+      <span class="streak ${D.streak ? 'on' : ''}">🔥 ${D.streak || 0} ${daysWord(D.streak || 0)}</span></div>
+    ${D.lost ? `<div class="callout warn">Серия в ${D.lost} ${daysWord(D.lost)} сгорела: вчера закрыты не все дела.</div>` : ''}
+    ${tasks}
+    <div class="muted">${
+      allDone
+        ? 'Все дела закрыты — серия засчитана. Завтра утром будут новые.'
+        : 'Закрой все три до полуночи — серия +1. Пропустишь день — сгорит.'
+    }${next ? ` На ${next.at}-й день серии: ${esc(rewardText(next.r))}.` : ''}</div>
+    ${D.legitFree ? `<div class="kv"><span>Талоны на легит-чек</span><span>${D.legitFree} шт · тратятся сами</span></div>` : ''}
+  </div>`;
+}
+
 export const goals = {
   view: (S) => {
     const open = openGoals(S);
@@ -72,7 +111,7 @@ export const goals = {
     };
     return {
       title: 'Цели',
-      body: `<div class="card">
+      body: `${dailyCard(S)}<div class="card">
           <h3>Дальше</h3>
           <div class="muted">Цели больше не дают денег — они открывают возможности. Деньги надо заработать.</div>
           ${open.slice(0, 6).map((g) => row(g, false)).join('') || '<div class="muted">Все цели выполнены. Легенда рынка.</div>'}
@@ -122,6 +161,16 @@ export const settings = {
             .map((k) => `<button class="${S.ui.speed === k ? 'on' : ''}" data-act="setSpeed" data-val="${k}">×${k}</button>`)
             .join('')}
         </div>
+      </div>
+      <div class="card">
+        <h3>Звук и вибрация</h3>
+        <div class="kv" style="align-items:center"><span>Звуки</span><div class="seg">
+          <button class="${prefs.sound ? 'on' : ''}" data-act="setPref" data-key="sound" data-val="1">Вкл</button>
+          <button class="${prefs.sound ? '' : 'on'}" data-act="setPref" data-key="sound" data-val="0">Выкл</button></div></div>
+        <div class="kv" style="align-items:center"><span>Вибрация</span><div class="seg">
+          <button class="${prefs.vibro ? 'on' : ''}" data-act="setPref" data-key="vibro" data-val="1">Вкл</button>
+          <button class="${prefs.vibro ? '' : 'on'}" data-act="setPref" data-key="vibro" data-val="0">Выкл</button></div></div>
+        <div class="muted">Монетка — продажа, гудок — паль, звонок — Тимур. Вибрация работает на телефоне.</div>
       </div>
       <div class="card">
         <h3>Как это работает</h3>

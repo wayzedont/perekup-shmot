@@ -10,7 +10,7 @@
 import { createGame } from '../src/core/engine.js';
 import { advanceHours, sleep } from '../src/core/tick.js';
 import { dayIndex, hourIndex } from '../src/core/time.js';
-import { netWorth, freeSlots, ratingOf, valueOrig } from '../src/core/economy.js';
+import { netWorth, ratingOf, valueOrig } from '../src/core/economy.js';
 import { makeItem } from '../src/core/items.js';
 import { MODELS } from '../src/core/data/models.js';
 import { Rng } from '../src/core/rng.js';
@@ -25,7 +25,7 @@ const DAYS = +(process.argv[3] || 28);
 
 /** Магазин поздней игры: уровень, склад, рейтинг, канал и полный шкаф. */
 function endgameShop(seed) {
-  const S = createGame(seed);
+  const S = createGame(seed, { tutorial: 'skip' });
   S.flags.started = 1;
   S.money = 600000;
   S.prog.lvl = 13;

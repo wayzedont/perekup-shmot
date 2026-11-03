@@ -14,7 +14,8 @@ import {
   hypeLag,
   freeSlots,
 } from '../../core/economy.js';
-import { thumb, bigPhoto, itemRow, hypeTag, emptyState } from '../components.js';
+import { bigPhoto, itemRow, hypeTag, emptyState } from '../components.js';
+import { poizonAllowed } from '../../core/tutorial.js';
 
 const priceFrom = (S, m) => Math.min(...sizesFor(m.cat).map((z) => poizonPrice(S, m.i, z)));
 
@@ -153,7 +154,7 @@ function modelView(S, i) {
       ${freeSlots(S) < qty ? `<div class="callout danger">В шкафу свободно только ${freeSlots(S)} мест.</div>` : ''}
     </div>`;
 
-  const foot = `<button class="btn full dark" data-act="buyPoizon" data-model="${m.i}" data-size="${esc(size)}" ${freeSlots(S) >= qty ? '' : 'disabled'}>
+  const foot = `<button class="btn full dark" data-act="buyPoizon" data-model="${m.i}" data-size="${esc(size)}" ${freeSlots(S) >= qty || poizonAllowed(S, m.i) ? '' : 'disabled'}>
       Заказать ${qty} шт · ${rub(total)}
     </button>
     <div class="muted" style="text-align:center">Пока посылка едет две недели, тренд может пройти. Думай наперёд.</div>`;

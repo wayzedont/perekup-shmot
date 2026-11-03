@@ -1,10 +1,10 @@
 // Канал, заказы клиентов, раффлы и подписка на прогноз.
 
-import { clamp, priceRound, rub, num } from '../util.js';
+import { clamp, rub } from '../util.js';
 import { MODELS } from '../data/models.js';
 import { AD_CHANNELS } from '../data/content.js';
-import { valueOrig, valueFake, bookValue, capacity, usedSlots } from '../economy.js';
-import { itemName, sizeLabel } from '../items.js';
+import { bookValue } from '../economy.js';
+import { itemName, sizeLabel, passesAsOrig } from '../items.js';
 import { recordTruth, recordDeal } from '../notebook.js';
 import {
   createChannel as makeChannel,
@@ -13,8 +13,8 @@ import {
   buyAd as runAd,
   PRO_PRICE,
   PRO_DAYS,
-  post as channelPost,
 } from '../channel.js';
+import { channelAllowed } from '../tutorial.js';
 import { matchesOrder, fulfilled, failed as clientFailed, clientNote } from '../people/clients.js';
 import { winChance, ENTRY_FEE, raffleTitle } from '../market/raffle.js';
 import {
@@ -22,7 +22,6 @@ import {
   pay,
   earn,
   canPay,
-  notify,
   toast,
   touch,
   bump,
@@ -31,6 +30,12 @@ import {
   mentorOnce,
   mentorSay,
   addReview,
+  dropItem,
+  closeBuyersOf,
+  tutorialLock,
+  needApp,
+  fx,
+  notify,
 } from '../kernel.js';
 import { advanceHours } from '../tick.js';
 import { onLevelUp } from '../tick.js';
@@ -39,6 +44,11 @@ import { checkGoals } from '../progression.js';
 /* ======================= КАНАЛ ======================= */
 
 export function createChannel(S, name) {
+  if (needApp(S, 'tg')) return null;
+  if (!channelAllowed(S)) {
+    toast(S, 'Тимур: погоди, сейчас покажу, где канал.');
+    return null;
+  }
   const clean = (name || '').trim().slice(0, 28) || 'Мой шмот';
   makeChannel(S, clean);
   mentorSay(
@@ -51,6 +61,7 @@ export function createChannel(S, name) {
 }
 
 export function postTrends(S) {
+  if (needApp(S, 'tg')) return null;
   if (S.t - S.tg.lastTrendPost < 20) {
     toast(S, 'Пост-обзор можно делать раз в сутки');
     return null;
@@ -63,15 +74,18 @@ export function postTrends(S) {
 }
 
 export function giveaway(S, item) {
+  if (needApp(S, 'tg')) return null;
+  if (tutorialLock(S)) return null;
   const rng = rngOf(S);
   const value = bookValue(S, item);
   const gained = runGiveaway(S, rng, item, value);
-  S.items = S.items.filter((x) => x !== item);
-  touch(S);
+  dropItem(S, item);
   return { gained };
 }
 
 export function buyAd(S, index) {
+  if (needApp(S, 'tg')) return null;
+  if (tutorialLock(S)) return null;
   const ad = AD_CHANNELS[index];
   if (!ad) return null;
   if (!canPay(S, ad.price)) return null;
@@ -85,9 +99,12 @@ export function buyAd(S, index) {
 }
 
 export function buyPro(S) {
+  if (needApp(S, 'tg')) return null;
+  if (tutorialLock(S)) return null;
   if (!canPay(S, PRO_PRICE)) return null;
   pay(S, PRO_PRICE, 'Хайп-радар PRO');
   S.tg.proUntil = Math.max(S.tg.proUntil, S.t) + PRO_DAYS * 24;
+  S.tg.proGift = '';
   S.channels.radar.unread = 0;
   touch(S);
   return { until: S.tg.proUntil };
@@ -109,6 +126,7 @@ export const DEPOSIT_SHARE = 0.4;
  * придётся вернуть предоплату и объясняться.
  */
 export function acceptOrder(S, th) {
+  if (needApp(S, 'tg')) return null;
   const order = th.data.order;
   const client = S.clients.find((c) => c.id === th.data.clientId);
   if (!order || !client || th.closed || order.accepted) return null;
@@ -140,17 +158,12 @@ export function fulfillOrder(S, th, item) {
 
   say(S, th, 'me', `Есть! ${itemName(item)}, ${sizeLabel(item)}, ${item.cond === 0 ? 'новое с биркой' : 'как новое'}.`);
 
-  for (const other of S.threads) {
-    if (other.kind === 'buyer' && !other.closed && other.data.buyer && other.data.buyer.item === item.id) {
-      closeThread(S, other, 'Вещь уже продана');
-    }
-  }
-
   // Клиент обязательно проверяет: он платил выше рынка именно за оригинал.
-  if (!item.real) {
+  if (!passesAsOrig(item)) {
     say(S, th, 'them', 'Сделал легит-чек — это паль. Ты серьёзно? Забирай обратно.');
     item.verdict = 'fake';
     item.sale = null;
+    closeBuyersOf(S, item);
     recordTruth(S, item);
     const lost = clientFailed(S, client, 'fake');
     S.tg.trust = clamp(S.tg.trust - 12, 0, 100);
@@ -170,7 +183,7 @@ export function fulfillOrder(S, th, item) {
     return { state: 'fake', clientLost: lost };
   }
 
-  S.items = S.items.filter((x) => x !== item);
+  dropItem(S, item);
   // Предоплату уже получили — теперь остаток.
   const rest = order.budget - (order.deposit || 0);
   earn(S, rest, 'Заказ: ' + itemName(item));
@@ -193,6 +206,12 @@ export function fulfillOrder(S, th, item) {
   });
   bump(S, 'sold');
   bump(S, 'ordersDone');
+  if (order.grail) {
+    // Грааль добыт: трофей и коллекционер в постоянных клиентах.
+    bump(S, 'grails');
+    fx('level');
+    notify(S, { route: 'shop', title: '🏆 Грааль добыт', text: `${itemName(item)} — у коллекционера. Трофеев: ${S.stats.grails}` });
+  }
   S.stats.revenue += order.budget;
   S.stats.profit += profit;
   S.stats.bestDeal = Math.max(S.stats.bestDeal, profit);
@@ -238,6 +257,11 @@ export function fulfillOrder(S, th, item) {
 }
 
 export function declineOrder(S, th) {
+  // Первый заказ подписчика — урок главы «Телега»: пока она идёт, не отказываемся.
+  if (S.tut && S.tut.active && S.tut.ids && th.id === S.tut.ids.orderThread) {
+    toast(S, 'Тимур: не отказывайся — это твой первый заказ, разберёмся.');
+    return null;
+  }
   const client = S.clients.find((c) => c.id === th.data.clientId);
   const order = th.data.order;
   const deposit = order && order.accepted ? order.deposit || 0 : 0;
@@ -266,6 +290,8 @@ export function declineOrder(S, th) {
 /* ======================= РАФФЛ ======================= */
 
 export function enterRaffle(S, size) {
+  if (needApp(S, 'tg')) return null;
+  if (tutorialLock(S)) return null;
   const R = S.raffle;
   if (!R || R.done || R.entered) return null;
   if (!canPay(S, ENTRY_FEE)) return null;

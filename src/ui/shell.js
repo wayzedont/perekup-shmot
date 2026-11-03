@@ -1,15 +1,19 @@
 // Оболочка телефона: рендер, строка состояния, главный экран,
 // баннеры, шторка уведомлений и жесты.
 
-import { esc, rub, num, shortNum, plural } from '../core/util.js';
-import { dateLabel, clockLabel, agoLabel, hourIndex, nextRestock, SCHEDULE } from '../core/time.js';
-import { netWorth, capacity, usedSlots, ratingOf, hypePct } from '../core/economy.js';
-import { unreadPeople, unreadChannels, pruneNotifications, touch } from '../core/kernel.js';
+import { esc, shortNum, plural } from '../core/util.js';
+import { dateLabel, clockLabel, agoLabel, hourIndex } from '../core/time.js';
+import { capacity, usedSlots, ratingOf } from '../core/economy.js';
+import { unreadPeople, unreadChannels, pruneNotifications, touch, findThread, installed, syncApps } from '../core/kernel.js';
 import { nextGoal } from '../core/goals.js';
+import { dailyLeft, PER_DAY } from '../core/daily.js';
 import { seasonProgress, seasonDaysLeft } from '../core/events.js';
 import { raffleTitle } from '../core/market/raffle.js';
 import { markSeen } from '../core/market/avito.js';
+import { upcomingCall } from '../core/tutorial.js';
+import { downloadable } from './apps/store.js';
 import { $, icon, APPS, APP_BY_ID, DOCK } from './dom.js';
+import { play, playedRecently, afterRender } from './sfx.js';
 
 /* ======================= СОСТОЯНИЕ ОБОЛОЧКИ ======================= */
 
@@ -144,8 +148,15 @@ export function render() {
 
   const body = screen.querySelector('.body');
   if (body) {
-    if (S.ui.view === 'thread') body.scrollTop = body.scrollHeight;
-    else body.scrollTop = keepScroll;
+    // Переписка уезжает вниз, только когда пришло новое сообщение. Раньше —
+    // при каждой перерисовке, и осмотр по фото над торгом было не прочитать:
+    // экран возвращался вниз прямо из-под пальца.
+    if (S.ui.view === 'thread') {
+      const th = findThread(S, S.ui.id);
+      const n = th ? th.messages.length : 0;
+      body.scrollTop = key !== UI.lastKey || n !== UI.lastMsgs ? body.scrollHeight : keepScroll;
+      UI.lastMsgs = n;
+    } else body.scrollTop = keepScroll;
   }
   if (keepStrips.length) {
     const strips = screen.querySelectorAll('.chips, .tabs');
@@ -154,6 +165,7 @@ export function render() {
     }
   }
   if (!S.ui.app) fitHome();
+  afterRender(S);
   UI.lastKey = key;
 }
 
@@ -256,7 +268,14 @@ function renderStatusbar(S) {
 function renderApp(S) {
   const app = APP_BY_ID[S.ui.app];
   const view = UI.views[S.ui.app];
-  const V = (view ? view(S) : null) || { body: '<div class="empty">Пока пусто</div>' };
+  let V = (view ? view(S) : null) || { body: '<div class="empty">Пока пусто</div>' };
+  // Вещи или диалога больше нет (продано, закрыто, разобрали) — не пустой
+  // экран, а список приложения: так и после перезапуска игры.
+  if (V.gone && S.ui.view !== 'main') {
+    S.ui.view = 'main';
+    S.ui.id = null;
+    V = view(S) || V;
+  }
   const accText = app.text || app.bg;
   return `<div class="app" style="--acc:${app.bg};--acc-ink:${app.ink || '#fff'};--acc-text:${accText}">
     <div class="app-head">
@@ -277,15 +296,32 @@ function badgeFor(S, id) {
   if (id === 'tg') return unreadPeople(S, 'tg') + unreadChannels(S);
   if (id === 'shop') return S.prog.sp;
   if (id === 'wardrobe') return S.items.filter((i) => i.protect && i.protect.until > S.t && i.verdict === 'unknown').length;
-  if (id === 'parcels') return 0;
+  if (id === 'store') return downloadable(S).length;
+  if (id === 'goals') return dailyLeft(S);
   return 0;
 }
 
+// Новое приложение выпрыгивает на экран, когда игрок впервые его видит.
+// Главный экран перерисовывается каждую игровую минуту, поэтому анимация
+// продолжается с того места, где была, а не начинается заново
+// (отрицательная задержка).
+const POP_MS = 700;
+const popped = new Set();
+
 function appIcon(S, app) {
   const n = badgeFor(S, app.id);
-  return `<button class="app-ico" data-act="openApp" data-app="${app.id}">
+  const a = S.apps && S.apps[app.id];
+  const fresh = a && a.fresh;
+  if (fresh && !popped.has(app.id)) {
+    popped.add(app.id);
+    UI.pop = { id: app.id, at: Date.now() };
+  }
+  const pop = UI.pop && UI.pop.id === app.id && Date.now() - UI.pop.at < POP_MS;
+  return `<button class="app-ico${pop ? ' pop' : ''}${fresh ? ' fresh' : ''}" data-act="openApp" data-app="${app.id}"${
+    pop ? ` style="animation-delay:-${Date.now() - UI.pop.at}ms"` : ''
+  }>
     <div class="tile" style="background:${app.bg}">${icon(app.id)}</div>
-    <span>${esc(app.n)}</span>
+    <span>${fresh ? '<i class="fresh-dot"></i>' : ''}${esc(app.n)}</span>
     ${n ? `<span class="badge">${n > 99 ? '99+' : n}</span>` : ''}
   </button>`;
 }
@@ -296,23 +332,34 @@ function renderHome(S) {
   const forSale = S.items.filter((i) => i.sale).length;
   const tips = [];
 
+  // Обучение ещё не кончилось: когда и про что позвонит Тимур — первым.
+  const call = upcomingCall(S);
+  if (call) {
+    tips.push(
+      `<div class="tip call-tip">${icon('phone')}<span>${esc(call.text)}${call.progress ? ` <b>${esc(call.progress)}</b>` : ''}</span></div>`,
+    );
+  }
+  // Дела на день важнее дальней цели: они сгорают сегодня.
+  const left = dailyLeft(S);
   const goal = nextGoal(S);
-  if (goal) {
+  if (left) {
+    const streak = S.daily.streak ? ` · 🔥 ${S.daily.streak}` : '';
+    tips.push(`<button class="tip" data-act="openApp" data-app="goals">${icon('goals')}<span>Дела Тимура: <b>${PER_DAY - left} из ${PER_DAY}</b>${streak}</span></button>`);
+  } else if (goal) {
     tips.push(`<button class="tip" data-act="openApp" data-app="goals">${icon('goals')}<span>Цель: <b>${esc(goal.n)}</b></span></button>`);
   }
   if (S.rep.banUntil > S.t) {
     tips.push(`<button class="tip" data-act="openApp" data-app="avito">${icon('alert')}<span>Авитка заблокирована до ${esc(dateLabel(S.rep.banUntil))}</span></button>`);
   }
-  const restock = nextRestock(S.t);
   const dw = new Date(2026, 8, 7 + Math.floor(S.t / 24)).getDay();
-  if ((dw === 1 || dw === 4) && h < 16) {
+  if (installed(S, 'second') && (dw === 1 || dw === 4) && h < 16) {
     tips.push(
       `<button class="tip" data-act="openApp" data-app="second">${icon('second')}<span>${
         h < 10 ? 'Сегодня в 10:00 завоз в секонде' : 'В секонде завоз — хорошее разбирают по часам'
       }</span></button>`,
     );
   }
-  if (S.raffle && !S.raffle.done && !S.raffle.entered) {
+  if (installed(S, 'tg') && S.raffle && !S.raffle.done && !S.raffle.entered) {
     tips.push(
       `<button class="tip" data-act="openChannel" data-chan="drops">${icon('spark')}<span>Раффл: <b>${esc(raffleTitle(S.raffle))}</b></span></button>`,
     );
@@ -352,16 +399,30 @@ function renderHome(S) {
         <button class="primary" data-act="sleep">Спать</button>
       </div>
     </div>
-    <div class="app-grid">${APPS.map((a) => appIcon(S, a)).join('')}</div>
+    <div class="app-grid">${APPS.filter((a) => installed(S, a.id) && !DOCK.includes(a.id))
+      .map((a) => appIcon(S, a))
+      .join('')}</div>
     <div class="tips">${tips.join('')}</div>
   </div>
-  <div class="dock">${DOCK.map((id) => appIcon(S, APP_BY_ID[id])).join('')}</div>`;
+  <div class="dock">${DOCK.filter((id) => installed(S, id))
+    .map((id) => appIcon(S, APP_BY_ID[id]))
+    .join('')}</div>`;
 }
 
 /* ======================= НАВИГАЦИЯ ======================= */
 
 export function go(app, view = 'main', id = null, push = true) {
   const S = UI.S;
+  // «Посылки», «Книжка», «Магазин» ставятся сами по событию — событие могло
+  // случиться только что (первая доставка), а синхронизация ещё не прошла.
+  syncApps(S);
+  // Ссылка в приложение, которого ещё нет на телефоне (старое уведомление,
+  // кнопка «в Секонд» на чужом экране), ведёт в Апстор, а не в пустоту.
+  if (app && !installed(S, app)) {
+    app = 'store';
+    view = 'main';
+    id = null;
+  }
   if (push && S.ui.app) S.ui.stack.push([S.ui.app, S.ui.view, S.ui.id]);
   if (!app) S.ui.stack = [];
   S.ui.app = app;
@@ -422,6 +483,8 @@ export const isSheetOpen = () => !$('#sheet').hidden;
 export function toast(text) {
   const el = $('#toast');
   el.textContent = text;
+  // Над открытой шторкой тост уходит наверх: внизу у неё текст и кнопка.
+  el.classList.toggle('top', isSheetOpen());
   el.hidden = false;
   clearTimeout(UI.toastTimer);
   UI.toastTimer = setTimeout(() => {
@@ -433,6 +496,9 @@ export function toast(text) {
 
 export function pushNotification(n) {
   if (UI.queue.some((x) => x.id === n.id)) return;
+  // Пока Тимур ведёт за руку, посторонние баннеры перебивали бы его.
+  // В шторке они всё равно есть.
+  if (UI.S && UI.S.tut && UI.S.tut.active && !n.tut) return;
   UI.queue.push(n);
   if (UI.queue.length > 14) UI.queue.splice(0, UI.queue.length - 14);
   if (!UI.current) showNextBanner();
@@ -449,8 +515,10 @@ function showNextBanner() {
     <div><b>${esc(n.title || app.n)}</b><span>${esc(n.text)}</span>
     ${UI.queue.length ? `<small>ещё ${UI.queue.length}</small>` : ''}</div>`;
   el.hidden = false;
+  // Свой звук у события уже прозвучал (продажа, паль) — тогда без «дзынь».
+  if (!playedRecently()) play('notify');
   clearTimeout(UI.bannerTimer);
-  UI.bannerTimer = setTimeout(hideBanner, UI.queue.length ? 2800 : 4200);
+  if (!n.sticky) UI.bannerTimer = setTimeout(hideBanner, UI.queue.length ? 2800 : 4200);
 }
 
 export function hideBanner() {

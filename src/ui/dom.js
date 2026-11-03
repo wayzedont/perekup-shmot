@@ -1,7 +1,6 @@
 // Приложения, иконки и мелкие помощники для разметки.
 
 export const $ = (sel) => document.querySelector(sel);
-export const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 export const ICONS = {
   avito: '<circle cx="8" cy="8" r="3"/><circle cx="16.5" cy="9" r="2"/><circle cx="9" cy="16.5" r="2.4"/><circle cx="16.5" cy="16" r="3.4"/>',
@@ -21,6 +20,10 @@ export const ICONS = {
   alert: '<path d="M12 4 2.5 20h19z"/><path d="M12 10v4M12 17v.5"/>',
   eye: '<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.6"/>',
   user: '<circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
+  store: '<path d="M8.5 16.5 13 8.5M15.5 16.5 11 8.5M6.5 13.5h11"/><path d="M5 18.5 4 20.5M19 18.5l1 2"/>',
+  phone:
+    '<path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/>',
+  download: '<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/>',
 };
 
 export const icon = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ''}</svg>`;
@@ -30,6 +33,7 @@ export const APPS = [
   { id: 'tg', n: 'Телега', bg: '#2a9fd6' },
   { id: 'poizon', n: 'Пойзон', bg: '#17171a' },
   { id: 'second', n: 'Секонд', bg: '#e0661c' },
+  { id: 'store', n: 'Апстор', bg: '#1d8bf2' },
   { id: 'wardrobe', n: 'Шкаф', bg: '#8c5a33' },
   { id: 'bank', n: 'Банк', bg: '#f0bd00', ink: '#1a1a1a', text: '#8a6d00' },
   { id: 'parcels', n: 'Посылки', bg: '#38913d' },
@@ -42,6 +46,7 @@ export const APPS = [
 
 export const APP_BY_ID = Object.fromEntries(APPS.map((a) => [a.id, a]));
 
+/** Приложения в доке. На главном экране они не повторяются. */
 export const DOCK = ['avito', 'tg', 'wardrobe', 'bank'];
 
 /** Цвет аватара по имени — стабильный. */

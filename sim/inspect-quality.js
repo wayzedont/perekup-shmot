@@ -5,10 +5,9 @@ import { createGame } from '../src/core/engine.js';
 import { rngOf } from '../src/core/kernel.js';
 import { makeItem } from '../src/core/items.js';
 import { BRANDED } from '../src/core/data/models.js';
-import { observeTell, suspicion, tellsFor, inspectError, inspectMinutes } from '../src/core/inspect.js';
-import { sortedTells } from '../src/core/notebook.js';
+import { observeTell, suspicion, tellsFor, inspectMinutes } from '../src/core/inspect.js';
 
-const S = createGame(4242);
+const S = createGame(4242, { tutorial: 'skip' });
 const rng = rngOf(S);
 const THRESHOLD = Number(process.argv[2] || 0.12);
 const N = 4000;

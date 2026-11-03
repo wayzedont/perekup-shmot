@@ -93,6 +93,8 @@ function bucketOf(f, th) {
 export function observeTell(S, rng, item, tell, mode) {
   if (!item.seen) item.seen = {};
   if (item.seen[tell]) return item.seen[tell];
+  // Учебная вещь: результат задан сценарием (tutorial.js).
+  if (item.script && item.script[tell]) return (item.seen[tell] = item.script[tell]);
   const trueFlaw = (item.flaws && item.flaws[tell]) !== undefined ? item.flaws[tell] : 0.05;
   let idx = BUCKETS.indexOf(bucketOf(trueFlaw, thresholds(S)));
   if (rng.chance(inspectError(S, mode))) {
@@ -190,11 +192,24 @@ export function tellNote(item, tell) {
 /* ======================= ЛЕГИТ-ЧЕК ======================= */
 
 /**
- * Профессиональная проверка. Точная, но не абсолютная:
- * суперкопии иногда проходят, а по одним фото ошибиться проще.
+ * Чек вещи в руках — в шкафу или на встрече. Это правда: сервис держит
+ * саму вещь, а не снимки, и подменить её уже нельзя.
+ */
+export function handVerdict(item) {
+  return item.real ? 'orig' : 'fake';
+}
+
+/**
+ * Чек по фото продавца. Паль ловит почти всегда, а вот «оригинал» — слабое
+ * слово: суперкопия на снимках может пройти, а сами снимки могут быть чужой
+ * вещи (см. photoItem в market/avito.js).
  */
 export function legitVerdict(rng, item, accuracy) {
-  if (item.real) return rng.chance(accuracy + 0.03) ? 'orig' : 'fake';
+  // Оригинал паленым не называет никогда. Раньше по фото так выходило в 4%
+  // случаев: игрок верил чеку, говорил продавцу «это паль» и терял сделку
+  // на вещи, которая была настоящей, — и узнать об этом не мог никак.
+  if (item.real) return 'orig';
+  if (item.script) return 'fake';
   // Чем лучше копия, тем выше шанс, что она пройдёт проверку.
   const slip = clamp((item.q - 0.82) * 1.3, 0, 0.3);
   if (rng.chance(slip)) return 'orig';

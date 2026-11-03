@@ -1,10 +1,10 @@
 // Авитка: объявления, поиск, фильтры.
 
-import { clamp, priceRound } from '../util.js';
+import { priceRound } from '../util.js';
 import { MODELS } from '../data/models.js';
-import { CATS, CONDS, TIERS } from '../data/catalog.js';
+import { CATS, TIERS } from '../data/catalog.js';
 import { METRO, CITIES } from '../data/content.js';
-import { makeItem, hideDefects, itemName, shownCondition } from '../items.js';
+import { makeItem, hideDefects, shownCondition } from '../items.js';
 import { makeSeller, rollSignals, SELLER_TYPES, SELLER_KEYS } from '../people/sellers.js';
 import { valueOrig, valueFake, netWorth } from '../economy.js';
 
@@ -75,6 +75,14 @@ export function generateListing(S, rng, opts = {}) {
 
   const priceRatio = ask / Math.max(1, valueOrig(S, shownItem));
   const back = opts.back || 0;
+
+  // Подмена: в чат присылают фото чужого оригинала, а отправят паль.
+  // Возможна только там, где вещь едет доставкой, — на встрече не подменишь.
+  const swapChance = SWAP_CHANCE[type] || 0;
+  const photoItem =
+    !real && T.declares === 'orig' && mode !== 'meet' && rng.chance(swapChance)
+      ? makeItem(rng, model.i, { cond: item.shownCond, real: true, size: item.size, way: item.way, hasBox: item.hasBox, boughtAt: S.t })
+      : null;
   const listing = {
     id: nextListingId(),
     item,
@@ -87,9 +95,11 @@ export function generateListing(S, rng, opts = {}) {
     postedAt: S.t - back,
     seller: makeSeller(rng, type, ask, S.prog.skills.bargain),
     signals: rollSignals(rng, type, priceRatio, mode),
+    photoItem,
+    photoVerdict: null,
+    handLegit: false,
     photosAsked: false,
     photoNote: '',
-    photoLegit: false,
     threadId: null,
     inspectedRemote: false,
     sniped: false,
@@ -102,9 +112,23 @@ export function generateListing(S, rng, opts = {}) {
     : S.t - back + rng.int(30, 130);
   if (listing.expiresAt <= S.t) listing.expiresAt = S.t + rng.int(10, 48);
   listing.isDeal = isDeal;
+  // Чужие фото часто бывают «слишком красивыми» — это подсказка внимательным.
+  if (photoItem && !listing.signals.includes('stockPhoto') && rng.chance(0.5)) listing.signals.push('stockPhoto');
   listing.description = describe(rng, listing);
   return listing;
 }
+
+/**
+ * Шанс, что продавец пали пришлёт фото чужого оригинала. Только у тех, кто
+ * выдаёт паль за ориг и отправляет доставкой: из всей пали на Авитке это
+ * примерно каждая пятая-шестая. Достаточно, чтобы «ориг по фото» не был
+ * гарантией, и мало, чтобы фото не потеряли смысл. Защита покупателя на
+ * сутки после получения спасает того, кто проверяет вещь, когда она пришла.
+ */
+const SWAP_CHANCE = { liar: 0.35, shop: 0.3, hurry: 0.2, owner: 0.15, parent: 0.1, collector: 0.1 };
+
+/** Что видно на фото продавца: подменённая вещь или сама вещь. */
+export const photoSubject = (listing) => listing.photoItem || listing.item;
 
 function describe(rng, listing) {
   const { item, seller, mode } = listing;
@@ -172,7 +196,8 @@ export function refillMarket(S, rng, notify) {
 export function expireListings(S, onExpire) {
   const keep = [];
   for (const l of S.listings) {
-    if (l.expiresAt > S.t) {
+    // Учебные объявления живут, пока идёт обучение: игрок вправе проспать хоть месяц.
+    if (l.expiresAt > S.t || (l.tutorial && S.tut && S.tut.active)) {
       keep.push(l);
       continue;
     }
@@ -224,10 +249,6 @@ export function markSeen(S, id) {
 
 export function deliveryFee(price) {
   return Math.max(199, Math.round(price * 0.05));
-}
-
-export function listingTitle(l) {
-  return itemName(l.item);
 }
 
 /** Признак «дёшево» для карточки. */

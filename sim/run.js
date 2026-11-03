@@ -5,7 +5,6 @@
 
 import { createGame } from '../src/core/engine.js';
 import { netWorth } from '../src/core/economy.js';
-import { debtTotal } from '../src/core/bank.js';
 import { quantiles, rub, num } from '../src/core/util.js';
 import { STRATEGIES, runBot } from './bots.js';
 
@@ -86,7 +85,7 @@ for (const key of Object.keys(STRATEGIES)) {
 
   for (let i = 0; i < RUNS; i++) {
     const seed = 1000 + i * 7919;
-    const S = createGame(seed);
+    const S = createGame(seed, { tutorial: 'skip' });
     S.flags.started = 1;
     const res = runBot(S, key, DAYS);
     if (res.error) {

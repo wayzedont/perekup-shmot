@@ -8,15 +8,20 @@
 
 import { clamp, priceRound } from '../util.js';
 import { MODELS, BRANDED } from '../data/models.js';
-import { CATS, CONDS } from '../data/catalog.js';
+import { CATS } from '../data/catalog.js';
 import { makeItem, hideDefects } from '../items.js';
 import { valueOrig } from '../economy.js';
 import { weekdayAt, hourIndex } from '../time.js';
+import { upgraded } from '../data/apps.js';
 
 let nextSecId = 1;
 export function resetSecondIds(from) {
   nextSecId = from || 1;
 }
+/** Номер для вещи, которую кладут на полку не завозом (сценарий обучения). */
+export const takeSlotId = () => nextSecId++;
+/** Вещи урока лежат на полке, пока идёт урок: игрок вправе медлить. */
+export const heldForTutorial = (S, slot) => !!(slot.tut && S.tut && S.tut.active);
 
 /** Что вообще попадает на завоз при текущем уровне магазина. */
 export function secondPool(S) {
@@ -88,6 +93,24 @@ export function secondItem(S, rng, good, forceReal) {
   };
 }
 
+/**
+ * Чей-то гардероб: несколько хороших брендовых вещей разом. Паль среди них —
+ * пятьдесят на пятьдесят, как всё брендовое в «Мешке». Пара часов форы,
+ * потом разметут: кто узнал первым и пришёл — тот и выбирает.
+ */
+export function closetDrop(S, rng, n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const slot = secondItem(S, rng, true);
+    slot.rush = S.t + CLOSET_HEAD_START;
+    out.push(slot);
+    S.second.items.push(slot);
+  }
+  return out;
+}
+/** Сколько часов у игрока, прежде чем гардероб начнут разбирать. */
+export const CLOSET_HEAD_START = 2;
+
 /** Ликвидный брендовый оригинал — то, за чем и приходят к открытию. */
 export function isTreasure(S, slot) {
   const it = slot.item;
@@ -97,7 +120,9 @@ export function isTreasure(S, slot) {
 export function restock(S, rng, kind) {
   if (kind === 'big') {
     // Остатки прошлой недели частично уезжают.
-    S.second.items = S.second.items.filter((x) => x.addedAt > S.t - 24 * 7).slice(-12);
+    const keep = S.second.items.filter((x) => heldForTutorial(S, x));
+    const old = S.second.items.filter((x) => x.addedAt > S.t - 24 * 7 && !heldForTutorial(S, x)).slice(-12);
+    S.second.items = [...keep, ...old];
     const junk = rng.int(38, 48);
     for (let i = 0; i < junk; i++) S.second.items.push(secondItem(S, rng, false));
     const good = rng.int(5, 7);
@@ -126,8 +151,8 @@ export function pickOver(S, rng) {
   const taken = [];
   for (const slot of S.second.items) {
     if (slot.taken) continue;
-    // Отложенное помощником на кассе никто не трогает.
-    if (slot.reserved && slot.reserved > S.t) continue;
+    // Отложенное помощником на кассе никто не трогает, как и вещи урока.
+    if ((slot.reserved && slot.reserved > S.t) || heldForTutorial(S, slot)) continue;
     const it = slot.item;
     const m = MODELS[it.m];
     const h2 = S.market.h[it.m];
@@ -140,13 +165,18 @@ export function pickOver(S, rng) {
     const shown = { ...it, cond: it.shownCond };
     const ratio = slot.price / Math.max(1, valueOrig(S, shown));
     if (ratio < 0.5) p *= 1.5;
+    // Гардероб: пока фора — почти не трогают, потом разбирают быстро.
+    if (slot.rush) p = S.t >= slot.rush ? Math.max(p, 0.5) : Math.min(p, 0.04);
     if (rng.chance(p)) {
       slot.taken = true;
       taken.push(slot);
     }
   }
   S.second.items = S.second.items.filter((x) => !x.taken);
-  if (S.second.items.length > 80) S.second.items = S.second.items.slice(-80);
+  if (S.second.items.length > 80) {
+    const keep = S.second.items.filter((x) => heldForTutorial(S, x));
+    S.second.items = [...keep, ...S.second.items.filter((x) => !heldForTutorial(S, x)).slice(-80 + keep.length)];
+  }
   return taken;
 }
 
@@ -157,12 +187,8 @@ export function discountK(S) {
 }
 
 export function priceNow(S, slot) {
-  return Math.max(50, Math.round((slot.price * discountK(S)) / 10) * 10);
+  const club = upgraded(S, 'secondClub') ? 0.9 : 1;
+  return Math.max(50, Math.round((slot.price * discountK(S) * club) / 10) * 10);
 }
 
 export const findSlot = (S, id) => S.second.items.find((x) => x.id === +id);
-
-/** Сколько вещей игрок уже успел осмотреть на этом завозе — для подсказки. */
-export function inspectedCount(S) {
-  return S.second.items.filter((x) => Object.keys(x.item.seen || {}).length > 0).length;
-}

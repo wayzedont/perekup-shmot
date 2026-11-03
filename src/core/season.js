@@ -10,6 +10,7 @@
 // пересказ того, что переносится дальше.
 
 import { rub, plural } from './util.js';
+import { MODELS } from './data/models.js';
 import { dateLabel } from './time.js';
 import { netWorth } from './economy.js';
 import { statusOf, nextSeasonLevel } from './data/progress.js';
@@ -82,7 +83,7 @@ export function seasonTitle(S) {
  * Моменты сезона: конкретные события с датами, а не агрегаты.
  * Берём только то, что действительно было, — пустые строчки не выдумываем.
  */
-export function seasonMoments(S) {
+export function seasonMoments(S, limit = 5) {
   const out = [];
   const deals = S.deals || [];
 
@@ -156,7 +157,46 @@ export function seasonMoments(S) {
     });
   }
 
-  return out.slice(0, 5);
+  return out.slice(0, limit);
+}
+
+/**
+ * Хроника: те же моменты, но по ходу сезона и полнее — с первой продажей,
+ * граалями и серией дел. Это то, что хочется показать другу, и мягкая
+ * причина зайти «посмотреть, как я рос».
+ */
+export function chronicle(S) {
+  const out = [];
+  const deals = S.deals || [];
+  const first = S.firstDeal || (deals.length < 200 ? deals[deals.length - 1] : null);
+  if (first) {
+    out.push({
+      n: 'С чего началось',
+      t: `Первая продажа — ${first.label} за ${rub(first.price)}, ${dateLabel(first.at)}. ${first.profit > 0 ? `Плюс ${rub(first.profit)}.` : 'В минус, но надо же с чего-то начинать.'}`,
+    });
+  }
+  out.push(...seasonMoments(S, 12));
+  if (S.stats.grails > 0) {
+    out.push({
+      n: 'Граали',
+      t: `${S.stats.grails} ${plural(S.stats.grails, 'грааль добыт', 'грааля добыто', 'граалей добыто')} для коллекционеров. Такие вещи всплывают раз в неделю, и за ними охотится ${RIVAL_NAME}.`,
+    });
+  }
+  const sets = Object.keys(S.collections || {});
+  if (sets.length) {
+    const last = MODELS[+sets.reduce((a, b) => (S.collections[b] > S.collections[a] ? b : a))];
+    out.push({
+      n: 'Коллекции',
+      t: `${sets.length} ${plural(sets.length, 'коллекция собрана', 'коллекции собраны', 'коллекций собрано')} — все расцветки одной модели разом. Последняя — ${last.b} ${last.n}.`,
+    });
+  }
+  if (S.daily && S.daily.best >= 3) {
+    out.push({
+      n: 'Серия',
+      t: `Лучшая серия дел Тимура — ${S.daily.best} ${plural(S.daily.best, 'день', 'дня', 'дней')} подряд${S.daily.streak >= S.daily.best ? ', и она ещё идёт' : ''}.`,
+    });
+  }
+  return out;
 }
 
 /**
@@ -177,6 +217,9 @@ export function seasonCarry(S) {
   out.push(`уровень ${S.prog.lvl} → начнёшь с ${next}-го`);
   const vip = (S.clients || []).filter((c) => c.status === 'vip').length;
   if (vip) out.push(`${vip} ${plural(vip, 'свой клиент', 'своих клиента', 'своих клиентов')}`);
+  const pro = Object.keys(S.upgrades || {}).length;
+  if (pro) out.push(`Pro-версии приложений: ${pro} из Апстора`);
+  if (S.daily && S.daily.streak) out.push(`серия дел Тимура: ${S.daily.streak} ${plural(S.daily.streak, 'день', 'дня', 'дней')}`);
   return out;
 }
 

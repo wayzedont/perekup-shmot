@@ -1,22 +1,20 @@
 // Покупка: переписка и торг на Авитке, встреча у метро, секонд,
 // Пойзон, поставщики и лоты в личке.
 
-import { clamp, priceRound, rub, num } from '../util.js';
+import { clamp, priceRound, rub } from '../util.js';
 import { MODELS } from '../data/models.js';
-import { CONDS } from '../data/catalog.js';
 import {
   valueOrig,
   valueFake,
   freeSlots,
-  capacity,
-  usedSlots,
   poizonPrice,
   poizonEta,
   poizonShip,
   legitCost,
+  photoLegitCost,
 } from '../economy.js';
-import { itemName, sizeLabel, shownCondition, makeItem, revealCondition, pickSize } from '../items.js';
-import { tellsFor, legitVerdict, suspicion } from '../inspect.js';
+import { itemName, makeItem, pickSize } from '../items.js';
+import { legitVerdict, handVerdict } from '../inspect.js';
 import { recordTruth, recordPurchase } from '../notebook.js';
 import {
   applyLever,
@@ -25,14 +23,11 @@ import {
   defectAnswer,
   QUESTIONS,
   LEVERS,
-  SELLER_TYPES,
 } from '../people/sellers.js';
 import {
   rngOf,
   pay,
-  earn,
   canPay,
-  notify,
   toast,
   touch,
   bump,
@@ -43,16 +38,20 @@ import {
   mentorOnce,
   mentorSay,
   schedule,
+  tutorialLock,
+  needApp,
+  fx,
 } from '../kernel.js';
 import { advanceMinutes, advanceHours } from '../tick.js';
-import { findListing, deliveryFee } from '../market/avito.js';
+import { findListing, deliveryFee, photoSubject } from '../market/avito.js';
 import { findSlot, priceNow } from '../market/second.js';
 import { canPostAd, planResponses } from '../market/buyad.js';
 import { post as channelPost } from '../channel.js';
-import { SUPPLIERS, findPost, postTotal, buildOrderItems, shipUnit, trapFakeRate } from '../market/suppliers.js';
+import { SUPPLIERS, findPost, postTotal, buildOrderItems, trapFakeRate } from '../market/suppliers.js';
 import { inspectTell, inspectCondition } from './items.js';
 import { checkGoals } from '../progression.js';
-import { canMeet, isSecondOpen, SCHEDULE } from '../time.js';
+import { tutorialBuyGate, tutorialTopUp, poizonAllowed, TUT_RARE } from '../tutorial.js';
+import { canMeet, isSecondOpen, hourIndex, SCHEDULE } from '../time.js';
 
 /* ======================= ПЕРЕПИСКА С ПРОДАВЦОМ ======================= */
 
@@ -78,6 +77,7 @@ export function sellerThread(S, listing) {
 }
 
 export function askSeller(S, listing, q) {
+  if (needApp(S, 'avito')) return null;
   const rng = rngOf(S);
   const th = sellerThread(S, listing);
   const s = listing.seller;
@@ -87,18 +87,15 @@ export function askSeller(S, listing, q) {
 
   if (q === 'photos') {
     listing.photosAsked = true;
-    if (s.type === 'scam') {
-      say(S, th, 'them', 'Фото в объявлении, этого достаточно.');
-      say(S, th, 'system', 'Продавец не прислал фото');
-      listing.photoNote = 'Продавец отказался присылать фото';
+    // Тот, кто подменяет фото, присылает охотно — в этом и ловушка. Учебные
+    // продавцы присылают всегда.
+    const refuse = !listing.tutorial && !listing.photoItem && rng.chance(PHOTO_REFUSAL[s.type] || 0);
+    if (refuse) {
+      say(S, th, 'them', rng.pick(PHOTO_EXCUSES[s.type] || PHOTO_EXCUSES.owner));
+      listing.photoNote = 'Продавец не прислал фото';
     } else {
-      say(S, th, 'them', 'Скинул 📷');
-      say(
-        S,
-        th,
-        'system',
-        'Пришли фото бирок и швов. Теперь часть признаков можно осмотреть прямо из переписки — но по фото ошибиться проще.',
-      );
+      sendPhotos(S, th);
+      listing.photosSent = true;
       listing.photoNote = 'Фото получены';
     }
     advanceMinutes(S, 10);
@@ -132,6 +129,32 @@ export function askSeller(S, listing, q) {
   return { answer };
 }
 
+/**
+ * Кто и как часто не присылает фото. Отказ — сам по себе подсказка: чаще
+ * всех отнекиваются те, кому есть что прятать, но бывает и честный
+ * человек, которому просто лень или некогда. Тогда остаётся встреча — или
+ * риск.
+ */
+const PHOTO_REFUSAL = { scam: 1, liar: 0.35, hurry: 0.35, parent: 0.25, owner: 0.15, shop: 0.08, replica: 0.08, collector: 0.05 };
+const PHOTO_EXCUSES = {
+  scam: ['Фото в объявлении, этого достаточно.', 'Всё видно на фото в объявлении. Берёте или нет?'],
+  liar: ['В объявлении всё указано. Ориг, не переживайте.', 'Зачем ещё фото? Там всё видно. Берите, не пожалеете.'],
+  hurry: ['Некогда фоткать, уезжаю. В объявлении всё видно.', 'Сорри, вещь уже упакована. Всё как на фото в объявлении.'],
+  parent: ['Ой, я не очень умею так фотографировать… Там же всё на фото видно?', 'Сына дома нет, он бы сфоткал. В объявлении всё есть.'],
+  owner: ['В объявлении всё указано, добавить нечего.', 'Я на работе, вечером, может, скину. Там и так всё видно.'],
+  shop: ['Все фото в карточке товара. Отправка в день оплаты.'],
+  replica: ['Все фото в карточке. Это реплика, мы честно пишем.'],
+  collector: ['Не сейчас, извините. В объявлении всё честно.'],
+};
+
+/**
+ * Продавец присылает снимки — это отдельное сообщение с фотографиями, и
+ * осмотр по фото идёт прямо под ними, в переписке.
+ */
+export function sendPhotos(S, th, text) {
+  say(S, th, 'them', text || 'Скинул 📷', { photos: true });
+}
+
 /** Доступные ходы в торге с учётом того, что игрок уже знает. */
 export function availableLevers(S, listing) {
   const s = listing.seller;
@@ -150,6 +173,7 @@ export function availableLevers(S, listing) {
 }
 
 export function useLever(S, listing, key) {
+  if (needApp(S, 'avito')) return null;
   const rng = rngOf(S);
   const th = sellerThread(S, listing);
   const s = listing.seller;
@@ -236,6 +260,7 @@ function rivalPressure(S, rng, listing, th) {
 }
 
 export function offerToSeller(S, listing, amount) {
+  if (needApp(S, 'avito')) return null;
   if (amount < 50) {
     toast(S, 'Введи цену');
     return null;
@@ -263,6 +288,13 @@ export function offerToSeller(S, listing, amount) {
 /* ======================= ПОКУПКА С ДОСТАВКОЙ ======================= */
 
 export function buyWithDelivery(S, listing) {
+  if (needApp(S, 'avito')) return null;
+  if (tutorialLock(S, listing.tutorial)) return null;
+  const gateMsg = tutorialBuyGate(S, listing);
+  if (gateMsg) {
+    toast(S, gateMsg);
+    return null;
+  }
   const s = listing.seller;
   if (s.blocked) {
     toast(S, 'Продавец тебя заблокировал');
@@ -283,7 +315,8 @@ export function buyWithDelivery(S, listing) {
     touch(S);
     return { state: 'meetOnly', threadId: th.id };
   }
-  if (freeSlots(S) < 1) {
+  // Учебная покупка идёт по сценарию: забитый шкаф не должен ставить главу в тупик.
+  if (freeSlots(S) < 1 && !listing.tutorial) {
     toast(S, 'Шкаф забит. Продай что-нибудь или возьми место в «Магазине»');
     return null;
   }
@@ -295,6 +328,7 @@ export function buyWithDelivery(S, listing) {
 export function confirmDelivery(S, listing) {
   const quote = buyWithDelivery(S, listing);
   if (!quote || quote.state !== 'ready') return null;
+  if (listing.tutorial) tutorialTopUp(S, quote.total);
   if (!canPay(S, quote.total)) return null;
   const rng = rngOf(S);
   pay(S, quote.total, 'Авитка: ' + itemName(listing.item));
@@ -304,7 +338,9 @@ export function confirmDelivery(S, listing) {
   item.src = 'Авитка, доставка';
   if (listing.declared === 'fake') item.verdict = 'fake';
 
-  const days = listing.mode === 'ship' ? rng.range(2, 4) : rng.range(1, 2);
+  // Учебная посылка — экспресс за пару часов: ждать дни посреди урока скучно,
+  // а заодно игрок учится двигать время кнопками «+1 ч».
+  const days = listing.tutorial ? 2 / 24 : listing.mode === 'ship' ? rng.range(2, 4) : rng.range(1, 2);
   S.shipments.push({
     id: 'S' + (S.nextShipId = (S.nextShipId || 0) + 1),
     name: itemName(item) + ' · Авитка',
@@ -329,6 +365,13 @@ export function confirmDelivery(S, listing) {
 /* ======================= ВСТРЕЧА У МЕТРО ======================= */
 
 export function startMeeting(S, listing) {
+  if (needApp(S, 'avito')) return null;
+  if (tutorialLock(S, listing.tutorial)) return null;
+  const gateMsg = tutorialBuyGate(S, listing);
+  if (gateMsg) {
+    toast(S, gateMsg);
+    return null;
+  }
   const s = listing.seller;
   if (s.blocked) {
     toast(S, 'Продавец тебя заблокировал');
@@ -346,13 +389,15 @@ export function startMeeting(S, listing) {
     toast(S, `Продавец не в Москве (${listing.city}), только доставка`);
     return null;
   }
-  if (!canMeet(S.t)) {
+  // Учебную встречу Тимур договорил заранее — она не ждёт девяти утра.
+  if (!canMeet(S.t) && !listing.tutorial) {
     toast(S, 'Продавцы встречаются с 9:00 до 20:00');
     return null;
   }
   // Тот, кто пришёл по твоему объявлению, сам подъезжает к тебе:
   // это и есть главное удобство объявления о скупке.
   const fare = listing.incoming ? 0 : 150;
+  if (fare && listing.tutorial) tutorialTopUp(S, fare);
   if (fare && !canPay(S, fare)) return null;
   if (fare) pay(S, fare, 'Метро');
   listing.expiresAt = Math.max(listing.expiresAt, S.t + 5);
@@ -366,6 +411,15 @@ export function startMeeting(S, listing) {
   listing.met = true;
   touch(S);
   return { state: 'ok' };
+}
+
+/**
+ * Осмотр по фото из переписки. Смотрим то, что на снимках: если продавец
+ * прислал фото чужой вещи, чистые признаки — про неё, а не про ту, что приедет.
+ */
+export function photoInspect(S, listing, tell) {
+  if (!listing.photosSent) return null;
+  return inspectTell(S, photoSubject(listing), tell, 'photo');
 }
 
 /** На встрече доступны все признаки, включая запах. */
@@ -383,24 +437,52 @@ export function meetInspectCondition(S, listing) {
       'system',
       'Ты нашёл: ' + res.defects.map((d) => d.n.toLowerCase()).join(', ') + '. Теперь можно давить на цену.',
     );
-    mentorOnce(
-      S,
-      'defectTip',
-      'Нашёл дефект — это главный козырь в торге. Продавцы почти всегда уступают, когда ты показываешь, что именно не так.',
-    );
   }
   return res;
 }
 
-export function meetLegit(S, listing) {
+/**
+ * Легит-чек по фото продавца, из переписки. Проверяет снимки, а не вещь:
+ * «паль» — это точно паль, а «оригинал» значит только, что на фото оригинал.
+ * Отправить могут другую вещь, поэтому оригинал по фото не записывается в
+ * вещь как доказательство — пришла посылка, проверь ещё раз.
+ */
+export function photoLegit(S, listing) {
   const item = listing.item;
-  const cost = legitCost(S, item);
-  if (listing.photoLegit) return null;
+  if (!listing.photosSent || listing.photoVerdict) return null;
+  // Первый учебный чек оплачивает Тимур.
+  const cost = listing.freeLegit ? 0 : photoLegitCost(S, item);
+  if (listing.tutorial) tutorialTopUp(S, cost);
   if (!canPay(S, cost)) return null;
-  pay(S, cost, 'Легит-чек по фото');
+  if (cost) pay(S, cost, 'Легит-чек по фото');
   const rng = rngOf(S);
-  listing.photoLegit = true;
-  item.verdict = legitVerdict(rng, item, 0.93);
+  const subject = photoSubject(listing);
+  const verdict = legitVerdict(rng, subject, 0.9);
+  listing.photoVerdict = verdict;
+  fx(verdict === 'fake' ? 'bad' : 'ok');
+  // «Паль» по фото может быть только у самой вещи: чужие фото — всегда оригинал.
+  if (verdict === 'fake') {
+    item.verdict = 'fake';
+    recordTruth(S, item);
+  }
+  bump(S, 'legitChecks');
+  advanceMinutes(S, 20);
+  checkGoals(S);
+  touch(S);
+  return { verdict, cost };
+}
+
+/** Легит-чек на встрече: вещь в руках, подменить её уже нельзя — это правда. */
+export function handLegit(S, listing) {
+  const item = listing.item;
+  if (!listing.met || listing.handLegit) return null;
+  const cost = legitCost(S, item);
+  if (listing.tutorial) tutorialTopUp(S, cost);
+  if (!canPay(S, cost)) return null;
+  pay(S, cost, 'Легит-чек на встрече');
+  listing.handLegit = true;
+  item.verdict = handVerdict(item);
+  fx(item.verdict === 'fake' ? 'bad' : 'ok');
   item.legitDone = true;
   bump(S, 'legitChecks');
   recordTruth(S, item);
@@ -411,6 +493,11 @@ export function meetLegit(S, listing) {
 }
 
 export function accuseFake(S, listing) {
+  // В обучении Тимур не даст обидеть честного продавца: на этой вещи держится сценарий.
+  if (listing.tutorial && listing.item.real && S.tut && S.tut.active) {
+    toast(S, 'Тимур: стоп, ты же видел — бирка и швы чистые. Это ориг.');
+    return null;
+  }
   const rng = rngOf(S);
   const s = listing.seller;
   const item = listing.item;
@@ -446,11 +533,19 @@ export function accuseFake(S, listing) {
 }
 
 export function buyAtMeeting(S, listing) {
+  if (needApp(S, 'avito')) return null;
+  if (tutorialLock(S, listing.tutorial)) return null;
+  const gateMsg = tutorialBuyGate(S, listing);
+  if (gateMsg) {
+    toast(S, gateMsg);
+    return null;
+  }
   const price = listing.seller.current;
-  if (freeSlots(S) < 1) {
+  if (freeSlots(S) < 1 && !listing.tutorial) {
     toast(S, 'Шкаф забит');
     return null;
   }
+  if (listing.tutorial) tutorialTopUp(S, price);
   if (!canPay(S, price)) return null;
   pay(S, price, 'Наличные: ' + itemName(listing.item));
   const item = listing.item;
@@ -473,6 +568,7 @@ export function buyAtMeeting(S, listing) {
 /* ======================= КИДАЛА ======================= */
 
 export function payScammer(S, listing) {
+  if (tutorialLock(S)) return null;
   const price = listing.seller.current;
   if (!canPay(S, price)) return null;
   pay(S, price, 'Перевод продавцу: ' + itemName(listing.item));
@@ -497,7 +593,29 @@ export function visitSecond(S) {
   S.second.lastSeen = S.t;
 }
 
+/** Сколько минут ждать у дверей до открытия; 0 — уже открыто или ночь. */
+export function minutesToSecondOpen(S) {
+  const h = hourIndex(S.t);
+  if (h < SCHEDULE.wakeHour || h >= SCHEDULE.secondOpen) return 0;
+  return (SCHEDULE.secondOpen - h) * 60 - (S.min || 0);
+}
+
+/**
+ * Подождать у дверей «Мешка» до открытия. Кто стоит у двери в десять, тот
+ * выбирает первым — Мирон в этот день уносит меньше.
+ */
+export function waitSecondOpen(S) {
+  if (needApp(S, 'second')) return null;
+  if (!minutesToSecondOpen(S)) return null;
+  S.min = 0;
+  const slept = advanceHours(S, SCHEDULE.secondOpen - hourIndex(S.t));
+  visitSecond(S);
+  touch(S);
+  return { slept };
+}
+
 export function secondInspect(S, slotId, tell) {
+  if (needApp(S, 'second')) return null;
   const slot = findSlot(S, slotId);
   if (!slot) return null;
   if (!isSecondOpen(S.t)) {
@@ -509,6 +627,7 @@ export function secondInspect(S, slotId, tell) {
 }
 
 export function secondInspectCondition(S, slotId) {
+  if (needApp(S, 'second')) return null;
   const slot = findSlot(S, slotId);
   if (!slot) return null;
   if (!isSecondOpen(S.t)) {
@@ -520,17 +639,21 @@ export function secondInspectCondition(S, slotId) {
 }
 
 export function buySecond(S, slotId) {
+  if (needApp(S, 'second')) return null;
   const slot = findSlot(S, slotId);
   if (!slot) return null;
+  // В главе «Секонд» можно брать только то, что Тимур советовал осмотреть.
+  if (tutorialLock(S, slot.tut)) return null;
   if (!isSecondOpen(S.t)) {
     toast(S, 'Секонд закрыт. Работает с 10:00 до 21:00');
     return null;
   }
-  if (freeSlots(S) < 1) {
+  if (freeSlots(S) < 1 && !slot.tut) {
     toast(S, 'Шкаф забит');
     return null;
   }
   const price = priceNow(S, slot);
+  if (slot.tut) tutorialTopUp(S, price, true);
   if (!canPay(S, price)) return null;
   pay(S, price, 'Секонд: ' + itemName(slot.item));
   const item = slot.item;
@@ -541,6 +664,7 @@ export function buySecond(S, slotId) {
   S.second.items = S.second.items.filter((x) => x !== slot);
   visitSecond(S);
   bump(S, 'secondBuys');
+  fx('buy');
   bump(S, 'bought');
   recordPurchase(S, item);
   advanceMinutes(S, 5);
@@ -552,11 +676,15 @@ export function buySecond(S, slotId) {
 /* ======================= ПОЙЗОН ======================= */
 
 export function buyPoizon(S, modelIndex, size, qty) {
+  if (needApp(S, 'poizon')) return null;
+  // В главе «Пойзон» открыта только ставка, которую советует Тимур.
+  const tutBet = poizonAllowed(S, modelIndex);
+  if (tutorialLock(S, tutBet)) return null;
   const m = MODELS[modelIndex];
   const rng = rngOf(S);
   const bulk = qty >= 5 && S.prog.lvl >= 4;
   const ship = poizonShip(S, modelIndex, qty);
-  if (freeSlots(S) < qty) {
+  if (freeSlots(S) < qty && !tutBet) {
     toast(S, `Не влезет: свободно ${freeSlots(S)} мест`);
     return null;
   }
@@ -570,6 +698,8 @@ export function buyPoizon(S, modelIndex, size, qty) {
     plan.push({ size: sz, unit });
     total += unit;
   }
+  // На одну штуку ставки Тимур одолжит, как в секонде. На две — уже нет.
+  if (tutBet && qty === 1) tutorialTopUp(S, total, true);
   if (!canPay(S, total)) return null;
   pay(S, total, `Пойзон: ${m.b} ${m.n} ×${qty}`);
 
@@ -597,8 +727,11 @@ export function buyPoizon(S, modelIndex, size, qty) {
     eta: S.t + Math.round(days * 24),
     fromChina: true,
     replica: false,
+    // Цена на Пойзоне в день заказа: по приезде Тимур сравнит её с новой.
+    ...(tutBet ? { tut: modelIndex === TUT_RARE.m ? 'rare' : 'poizon', pzPrice: plan[0].unit - ship } : {}),
   });
   bump(S, 'poizonOrders');
+  fx('buy');
   bump(S, 'bought', qty);
   if (qty >= 5) bump(S, 'bulkOrders');
   checkGoals(S);
@@ -609,6 +742,8 @@ export function buyPoizon(S, modelIndex, size, qty) {
 /* ======================= ПОСТАВЩИКИ ======================= */
 
 export function buyFromSupplier(S, key, postId, qty) {
+  if (needApp(S, 'tg')) return null;
+  if (tutorialLock(S)) return null;
   const C = SUPPLIERS[key];
   const post = findPost(S, key, postId);
   if (!post) return null;
@@ -654,6 +789,7 @@ export function buyFromSupplier(S, key, postId, qty) {
 /* ======================= «СКУПАЮ ШМОТ» ======================= */
 
 export function postBuyAd(S) {
+  if (needApp(S, 'tg')) return null;
   const check = canPostAd(S);
   if (!check.ok) {
     toast(S, check.why);
@@ -724,6 +860,8 @@ export function supplyQuote(S, modelIndex, size, maxCond) {
 }
 
 export function requestSupply(S, modelIndex, size, maxCond) {
+  if (needApp(S, 'tg')) return null;
+  if (tutorialLock(S)) return null;
   const gate = canRequestSupply(S);
   if (!gate.ok) {
     toast(S, gate.why);
@@ -786,6 +924,8 @@ export function requestSupply(S, modelIndex, size, maxCond) {
 /* ======================= ЛОТЫ ======================= */
 
 export function takeLot(S, th) {
+  if (needApp(S, 'tg')) return null;
+  if (tutorialLock(S)) return null;
   const lot = th.data.lot;
   if (!lot || th.closed) return null;
   if (freeSlots(S) < lot.items.length) {
@@ -813,6 +953,7 @@ export function takeLot(S, th) {
 }
 
 export function haggleLot(S, th) {
+  if (needApp(S, 'tg')) return null;
   const lot = th.data.lot;
   if (!lot || lot.haggled || th.closed) return null;
   lot.haggled = true;

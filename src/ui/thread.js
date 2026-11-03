@@ -5,21 +5,25 @@
 import { esc, rub, num, priceRound } from '../core/util.js';
 import { MODELS } from '../core/data/models.js';
 import { dateLabel, clockLabel, untilLabel } from '../core/time.js';
-import { valueOrig, valueFake } from '../core/economy.js';
+import { photoLegitCost } from '../core/economy.js';
 import { itemName, sizeLabel, shownCondition } from '../core/items.js';
-import { findThread } from '../core/kernel.js';
-import { findListing } from '../core/market/avito.js';
+import { findThread, installed } from '../core/kernel.js';
+import { findListing, photoSubject } from '../core/market/avito.js';
+import { TELLS } from '../core/data/catalog.js';
+import { tellsFor } from '../core/inspect.js';
+import { itemArt, artBackdrop } from './art.js';
+import { photoVerdictNote } from './apps/avito.js';
 import { QUESTIONS, SELLER_TYPES } from '../core/people/sellers.js';
 import { BUYER_TYPES } from '../core/people/buyers.js';
 import { availableLevers, canRequestSupply, supplyQuote } from '../core/actions/buying.js';
-import { authOptions } from '../core/actions/selling.js';
+import { authOptions, canShowProof } from '../core/actions/selling.js';
 import { orderMatches, DEPOSIT_SHARE } from '../core/actions/social.js';
-import { LOT_TYPES } from '../core/market/lots.js';
-import { thumb, avatar, join } from './components.js';
+
+import { thumb, avatar, inspectPanel } from './components.js';
 
 export function threadView(S, id) {
   const th = findThread(S, id);
-  if (!th) return { title: 'Чат', body: '<div class="empty">Диалог не найден</div>' };
+  if (!th) return { title: 'Чат', body: '<div class="empty">Диалог не найден</div>', gone: true };
   th.unread = 0;
 
   let context = '';
@@ -48,16 +52,63 @@ export function threadView(S, id) {
   }
 
   const who = describeCounterpart(S, th);
+  const listing = th.kind === 'seller' ? findListing(S, th.data.listingId) : null;
   const chat = `<div class="chat">${th.messages
-    .map((m) => `<div class="bubble ${m.from}">${esc(m.text)}</div>`)
+    .map((m) =>
+      m.photos && listing
+        ? `<div class="bubble ${m.from} photos" data-tut="photos">${photoShots(photoSubject(listing))}<div>${esc(m.text)}</div></div>`
+        : `<div class="bubble ${m.from}">${esc(m.text)}</div>`,
+    )
     .join('')}</div>`;
 
   return {
     title: th.name,
     aside: who,
-    body: context + chat,
+    body: context + chat + (listing ? photoInspection(S, listing) : ''),
     foot: threadFoot(S, th),
   };
+}
+
+/* ======================= ФОТО ОТ ПРОДАВЦА ======================= */
+
+// Куда «наводить камеру» на крупных планах: доля ширины и высоты рисунка.
+const ZOOM = {
+  tag: '50% 28%',
+  stitch: '28% 62%',
+  sole: '50% 88%',
+  box: '50% 70%',
+  hardware: '50% 50%',
+  print: '50% 42%',
+  shape: '50% 50%',
+};
+
+/** Общий вид и пара крупных планов — то, что реально присылают в чат. */
+function photoShots(item) {
+  const m = MODELS[item.m];
+  // Крупным планом — то, по чему эта модель обычно палится.
+  const rank = (t) => (m.tells.includes(t) ? m.tells.indexOf(t) : 99);
+  const close = tellsFor(item, 'photo')
+    .sort((a, b) => rank(a) - rank(b))
+    .slice(0, 2);
+  const tile = (zoom, label) =>
+    `<figure class="shot${zoom ? ' zoom' : ''}" style="background:${artBackdrop(item)}${zoom ? `;--zo:${ZOOM[zoom] || '50% 50%'}` : ''}">
+      <div class="shot-art">${itemArt(item)}</div><figcaption>${esc(label)}</figcaption></figure>`;
+  return `<div class="shots">${tile(null, 'общий вид')}${close.map((t) => tile(t, TELLS[t].n.toLowerCase())).join('')}</div>`;
+}
+
+/**
+ * Осмотр по фото — прямо под снимками. Смотрим то, что прислали: если это
+ * фото чужой вещи, признаки будут чистыми, а приедет другое.
+ */
+function photoInspection(S, l) {
+  const subject = photoSubject(l);
+  if (!l.photosSent || MODELS[subject.m].noname) return '';
+  const legit = l.photoVerdict
+    ? photoVerdictNote(l)
+    : `<button class="btn sec full split" data-act="legitListing" data-id="${l.id}">
+        <span>Легит-чек по фото · 20 мин<br><small class="muted">проверяет снимки, а не то, что приедет</small></span>
+        <span>${l.freeLegit ? 'за счёт Тимура' : rub(photoLegitCost(S, l.item))}</span></button>`;
+  return inspectPanel(S, subject, { mode: 'photo', act: 'inspectListing', ctx: l.id, title: 'Осмотр по фото' }) + legit;
 }
 
 function describeCounterpart(S, th) {
@@ -108,11 +159,13 @@ function sellerFoot(S, th) {
     .map((q) => `<button class="chip" data-act="askSeller" data-id="${l.id}" data-q="${q}">${esc(QUESTIONS[q])}</button>`)
     .join('');
 
+  // В переписке ходы торга — чипы в одну ленту, как вопросы: иначе низ
+  // экрана занимал половину телефона, и фото с осмотром было не разглядеть.
+  // Подробные подсказки к ходам — на встрече, где на них есть место.
   const levers = availableLevers(S, l)
     .filter((lv) => lv.key !== 'walk')
     .map(
-      (lv) => `<button class="lever ${lv.key === 'defect' ? 'strong' : ''}" data-act="useLever" data-id="${l.id}" data-lever="${lv.key}">
-        <b>${esc(lv.n)}</b><span>${esc(lv.hint)}</span></button>`,
+      (lv) => `<button class="chip lever-chip ${lv.key === 'defect' ? 'strong' : ''}" data-act="useLever" data-id="${l.id}" data-lever="${lv.key}" title="${esc(lv.hint)}">${esc(lv.n)}</button>`,
     )
     .join('');
 
@@ -122,7 +175,7 @@ function sellerFoot(S, th) {
 
   return `
     ${questions ? `<div class="chips">${questions}</div>` : ''}
-    ${levers ? `<div class="stack">${levers}</div>` : ''}
+    ${levers ? `<div class="chips">${levers}</div>` : ''}
     <div class="inline-form">
       <input class="inp num" id="offerInput" inputmode="numeric" placeholder="Своя цена, ₽" value="${priceRound(s.current * 0.85)}" aria-label="Твоя цена">
       <button class="btn" data-act="offerSeller" data-id="${l.id}">Предложить</button>
@@ -164,7 +217,10 @@ function buyerFoot(S, th) {
       <button class="btn ghost" data-act="declineBuyer" data-id="${th.id}">Передумать</button>`;
   }
 
-  return `<div class="row">
+  const proof = canShowProof(S, th)
+    ? `<button class="btn sec full" data-act="showProof" data-id="${th.id}">📄 Скинуть легит-чек</button>`
+    : '';
+  return `${proof}<div class="row">
       <button class="btn good grow" data-act="acceptOffer" data-id="${th.id}">Согласен на ${rub(b.offer)}</button>
       <button class="btn sec" data-act="declineBuyer" data-id="${th.id}">Нет</button>
     </div>
@@ -245,7 +301,7 @@ function orderFoot(S, th) {
     ${supplyBlock}
     <div class="row">
       <button class="btn sec grow" data-act="searchModel" data-model="${order.m}">Искать на Авитке</button>
-      <button class="btn sec grow" data-act="go" data-route="poizon/item/${order.m}">Пойзон</button>
+      ${installed(S, 'poizon') ? `<button class="btn sec grow" data-act="go" data-route="poizon/item/${order.m}">Пойзон</button>` : ''}
     </div>
     <button class="btn ghost" data-act="declineOrder" data-id="${th.id}">
       ${order.accepted ? `Отказаться и вернуть ${rub(order.deposit)}` : 'Отказаться от заказа'}</button>`;

@@ -5,8 +5,6 @@
 // совсем не так, как конфликт с числом в рейтинге.
 
 import { clamp } from './util.js';
-import { MODELS } from './data/models.js';
-import { itemName } from './items.js';
 import { netWorth } from './economy.js';
 
 export const RIVAL_NAME = 'Мирон';
@@ -242,12 +240,6 @@ export function taunt(S, rng, kind, vars) {
   return text;
 }
 
-
-export function rankOf(S, rivals) {
-  const mine = netWorth(S);
-  return 1 + rivals.filter((r) => r.nw > mine).length;
-}
-
 /** Остальные перекупы остаются фоном, но уже без претензии на характер. */
 export const BACKGROUND_RIVALS = [
   ['hype_boy', 28000, 0.021],
@@ -262,7 +254,3 @@ export const BACKGROUND_RIVALS = [
   ['ЦУМ на минималках', 2100000, 0.0142],
   ['Бренд «Подвал»', 4800000, 0.0132],
 ];
-
-export function describeItem(item) {
-  return itemName(item);
-}

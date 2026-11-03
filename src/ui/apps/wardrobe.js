@@ -2,8 +2,8 @@
 
 import { esc, rub, num, plural, dur } from '../../core/util.js';
 import { MODELS } from '../../core/data/models.js';
-import { TIERS, CONDS, TELLS } from '../../core/data/catalog.js';
-import { agoLabel, dateLabel } from '../../core/time.js';
+import { TIERS } from '../../core/data/catalog.js';
+
 import {
   valueOrig,
   valueFake,
@@ -16,15 +16,16 @@ import {
   pawnPrice,
   daysHeld,
   staleK,
-  buyersPerDay,
   hypePct,
   rhythmLabel,
+  seenItem,
 } from '../../core/economy.js';
 import { itemName, sizeLabel, shownCondition, colorwayName } from '../../core/items.js';
 import { knowledgeOf } from '../../core/notebook.js';
+import { hasLegitTicket } from '../../core/daily.js';
+import { collectible, collectionOf } from '../../core/collections.js';
 import { saleHint } from '../../core/actions/selling.js';
 import {
-  thumb,
   bigPhoto,
   itemRow,
   authTag,
@@ -33,8 +34,25 @@ import {
   limitedTag,
   inspectPanel,
   emptyState,
-  sectionLabel,
 } from '../components.js';
+
+/** Коллекция: какие расцветки этой модели уже лежат проверенными оригиналами. */
+function collectionCard(S, item) {
+  if (!collectible(item.m)) return '';
+  const c = collectionOf(S, item.m);
+  if (!c.have.size && !c.done) return '';
+  const m = MODELS[item.m];
+  const ways = m.ways
+    .map((w, i) => `<span class="tag ${c.have.has(i) ? 'good' : ''}">${c.have.has(i) ? '✓ ' : ''}${esc(w.n)}</span>`)
+    .join('');
+  return `<div class="card tight"><h4>Коллекция · ${c.done ? 'собрана ✓' : `${c.have.size} из ${c.total}`}</h4>
+    <div class="tags">${ways}</div>
+    <div class="muted">${
+      c.done
+        ? 'Сет уже собирал — пост в канал был. Теперь можно и продавать.'
+        : 'Все расцветки оригиналами, проверенными легит-чеком, в шкафу разом — пост в канал, доверие и подписчики. Один раз на модель.'
+    }</div></div>`;
+}
 
 export const view = (S) => {
   if (S.ui.view === 'item') return itemView(S, S.ui.id);
@@ -71,7 +89,7 @@ export const view = (S) => {
         stale < 0.99 ? `<span class="tag warn">Залежалась −${Math.round((1 - stale) * 100)}%</span>` : '',
       ].join('');
       return itemRow(it, {
-        price: it.sale ? rub(it.sale.price) : '~' + rub(valueOrig(S, it)),
+        price: it.sale ? rub(it.sale.price) : '~' + rub(valueOrig(S, seenItem(it))),
         meta: `вложено ${rub(it.cost)}${days >= 3 ? ' · лежит ' + days + ' ' + plural(days, 'день', 'дня', 'дней') : ''}`,
         tags,
         route: `wardrobe/item/${it.id}`,
@@ -91,8 +109,8 @@ function itemView(S, id) {
   const item = S.items.find((i) => i.id === +id);
   if (!item) return { title: 'Вещь', body: emptyState('Этой вещи больше нет') };
   const m = MODELS[item.m];
-  const asOrig = valueOrig(S, item);
-  const asFake = valueFake(S, item);
+  const asOrig = valueOrig(S, seenItem(item));
+  const asFake = valueFake(S, seenItem(item));
   const buyers = S.threads.filter(
     (t) => t.kind === 'buyer' && !t.closed && t.data.buyer && t.data.buyer.item === item.id,
   );
@@ -111,14 +129,14 @@ function itemView(S, id) {
   }
   if (item.sale && item.sale.avito) {
     actions.push(`<button class="btn sec split" data-act="bumpListing" data-id="${item.id}" ${item.sale.boostUntil > S.t ? 'disabled' : ''}>
-      <span>${item.sale.boostUntil > S.t ? 'Поднято в поиске' : 'Поднять на Авитке'}</span><span>${rub(bumpCost(item))}</span></button>`);
+      <span>${item.sale.boostUntil > S.t ? 'Поднято в поиске' : 'Поднять на Авитке'}</span><span>${rub(bumpCost(item, S))}</span></button>`);
   }
   if (item.sale && item.sale.tg && S.tg.has) {
     actions.push(`<button class="btn sec" data-act="repost" data-id="${item.id}">Запостить в канал ещё раз</button>`);
   }
   if (!m.noname && !item.legitDone) {
     actions.push(`<button class="btn sec split" data-act="legitCheck" data-id="${item.id}">
-      <span>Легит-чек · ${esc(dur(legitMinutes(S)))}</span><span>${rub(legitCost(S, item))}</span></button>`);
+      <span>Легит-чек · ${esc(dur(legitMinutes(S)))}</span><span>${hasLegitTicket(S) ? 'по талону' : rub(legitCost(S, item))}</span></button>`);
   }
   if (item.protect && item.protect.until > S.t && item.verdict === 'fake' && item.protect.declared === 'orig') {
     actions.push(`<button class="btn bad" data-act="dispute" data-id="${item.id}">Открыть спор и вернуть ${rub(item.protect.paid)}</button>`);
@@ -130,8 +148,11 @@ function itemView(S, id) {
   if (item.sale && !item.sale.description) {
     actions.push(`<button class="btn sec" data-act="writeDesc" data-id="${item.id}">Написать подробное описание · 20 мин</button>`);
   }
-  const fixable = item.defects.filter((d) => d.fixable).length;
-  if ((item.cond >= 3 || fixable) && !item.cleaned) {
+  // Только то, что игрок видит: кнопка химчистки не должна выдавать дефект,
+  // который ещё не нашли осмотром.
+  const fixable = item.condSeen ? item.defects.filter((d) => d.fixable).length : 0;
+  const looksWorn = (item.condSeen ? item.cond : item.shownCond) >= 3;
+  if ((looksWorn || fixable) && !item.cleaned) {
     actions.push(`<button class="btn sec split" data-act="cleanItem" data-id="${item.id}">
       <span>${m.cat === 'shoes' ? 'Чистка кроссовок' : 'Химчистка'} · 3 ч</span><span>${rub(cleanCost(S, item))}</span></button>`);
   }
@@ -165,6 +186,7 @@ function itemView(S, id) {
       }
     </div>
     ${inspectPanel(S, item, { mode: 'hand', act: 'inspectItem', ctx: item.id })}
+    ${collectionCard(S, item)}
     ${
       know
         ? `<div class="card tight"><h4>Из твоей книжки</h4>

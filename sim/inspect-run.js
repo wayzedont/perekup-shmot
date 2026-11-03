@@ -5,7 +5,6 @@ import { createGame } from '../src/core/engine.js';
 import { netWorth, valueOrig, buyersPerDay, capacity, usedSlots } from '../src/core/economy.js';
 import { debtTotal } from '../src/core/bank.js';
 import { MODELS } from '../src/core/data/models.js';
-import { sizeDemand } from '../src/core/data/catalog.js';
 import { rub, num, quantiles } from '../src/core/util.js';
 import { dayIndex, hourIndex } from '../src/core/time.js';
 import { advanceHours, sleep } from '../src/core/tick.js';
@@ -15,7 +14,7 @@ const KEY = process.argv[2] || 'careful';
 const DAYS = Number(process.argv[3] || 30);
 const SEED = Number(process.argv[4] || 1000);
 
-const S = createGame(SEED);
+const S = createGame(SEED, { tutorial: 'skip' });
 S.flags.started = 1;
 const bot = STRATEGIES[KEY];
 

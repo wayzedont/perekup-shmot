@@ -1,10 +1,10 @@
 // Телега: чаты, каналы, свой канал и клиенты.
 
-import { esc, rub, num, shortNum, plural } from '../../core/util.js';
+import { esc, rub, num, shortNum } from '../../core/util.js';
 import { MODELS, BRANDED } from '../../core/data/models.js';
 import { AD_CHANNELS } from '../../core/data/content.js';
-import { dateLabel, clockLabel, agoLabel, untilLabel } from '../../core/time.js';
-import { valueOrig, hypePct, poizonPrice } from '../../core/economy.js';
+import { dateLabel, clockLabel, agoLabel } from '../../core/time.js';
+import { valueOrig } from '../../core/economy.js';
 import { itemName, sizeLabel } from '../../core/items.js';
 import { threadVisible, mentorThread } from '../../core/kernel.js';
 import { SUPPLIERS, postTotal, shipUnit, trapFakeRate } from '../../core/market/suppliers.js';
@@ -12,7 +12,7 @@ import { raffleTitle, raffleSizes, winChance, resaleEstimate, ENTRY_FEE } from '
 import { trustLabel, PRO_PRICE } from '../../core/channel.js';
 import { clientRows } from '../../core/actions/social.js';
 import { CLIENT_STATUS } from '../../core/people/clients.js';
-import { thumb, bigPhoto, itemRow, hypeTag, emptyState, avatar, sectionLabel, barRow } from '../components.js';
+import { thumb, hypeTag, emptyState, avatar, sectionLabel, barRow } from '../components.js';
 import { threadView, threadRow } from '../thread.js';
 
 const CHANNEL_META = {
@@ -79,7 +79,7 @@ function channelsList(S) {
       : `<button class="thread-row" data-act="createChannelSheet">
           <div class="avatar" style="background:#7a46d6">+</div>
           <div style="min-width:0"><div class="nm">Создать свой канал</div>
-          <div class="pv">Продавай подписчикам без комиссии и получай заказы</div></div><span></span></button>`,
+          <div class="pv">Продавай своим подписчикам и получай заказы</div></div><span></span></button>`,
   );
 
   const entries = [];
@@ -124,7 +124,7 @@ function channelView(S, key) {
   if (SUPPLIERS[key]) return supplierView(S, key);
   const meta = CHANNEL_META[key];
   const ch = S.channels[key];
-  if (!meta || !ch) return { title: 'Канал', body: emptyState('Канал не найден') };
+  if (!meta || !ch) return { title: 'Канал', body: emptyState('Канал не найден'), gone: true };
   ch.unread = 0;
 
   const head = `<div class="card person">
@@ -137,7 +137,7 @@ function channelView(S, key) {
     extra =
       S.tg.proUntil > S.t
         ? `<div class="card"><div class="row between"><h3>PRO активна</h3><span class="tag good">до ${esc(dateLabel(S.tg.proUntil))}</span></div>
-            <div class="muted">Каждое утро в 9:00 приходит прогноз: что будет в ликвиде через несколько дней.</div>
+            <div class="muted">${S.tg.proGift ? `Подарок за ${esc(S.tg.proGift)}. ` : ''}Каждое утро в 9:00 приходит прогноз: что будет в ликвиде через несколько дней.</div>
             <button class="btn sec full" data-act="buyPro">Продлить на 7 дней · ${rub(PRO_PRICE)}</button></div>
            ${proTable(S)}`
         : `<div class="card"><h3>Хайп-радар PRO</h3>
@@ -148,7 +148,7 @@ function channelView(S, key) {
 
   const posts = ch.posts
     .map(
-      (p) => `<div class="post ${p.kind === 'pro' ? 'pro' : p.kind === 'rumor' ? 'rumor' : ''}">
+      (p, i) => `<div class="post ${p.kind === 'pro' || p.kind === 'tut' ? 'pro' : p.kind === 'rumor' ? 'rumor' : ''}"${i === 0 ? ' data-tut="post0"' : ''}>
         <div class="ptext">${esc(p.text)}</div>
         <div class="pmeta"><span>${esc(dateLabel(p.at))}, ${esc(clockLabel(p.at, 0))}</span></div></div>`,
     )
@@ -264,7 +264,7 @@ function ownChannelView(S) {
   const quiet = S.t - T.lastPost;
 
   const body = `
-    <div class="hero" style="background:#7a46d6">
+    <div class="hero" style="background:#7a46d6" data-tut="own-hero">
       <div class="label">Мой канал</div>
       <div style="font-family:var(--f-disp);font-size:19px">${esc(T.name)}</div>
       <div class="money">${shortNum(T.subs)} <span style="font-family:var(--f-ui);font-size:14px">подписчиков</span></div>
@@ -272,14 +272,14 @@ function ownChannelView(S) {
         quiet > 48 ? 'давно не было постов, люди отписываются' : 'последний пост ' + esc(agoLabel(S.t, T.lastPost))
       }</div>
     </div>
-    <div class="card">
+    <div class="card" data-tut="own-trust">
       <h3>Аудитория и доверие — разные вещи</h3>
       <div class="muted">Подписчиков можно нагнать рекламой, но покупают только там, где верят. Доверие растёт от честных продаж и розыгрышей, падает от реплик и скандалов.</div>
       <button class="btn full" data-act="go" data-route="wardrobe/main">Выставить вещь из шкафа</button>
       <button class="btn sec full split" data-act="trendPost" ${canTrend ? '' : 'disabled'}>
         <span>Пост-обзор трендов · 1 ч</span><span>${canTrend ? '+подписчики' : 'завтра'}</span></button>
     </div>
-    <div class="card">
+    <div class="card" data-tut="own-ads">
       <h3>Реклама в каналах</h3>
       <div class="muted">Подписчики приходят в течение суток. Важен не охват, а попадание в аудиторию.</div>
       ${AD_CHANNELS.map(
@@ -342,7 +342,7 @@ function clientsList(S) {
 
 function clientView(S, id) {
   const c = S.clients.find((x) => x.id === id);
-  if (!c) return { title: 'Клиент', body: emptyState('Клиент не найден') };
+  if (!c) return { title: 'Клиент', body: emptyState('Клиент не найден'), gone: true };
   const open = S.threads.find((t) => t.kind === 'order' && !t.closed && t.data.clientId === c.id);
   return {
     title: c.name,

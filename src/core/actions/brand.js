@@ -4,7 +4,7 @@
 // приходят по дням, а остаток, который аудитория не выкупила, придётся
 // слить в аутлет себе в убыток.
 
-import { clamp, rub, num, priceRound } from '../util.js';
+import { clamp, rub, num } from '../util.js';
 import { CATS } from '../data/catalog.js';
 import {
   BRAND_LEVEL,
@@ -16,7 +16,6 @@ import {
   activeDrop,
   demandFor,
   unitCost,
-  forecast,
   hasBrand,
 } from '../brand.js';
 import {

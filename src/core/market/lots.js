@@ -3,7 +3,7 @@
 // до «список перед глазами, но паль может быть и там».
 
 import { clamp, priceRound } from '../util.js';
-import { MODELS, BRANDED } from '../data/models.js';
+import { BRANDED } from '../data/models.js';
 import { LOT_PEOPLE } from '../data/content.js';
 import { makeItem, hideDefects, itemName, sizeLabel, shownCondition } from '../items.js';
 import { valueOrig, valueFake, netWorth } from '../economy.js';

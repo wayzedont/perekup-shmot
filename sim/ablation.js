@@ -7,7 +7,7 @@ import { netWorth } from '../src/core/economy.js';
 import { debtTotal } from '../src/core/bank.js';
 import { dayIndex, hourIndex } from '../src/core/time.js';
 import { advanceHours, sleep } from '../src/core/tick.js';
-import { quantiles, rub, num } from '../src/core/util.js';
+import { quantiles, num } from '../src/core/util.js';
 import { STRATEGIES, botStep } from './bots.js';
 
 const BASE = process.argv[2] || 'smart';
@@ -15,7 +15,7 @@ const RUNS = Number(process.argv[3] || 16);
 const DAYS = Number(process.argv[4] || 60);
 
 function runWith(bot, days, seed) {
-  const S = createGame(seed);
+  const S = createGame(seed, { tutorial: 'skip' });
   S.flags.started = 1;
   let guard = 0;
   while (dayIndex(S.t) < days && guard++ < days * 45) {

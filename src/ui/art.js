@@ -650,7 +650,10 @@ export function itemArt(item, opts = {}) {
   const base = colorHex(way.c[0]);
   const accent = colorHex(way.c[1]);
   const detail = colorHex(way.c[2] || way.c[0]);
-  const worn = (item.cond || 0) >= 3 || !!(item.defects && item.defects.length && item.condSeen);
+  // Рисуем то состояние, которое видно, а не настоящее: иначе картинка
+  // выдавала скрытый дефект раньше осмотра. Превью без shownCond — по cond.
+  const visible = item.condSeen || typeof item.shownCond !== 'number' ? item.cond : item.shownCond;
+  const worn = (visible || 0) >= 3 || !!(item.defects && item.defects.length && item.condSeen);
   const form = m.art.form;
 
   let drawn;
@@ -669,8 +672,6 @@ export function itemArt(item, opts = {}) {
   const b = drawn.box;
   return `<svg viewBox="${b.x.toFixed(1)} ${b.y.toFixed(1)} ${b.w.toFixed(1)} ${b.h.toFixed(1)}" role="img" aria-label="${m.full}" preserveAspectRatio="xMidYMid meet">${drawn.svg}${logo}</svg>`;
 }
-
-export const itemThumb = (item) => itemArt(item);
 
 /** Фон карточки под вещь: мягкий оттенок её расцветки. */
 export function artBackdrop(item) {

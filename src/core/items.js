@@ -89,6 +89,16 @@ export function makeItem(rng, modelIndex, opts = {}) {
 }
 
 /**
+ * Сойдёт ли вещь за оригинал у любого, кто её проверит.
+ * Суперкопия, которая прошла твой легит-чек, пройдёт и чек покупателя: это
+ * тот же сервис. Иначе игра наказывала за то, что игрок сделал всё правильно,
+ * и сама же выдавала правду, которую не увидел ни он, ни сервис.
+ */
+export function passesAsOrig(item) {
+  return item.real || (item.legitDone && item.verdict === 'orig');
+}
+
+/**
  * Добавляет вещи скрытые дефекты и делает так, чтобы в объявлении
  * она выглядела лучше, чем есть. Применяется к б/у вещам с рынка.
  */
@@ -157,17 +167,7 @@ export function colorwayName(item) {
   return way ? way.n : '';
 }
 
-export function itemFullName(item) {
-  const cw = colorwayName(item);
-  return itemName(item) + (cw ? ', ' + cw.toLowerCase() : '');
-}
-
 export const sizeLabel = (item) => (item.size === 'One size' ? 'один размер' : item.size);
-
-/** Короткая строка характеристик для списков. */
-export function itemSubtitle(item) {
-  return sizeLabel(item) + ' · ' + shownCondition(item).short;
-}
 
 /* ======================= ПРОДАЖА ======================= */
 
@@ -188,5 +188,3 @@ export function makeSale(S, { price, asOrig, avito, tg }) {
     pressure: 0,
   };
 }
-
-export const isListed = (item) => !!item.sale;

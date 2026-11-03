@@ -6,7 +6,7 @@
 // настоящие цифры игры, а не отдельная модель.
 
 import { MODELS } from '../src/core/data/models.js';
-import { sizeDemand, CONDS } from '../src/core/data/catalog.js';
+import { sizeDemand } from '../src/core/data/catalog.js';
 import { hourIndex, dayIndex, isSecondOpen, weekdayAt, canMeet } from '../src/core/time.js';
 import {
   netWorth,
@@ -16,21 +16,21 @@ import {
   buyersPerDay,
   legitCost,
   pawnPrice,
-  staleK,
   daysHeld,
 } from '../src/core/economy.js';
 import { suspicion, tellsFor } from '../src/core/inspect.js';
 import { sortedTells } from '../src/core/notebook.js';
 import { priceNow, findSlot } from '../src/core/market/second.js';
-import { poizonPrice, poizonShip, poizonEta, bookValue, TUNE } from '../src/core/economy.js';
+import { poizonPrice, poizonShip, poizonEta, TUNE } from '../src/core/economy.js';
 import { sizesFor } from '../src/core/data/catalog.js';
-import { filterListings, findListing, deliveryFee } from '../src/core/market/avito.js';
+import { findListing, deliveryFee } from '../src/core/market/avito.js';
 import { canPostAd } from '../src/core/market/buyad.js';
 import { closeThread } from '../src/core/kernel.js';
 import { SUPPLIERS, shipUnit, trapFakeRate } from '../src/core/market/suppliers.js';
 import { available, debtTotal } from '../src/core/bank.js';
 import { winChance } from '../src/core/market/raffle.js';
 import { STORAGE } from '../src/core/data/progress.js';
+import { UPGRADES } from '../src/core/data/apps.js';
 import { advanceHours, sleep } from '../src/core/tick.js';
 
 import * as Buying from '../src/core/actions/buying.js';
@@ -39,7 +39,7 @@ import * as Items from '../src/core/actions/items.js';
 import * as Social from '../src/core/actions/social.js';
 import * as Finance from '../src/core/actions/finance.js';
 import * as Staff from '../src/core/actions/staff.js';
-import { STAFF, hired } from '../src/core/staff.js';
+import { hired, STAFF } from '../src/core/staff.js';
 
 /* ======================= НАСТРОЙКИ СТРАТЕГИЙ ======================= */
 
@@ -89,6 +89,7 @@ export const STRATEGIES = {
     entersRaffles: true,
     growsChannel: true,
     usesBuyAd: true, // держит объявление «скупаю шмот» и отвечает тем, кто пришёл
+    buysUpgrades: true, // берёт Pro-версии в Апсторе, когда хватает с запасом
   },
   busy: {
     // Тот же сильный игрок, но с человеческим лимитом внимания: на все
@@ -118,6 +119,7 @@ export const STRATEGIES = {
     entersRaffles: true,
     growsChannel: true,
     usesBuyAd: true,
+    buysUpgrades: true,
     chatsPerDay: 12,
   },
   greedy: {
@@ -1054,6 +1056,21 @@ function doStorage(S, bot) {
 
 /* ======================= ХОД БОТА ======================= */
 
+/**
+ * Прокачка в Апсторе: Pro-версия, когда на карте её цена в четыре раза —
+ * оборотные деньги важнее удобства. По одной за шаг.
+ */
+const UPGRADE_ORDER = ['avitoPro', 'secondClub', 'poizonPlus', 'tgPremium'];
+function doUpgrades(S, bot) {
+  if (!bot.buysUpgrades || (S.tut && S.tut.active)) return false;
+  for (const id of UPGRADE_ORDER) {
+    if (Finance.upgradeBlock(S, id)) continue;
+    if (S.money < UPGRADES[id].price * 4) continue;
+    return !!Finance.buyUpgrade(S, id);
+  }
+  return false;
+}
+
 export function botStep(S, bot, rng) {
   const h = hourIndex(S.t);
   let acted = false;
@@ -1066,6 +1083,7 @@ export function botStep(S, bot, rng) {
   acted = doPriceCuts(S, bot) || acted;
   acted = doStorage(S, bot) || acted;
   acted = doRaffle(S, bot) || acted;
+  acted = doUpgrades(S, bot) || acted;
 
   if (h >= 9 && h <= 22) {
     // Заказы в первую очередь: у них срок и лучшая цена.

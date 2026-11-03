@@ -4,13 +4,13 @@
 // тогда, когда ранний баланс этого не переживал. Вместо денег — возможности:
 // доступ к поставщику, скидка в легит-сервисе, место под вещи, контакты.
 
-import { netWorth, capacity } from './economy.js';
 import { loyalCount } from './people/clients.js';
 import { studiedCount } from './notebook.js';
-import { debtTotal } from './bank.js';
+import { installed } from './kernel.js';
 
 /**
  * reward: { unlock } — что открывается, { skill } — очко навыка.
+ * app — без какого приложения цель пока не предлагается.
  * Ни одна цель не выдаёт деньги напрямую.
  */
 export const GOALS = [
@@ -33,6 +33,7 @@ export const GOALS = [
   },
   {
     id: 'second1',
+    app: 'second',
     n: 'Купи вещь в секонде',
     check: (S) => S.stats.secondBuys >= 1,
   },
@@ -45,6 +46,7 @@ export const GOALS = [
   },
   {
     id: 'channel',
+    app: 'tg',
     n: 'Заведи свой канал в Телеге',
     check: (S) => S.tg.has,
   },
@@ -61,6 +63,7 @@ export const GOALS = [
   },
   {
     id: 'poizon1',
+    app: 'poizon',
     n: 'Закажи вещь на Пойзоне',
     check: (S) => S.stats.poizonOrders >= 1,
   },
@@ -72,17 +75,20 @@ export const GOALS = [
   },
   {
     id: 'subs100',
+    app: 'tg',
     n: '100 подписчиков в канале',
     check: (S) => S.tg.subs >= 100,
     reward: { unlock: 'proTrial' },
   },
   {
     id: 'order1',
+    app: 'tg',
     n: 'Выполни заказ подписчика',
     check: (S) => S.stats.ordersDone >= 1,
   },
   {
     id: 'lot1',
+    app: 'tg',
     n: 'Купи лот в личке',
     check: (S) => S.stats.lotsBought >= 1,
   },
@@ -101,17 +107,20 @@ export const GOALS = [
   },
   {
     id: 'loyal3',
+    app: 'tg',
     n: 'Трое постоянных клиентов',
     check: (S) => loyalCount(S) >= 3,
     reward: { unlock: 'insiderLots' },
   },
   {
     id: 'raffle0',
+    app: 'tg',
     n: 'Запишись на раффл',
     check: (S) => !!(S.raffle && S.raffle.entered) || S.stats.rafflesWon > 0,
   },
   {
     id: 'ad1',
+    app: 'tg',
     n: 'Купи рекламу своего канала',
     check: (S) => S.stats.adsBought >= 1,
   },
@@ -123,6 +132,7 @@ export const GOALS = [
   },
   {
     id: 'bulk1',
+    app: 'poizon',
     n: 'Возьми партию от 5 штук',
     check: (S) => S.stats.bulkOrders >= 1,
   },
@@ -134,6 +144,7 @@ export const GOALS = [
   },
   {
     id: 'subs1k',
+    app: 'tg',
     n: '1 000 подписчиков',
     check: (S) => S.tg.subs >= 1000,
   },
@@ -145,6 +156,7 @@ export const GOALS = [
   },
   {
     id: 'raffleWin',
+    app: 'tg',
     n: 'Выиграй раффл',
     check: (S) => S.stats.rafflesWon >= 1,
   },
@@ -155,6 +167,7 @@ export const GOALS = [
   },
   {
     id: 'orders10',
+    app: 'tg',
     n: 'Выполни 10 заказов клиентов',
     check: (S) => S.stats.ordersDone >= 10,
     reward: { skill: 1 },
@@ -166,6 +179,7 @@ export const GOALS = [
   },
   {
     id: 'vip1',
+    app: 'tg',
     n: 'Доведи клиента до статуса «свой»',
     check: (S) => S.clients.some((c) => c.status === 'vip'),
   },
@@ -204,9 +218,22 @@ export const GOALS = [
     n: 'Запусти свой бренд',
     check: (S) => !!S.flags.brand,
   },
+  {
+    id: 'grail1',
+    app: 'tg',
+    n: 'Добудь грааль для коллекционера',
+    hint: 'С 5 уровня по понедельникам коллекционеры ищут редкие вещи',
+    check: (S) => (S.stats.grails || 0) >= 1,
+    reward: { skill: 1 },
+  },
+  {
+    id: 'collection1',
+    n: 'Собери коллекцию: все расцветки модели',
+    hint: 'Оригиналы, проверенные легит-чеком, в шкафу одновременно',
+    check: (S) => (S.stats.collections || 0) >= 1,
+    reward: { skill: 1 },
+  },
 ];
-
-export const GOALS_BY_ID = Object.fromEntries(GOALS.map((g) => [g.id, g]));
 
 export function openGoals(S) {
   return GOALS.filter((g) => !S.goals[g.id]);
@@ -216,6 +243,10 @@ export function doneGoals(S) {
   return GOALS.filter((g) => S.goals[g.id]);
 }
 
+/**
+ * Ближайшая цель — из тех, что можно делать уже сейчас: цель про секонд не
+ * зовёт туда, пока Тимур про секонд не рассказал и приложения нет.
+ */
 export function nextGoal(S) {
-  return openGoals(S)[0] || null;
+  return openGoals(S).find((g) => !g.app || installed(S, g.app)) || null;
 }

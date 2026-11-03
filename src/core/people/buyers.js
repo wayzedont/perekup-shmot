@@ -9,9 +9,8 @@
 // двигает шанс, что он пойдёт проверять.
 
 import { clamp, priceRound, rub } from '../util.js';
-import { FIRST_NAMES } from '../data/content.js';
+import { FIRST_NAMES, REVIEWS } from '../data/content.js';
 import { MODELS } from '../data/models.js';
-import { TIERS } from '../data/catalog.js';
 
 export const BUYER_TYPES = {
   normal: {
@@ -382,6 +381,8 @@ export function expectedStars(rng, { honest, asReplica, fast, hadDefectHidden })
   return rng.chance(p) ? 5 : 4;
 }
 
-export function tierOf(item) {
-  return TIERS[MODELS[item.m].tier];
+/** Текст отзыва к оценке из expectedStars — из того же положения дел. */
+export function reviewText(rng, stars, { asReplica, hadDefectHidden }) {
+  const pool = asReplica ? REVIEWS.replica : hadDefectHidden ? REVIEWS.defect : REVIEWS.orig;
+  return rng.pick(pool[stars] || REVIEWS.orig[5]);
 }

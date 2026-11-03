@@ -2,10 +2,10 @@
 // Ничего игрового здесь нет — только аккуратные операции над состоянием.
 
 import { Rng } from './rng.js';
-import { clamp, rub } from './util.js';
-import { REVIEW_XP, xpToNext, statusOf, MAX_LEVEL, MAX_SKILL } from './data/progress.js';
+import { rub } from './util.js';
+import { REVIEW_XP, xpToNext, MAX_LEVEL, MAX_SKILL } from './data/progress.js';
 import { TIERS } from './data/catalog.js';
-import { MODELS } from './data/models.js';
+import { APP_DEFS } from './data/apps.js';
 
 /* ======================= БАЗА ======================= */
 
@@ -43,7 +43,18 @@ export function canPay(S, amount) {
 // Ни одно уведомление не теряется: всё падает в журнал, а баннеры
 // показываются по очереди. Клиентские живут два дня, остальные сутки.
 
-export function notify(S, { route, title, text, scope, icon }) {
+/**
+ * tut — уведомление из сценария обучения: только такие показываются
+ * баннером, пока идёт обучение (остальные тихо ложатся в шторку).
+ * sticky — баннер не уезжает сам, пока его не нажмут.
+ */
+export function notify(S, { route, title, text, scope, icon, tut, sticky }) {
+  // Приложения нет на телефоне — нет и его уведомлений: завоз в секонде не
+  // дразнит, пока Тимур про секонд не рассказал, а сообщение, которое не
+  // открыть, не висит в шторке.
+  const head = route ? route.split('/')[0] : null;
+  const app = head === 'chan' ? 'tg' : head;
+  if (app && APP_DEFS[app] && !installed(S, app) && !tut) return null;
   const n = {
     id: S.nextNotifId++,
     route: route || null,
@@ -53,11 +64,32 @@ export function notify(S, { route, title, text, scope, icon }) {
     icon: icon || null,
     at: S.t,
   };
+  if (tut) n.tut = true;
+  if (sticky) n.sticky = true;
   S.notif.unshift(n);
-  if (S.notif.length > 80) S.notif.length = 80;
+  trimNotifications(S);
   if (S.onNotify) S.onNotify(n);
   touch(S);
   return n;
+}
+
+const MAX_NOTIF = 80;
+
+/**
+ * Журнал не бесконечный, но клиентские уведомления из него не выпадают:
+ * раньше ежечасные «Дёшево: …» с Авитки выталкивали из шторки сообщение
+ * покупателя, а требование — ни одно сообщение клиента не теряется.
+ * Сначала уходят самые старые системные.
+ */
+function trimNotifications(S) {
+  let extra = S.notif.length - MAX_NOTIF;
+  for (let i = S.notif.length - 1; i >= 0 && extra > 0; i--) {
+    if (S.notif[i].scope !== 'client') {
+      S.notif.splice(i, 1);
+      extra--;
+    }
+  }
+  if (extra > 0) S.notif.length = MAX_NOTIF;
 }
 
 /** Короткая подсказка без записи в журнал. */
@@ -77,6 +109,85 @@ export function pruneNotifications(S) {
     }
     return S.t - n.at < 24;
   });
+}
+
+/**
+ * Пока идёт обучение, деньги на карте — деньги клиентов Тимура. Тратить их
+ * на постороннее нельзя, иначе заказ не на что купить и сценарий встаёт.
+ * allow — это учебное действие, его пропускаем. Возвращает true, если
+ * действие запрещено.
+ */
+export function tutorialLock(S, allow) {
+  if (!S.tut || !S.tut.active || allow) return false;
+  toast(S, S.tut.part === 'avito' ? 'Тимур: сначала заказы клиентов — остальное потом' : 'Тимур: погоди, дослушай — пять минут, и всё твоё');
+  return true;
+}
+
+/* ======================= ПРИЛОЖЕНИЯ ======================= */
+// Что стоит на телефоне. Без `S.apps` (состояние из старых тестов) — всё.
+
+/* ======================= ЗВУК И ВИБРАЦИЯ ======================= */
+// Ядро не знает про динамики: оно только сообщает о моменте («продажа»,
+// «паль»), а интерфейс решает, как его сыграть. У ботов и тестов слушателей
+// нет — вызов ничего не стоит.
+const fxListeners = [];
+export function onFx(fn) {
+  fxListeners.push(fn);
+}
+export function fx(name) {
+  for (const f of fxListeners) {
+    try {
+      f(name);
+    } catch (e) {
+      /* звук не должен ронять игру */
+    }
+  }
+}
+
+export const installed = (S, id) => !S.apps || !!S.apps[id];
+
+const AUTO_TEXT = {
+  parcels: 'всё, что едет, и когда приедет',
+  notebook: 'по чему палится каждая модель — копится само',
+  shop: 'уровень, отзывы, навыки и склады',
+};
+
+/** Поставить приложение. Возвращает true, если его не было. */
+export function installApp(S, id) {
+  if (!S.apps || !APP_DEFS[id] || S.apps[id]) return false;
+  S.apps[id] = { at: S.t, fresh: true };
+  if (APP_DEFS[id].how === 'auto') {
+    notify(S, { route: id, title: 'Новое приложение: ' + APP_DEFS[id].n, text: AUTO_TEXT[id] || '' });
+  }
+  touch(S);
+  return true;
+}
+
+/** Действие из приложения, которого нет: подсказка и запрет. */
+export function needApp(S, id) {
+  if (installed(S, id)) return false;
+  const def = APP_DEFS[id];
+  toast(S, def && def.how === 'store' ? `Сначала скачай «${def.n}» в Апсторе` : `Нет приложения «${def ? def.n : id}»`);
+  return true;
+}
+
+/**
+ * Приложения, которые ставятся сами, когда становятся нужны. Отзывы и
+ * книжка ставят своё приложение прямо в момент события (`addReview`,
+ * `recordTruth`), здесь — то, что удобно проверить по состоянию.
+ */
+export function syncApps(S) {
+  if (!S.apps) return;
+  if (!S.apps.parcels && S.shipments.length) installApp(S, 'parcels');
+  if (!S.apps.shop && S.rep.reviews.length) installApp(S, 'shop');
+  if (!S.apps.notebook) {
+    for (const k in S.notebook) {
+      if (S.notebook[k].checked) {
+        installApp(S, 'notebook');
+        break;
+      }
+    }
+  }
 }
 
 /* ======================= ПЕРЕПИСКИ ======================= */
@@ -120,6 +231,30 @@ export function closeThread(S, th, finalLine) {
   if (finalLine) say(S, th, 'system', finalLine);
   th.closed = true;
   th.unread = 0;
+  touch(S);
+}
+
+/**
+ * Убрать вещь из шкафа вместе со всеми, кто о ней пишет.
+ * Одна функция на все пути — продажа, заказ, розыгрыш, скупщик, спор: в
+ * розыгрыше и споре закрыть переписки забыли, и покупатель торговался за
+ * вещь, которой уже не было. `except` — переписка, которая закроется сама.
+ */
+export function dropItem(S, item, except) {
+  S.items = S.items.filter((x) => x !== item);
+  closeBuyersOf(S, item, except, 'Вещь уже продана');
+}
+
+/** Закрыть переписки покупателей об этой вещи: она продана или снята. */
+export function closeBuyersOf(S, item, except, line) {
+  for (const th of S.threads) {
+    if (th === except || th.closed || th.kind !== 'buyer') continue;
+    if (th.data.buyer && th.data.buyer.item === item.id) {
+      // Учебного покупателя не прогоняем, пока идёт обучение.
+      if (th.data.buyer.tut && S.tut && S.tut.active && line !== 'Вещь уже продана') continue;
+      closeThread(S, th, line || 'Вещь снята с продажи');
+    }
+  }
   touch(S);
 }
 
@@ -175,6 +310,8 @@ export function mentorOnce(S, flag, text, opts) {
 /** Отдаёт из очереди одно сообщение. Вызывается раз в игровой час. */
 export function mentorFlush(S) {
   if (!S.mentorQueue || !S.mentorQueue.length) return false;
+  // Тимур пишет в Телегу: пока её нет, советы ждут в очереди.
+  if (!installed(S, 'tg')) return false;
   mentorSay(S, S.mentorQueue.shift());
   return true;
 }
@@ -203,6 +340,8 @@ export function reviewXp(stars, tierKey) {
 }
 
 export function addReview(S, { stars, weight, text, platform, tierKey }, onLevel) {
+  // Первый отзыв ставит «Магазин»: там рейтинг, отзывы и уровень.
+  installApp(S, 'shop');
   S.rep.reviews.unshift({ stars, weight: weight || 1, text, platform, at: S.t });
   if (S.rep.reviews.length > 100) S.rep.reviews.length = 100;
   const xp = reviewXp(stars, tierKey || 'street');
@@ -238,7 +377,3 @@ export function schedule(S, at, type, data) {
 export function bump(S, key, by) {
   S.stats[key] = (S.stats[key] || 0) + (by === undefined ? 1 : by);
 }
-
-export const statusLabel = (S) => statusOf(S.prog.lvl);
-
-export const tierOfModel = (mi) => MODELS[mi].tier;

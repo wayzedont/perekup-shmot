@@ -5,9 +5,9 @@
 // «Китай Опт» — партии реплик от пяти штук, карго две недели и риск таможни.
 
 import { clamp, priceRound } from '../util.js';
-import { MODELS, BRANDED } from '../data/models.js';
+import { BRANDED } from '../data/models.js';
 import { CONDS } from '../data/catalog.js';
-import { valueOrig, valueFake, cargoShip } from '../economy.js';
+import { valueOrig, cargoShip } from '../economy.js';
 import { makeItem } from '../items.js';
 
 export const SUPPLIERS = {
@@ -153,9 +153,3 @@ export function shipUnit(S, key, post) {
 }
 
 export const findPost = (S, key, id) => S.suppliers[key].posts.find((p) => p.id === +id);
-
-/** Риск, что таможня заберёт карго с репликами. */
-export function seizureChance(S, hasCustomsEvent) {
-  const base = 0.05 + (hasCustomsEvent ? 0.18 : 0);
-  return clamp(base * (1 - 0.04 * S.prog.skills.logist), 0.01, 0.3);
-}

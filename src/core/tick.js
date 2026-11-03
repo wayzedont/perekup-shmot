@@ -6,12 +6,12 @@
 
 import { clamp, priceRound, rub, num, plural } from './util.js';
 import { MODELS, BRANDED } from './data/models.js';
-import { TIERS, CONDS } from './data/catalog.js';
 import {
   COST_FOOD_DAY,
   COST_ROOM_WEEK,
   STORAGE,
   statusOf,
+  MICROLOAN_RATE,
 } from './data/progress.js';
 import { LIFE_EVENTS } from './data/content.js';
 import { ONBOARDING } from './data/onboarding.js';
@@ -22,23 +22,23 @@ import {
   dateLabel,
   SCHEDULE,
   isBuyerTime,
+  isSecondOpen,
 } from './time.js';
 import {
   netWorth,
   valueOrig,
   valueFake,
   buyerRate,
-  detectChance,
   ratingOf,
   capacity,
   usedSlots,
   hypePct,
-  activeEvents,
   hasEvent,
   FAST_REPLY_DAYS,
+  listedItem,
 } from './economy.js';
-import { itemName, sizeLabel, makeItem } from './items.js';
-import { recordTruth } from './notebook.js';
+import { itemName, makeItem, passesAsOrig, newId } from './items.js';
+
 import {
   rngOf,
   touch,
@@ -55,18 +55,19 @@ import {
   addReview,
   schedule,
   bump,
+  dropItem,
+  installed,
+  syncApps,
+  fx,
 } from './kernel.js';
 import {
-  takeLoan,
   microloan,
-  annuity,
   bankruptcyLine,
   depositInterest,
-  debtTotal,
 } from './bank.js';
-import { refillMarket, expireListings, generateListing } from './market/avito.js';
+import { refillMarket, expireListings } from './market/avito.js';
 import { adActive, makeIncoming, greetingFor } from './market/buyad.js';
-import { restock, pickOver, isTreasure, secondItem, priceNow } from './market/second.js';
+import { restock, pickOver, isTreasure, heldForTutorial, secondItem, priceNow, closetDrop } from './market/second.js';
 import { makePost, prunePosts, SUPPLIERS } from './market/suppliers.js';
 import { makeLot, lotMessage, LOT_TYPES, pickLotType } from './market/lots.js';
 import { newRaffle, winChance, raffleTitle, ENTRY_FEE } from './market/raffle.js';
@@ -88,10 +89,9 @@ import {
   WARM_HOURS,
   taunt,
   RIVAL_NAME,
-  BACKGROUND_RIVALS,
-  rankOf,
 } from './rival.js';
-import { dailyChannel, tickAds, post as channelPost, scandal } from './channel.js';
+import { dailyChannel, tickAds, scandal, trendPost } from './channel.js';
+import { upgraded } from './data/apps.js';
 import { hired, wageTotal } from './staff.js';
 import { staffTick, reserveAtSecond } from './actions/staff.js';
 import { walkInTick } from './actions/showroom.js';
@@ -101,11 +101,13 @@ import {
   makeOrder,
   orderText,
   canOrderAgain,
-  loyalCount,
   failed as clientFailed,
 } from './people/clients.js';
-import { makeBuyer, greeting, buyerName, waitedTooLong, expectedStars } from './people/buyers.js';
+import { makeBuyer, greeting, buyerName } from './people/buyers.js';
 import { checkGoals } from './progression.js';
+import { updateDaily } from './daily.js';
+import { grailTick } from './grail.js';
+import { tutorialActive, tutorialSchedule, tutorialAutoplay, repayMentor, poizonArrived, rareArrived } from './tutorial.js';
 
 /* ======================= ПУБЛИЧНОЕ API ВРЕМЕНИ ======================= */
 
@@ -124,13 +126,21 @@ export function advanceMinutes(S, mins) {
 
 /** Возвращает true, если персонаж уснул по дороге. */
 export function advanceHours(S, hours) {
+  const wasTut = tutorialActive(S);
+  let slept = false;
   for (let i = 0; i < hours; i++) {
     S.t++;
     if (S.t % 24 === 0) dayTick(S);
     hourTick(S);
-    if (hourIndex(S.t) === SCHEDULE.sleepHour) return true;
+    if (hourIndex(S.t) === SCHEDULE.sleepHour) {
+      slept = true;
+      break;
+    }
+    // Позвонил Тимур с новой главой — перемотка встаёт: телефон звонит.
+    if (!wasTut && tutorialActive(S)) break;
   }
-  return false;
+  tutorialAutoplay(S);
+  return slept;
 }
 
 /** Сон до утра. Возвращает сводку ночи. */
@@ -145,6 +155,7 @@ export function sleep(S) {
   }
   S.min = 0;
   touch(S);
+  tutorialAutoplay(S);
   return S.dayLog || [];
 }
 
@@ -155,13 +166,53 @@ function logDay(S, text, amount) {
 
 /* ======================= ЧАСОВОЙ ТИК ======================= */
 
+/**
+ * Сколько раз такт запускался изнутри другого такта. Должно быть ноль:
+ * действие, которое двигает время, вызванное из жизни мира (помощник,
+ * шоурум, дроп), прокручивает мир посреди обработки часа. Смотрят фаззер
+ * и тест ядра.
+ */
+let tickDepth = 0;
+export const tickHealth = { nested: 0 };
+
 export function hourTick(S) {
+  if (tickDepth > 0) tickHealth.nested++;
+  tickDepth++;
+  try {
+    hourTickBody(S);
+  } finally {
+    tickDepth--;
+  }
+}
+
+function hourTickBody(S) {
   const rng = rngOf(S);
   const h = hourIndex(S.t);
 
+  syncApps(S);
   arriveShipments(S, rng);
   runPending(S, rng);
+  repayMentor(S);
+  updateDaily(S);
   expireMarketListings(S, rng);
+
+  // Пока идёт обучение, мир молчит: новых объявлений, покупателей, лотов и
+  // Мирона нет — иначе случайность ломает сценарий и перебивает Тимура.
+  // Завоз в секонде и утренняя сводка идут как обычно: это расписание мира,
+  // а не события, и к концу обучения они должны случиться.
+  if (tutorialActive(S)) {
+    if (h === SCHEDULE.secondOpen) secondTick(S, rng, h, true);
+    if (h === SCHEDULE.briefingHour) morningBriefing(S, rng);
+    return;
+  }
+
+  grailTick(S, rng);
+
+  // Телега Premium: сутки тишины в канале — в полдень сам выходит пост.
+  if (h === 12 && upgraded(S, 'tgPremium') && S.tg.has && S.t - S.tg.lastPost >= 24) {
+    const gained = trendPost(S, rng);
+    notify(S, { route: 'tg/own', title: 'Телега Premium', text: `Пост «Что сейчас носят» вышел сам · +${gained} подписч.` });
+  }
 
   if (h >= 8 && h <= 23) {
     refillMarket(S, rng, (l) =>
@@ -178,7 +229,8 @@ export function hourTick(S) {
   if (h >= 9 && h <= 22) incomingTick(S, rng);
   if (h >= 9 && h <= 21) rivalHunt(S, rng);
 
-  if (SCHEDULE.lotHours.includes(h)) maybeLot(S, rng);
+  // Лоты пишут в личку Телеги: без неё некому писать.
+  if (SCHEDULE.lotHours.includes(h) && installed(S, 'tg')) maybeLot(S, rng);
   if (SCHEDULE.orderHours.includes(h)) maybeOrder(S, rng);
   if (h === SCHEDULE.briefingHour) morningBriefing(S, rng);
 
@@ -191,6 +243,8 @@ export function hourTick(S) {
   if (h >= 11 && h <= 21) walkInTick(S, rng);
   threadTimeouts(S, rng);
   prunePosts(S);
+  // Последним: звонок со следующей главой обучения, если пора.
+  tutorialSchedule(S);
 }
 
 /* ---------- посылки ---------- */
@@ -237,11 +291,13 @@ function arriveShipments(S, rng) {
       title: 'Посылка получена',
       text: sh.name + (sh.items.length > 1 ? ` · ${sh.items.length} шт` : '') + ' — уже в шкафу',
     });
+    if (sh.tut === 'poizon') poizonArrived(S, sh);
+    if (sh.tut === 'rare') rareArrived(S);
     if (sh.protection) {
       mentorOnce(
         S,
         'protectTip',
-        'Получил вещь с Авитки? У тебя ровно 24 часа на легит-чек. Если окажется паль, а продавец писал «ориг» — откроешь спор и вернёшь деньги. Потом уже никак.',
+        'Пришла посылка с Авитки — проверь её в руках, легит-чеком в шкафу. Фото могли быть чужие, по ним не поймёшь. У тебя ровно 24 часа: окажется паль, а продавец писал «ориг» — откроешь спор и вернёшь деньги. Потом уже никак.',
       );
     }
   }
@@ -267,6 +323,7 @@ function handlePending(S, rng, e) {
     if (e.cancelled) return;
     earn(S, e.amount, 'Авитка: выплата за ' + e.label);
     notify(S, { route: 'bank', title: 'Деньги пришли', text: `+${rub(e.amount)} · ${e.label}` });
+    fx('coins');
   }
   if (e.type === 'review') {
     const xp = addReview(
@@ -320,10 +377,11 @@ function handlePending(S, rng, e) {
   if (e.type === 'claim') {
     const d = dealById(S, e.dealId);
     if (!d) return;
+    // Размер и откуда вещь — чтобы было ясно, о какой из одинаковых моделей речь.
     const th = newThread(S, {
       kind: 'claim',
       name: d.buyer || buyerName(rng),
-      sub: d.label,
+      sub: `${d.label} · ${d.size}${d.src ? ' · ' + d.src : ''}`,
       platform: e.platform,
       data: { dealId: d.id, expiresAt: S.t + 36 },
     });
@@ -332,10 +390,11 @@ function handlePending(S, rng, e) {
       th,
       'them',
       rng.pick([
-        `Слышь, я сделал легит-чек на ${d.label}. Это ПАЛЬ. Ты продавал как оригинал. Верни ${rub(d.price)}, вещь отдам.`,
-        `Мне в легит-сервисе сказали, что ${d.label} — подделка. Возвращай деньги, или пишу отзыв и жалобу.`,
+        `Слышь, я сделал легит-чек на ${d.label} (${d.size}). Это ПАЛЬ. Ты продавал как оригинал. Верни ${rub(d.price)}, вещь отдам.`,
+        `Мне в легит-сервисе сказали, что ${d.label} (${d.size}) — подделка. Возвращай деньги, или пишу отзыв и жалобу.`,
       ]),
     );
+    fx('bad');
     notify(S, {
       route: (e.platform === 'tg' ? 'tg' : 'avito') + '/thread/' + th.id,
       title: 'Покупатель: это паль!',
@@ -361,7 +420,10 @@ function handlePending(S, rng, e) {
   if (e.type === 'itemReturn') {
     const it = e.item;
     it.id = undefined;
-    const fresh = { ...it, id: (S.nextItemId = (S.nextItemId || 100000) + 1), sale: null };
+    // Тот же счётчик, что у всех вещей. Раньше у вернувшихся был свой, с
+    // 100 001, а restoreCounters после загрузки ставил общий счётчик за ними —
+    // и следующая покупка получала id, который потом выдавался возврату.
+    const fresh = { ...it, id: newId(), sale: null };
     if (!e.keepVerdict) fresh.verdict = 'fake';
     fresh.boughtAt = S.t;
     S.items.push(fresh);
@@ -514,7 +576,10 @@ function rivalTaunt(S, rng, kind, vars) {
 
 /* ---------- секонд ---------- */
 
-function secondTick(S, rng, h) {
+/** Шанс, что в день без завоза в «Мешок» сдадут чей-то гардероб. */
+const CLOSET_CHANCE = 0.06;
+
+function secondTick(S, rng, h, quiet) {
   if (h === SCHEDULE.secondOpen) {
     const dw = weekdayAt(S.t);
     if (dw === 1) {
@@ -529,6 +594,32 @@ function secondTick(S, rng, h) {
       notify(S, { route: 'second', title: 'Секонд: небольшой подвоз', text: 'Пара приличных вещей' });
     } else if (rng.chance(0.35)) {
       S.second.items.push(secondItem(S, rng, true, false));
+    }
+    // Слух из Хайп-радара сбылся: «чей-то гардероб» приехал к открытию.
+    const jackpot = S.events.find((e) => e.type === 'secondJackpot' && !e.used && S.t >= e.start && S.t < e.end);
+    if (jackpot) {
+      jackpot.used = true;
+      closetDrop(S, rng, rng.int(4, 6));
+      notify(S, {
+        route: 'second',
+        title: 'Гардероб приехал',
+        text: 'Слух подтвердился: в «Мешке» целый шкаф брендовых вещей. Пара часов — и разберут',
+      });
+    } else if (!quiet && dw !== 1 && dw !== 4 && S.prog.lvl >= 3 && rng.chance(CLOSET_CHANCE)) {
+      // В дни без завоза изредка сдают чей-то шкаф — днём, без слухов.
+      S.second.closetAt = S.t + rng.int(1, 8);
+    }
+  }
+  if (quiet) return;
+  if (S.second.closetAt && S.t >= S.second.closetAt) {
+    S.second.closetAt = 0;
+    if (isSecondOpen(S.t)) {
+      closetDrop(S, rng, 2);
+      notify(S, {
+        route: 'second',
+        title: 'В «Мешок» сдали чей-то гардероб',
+        text: 'Пара брендовых вещей прямо сейчас. Через пару часов разберут',
+      });
     }
   }
   rivalAtSecond(S, rng, h);
@@ -552,7 +643,7 @@ function rivalAtSecond(S, rng, h) {
   const playerHere = S.t - (S.second.lastSeen || -999) < 2;
 
   const treasures = S.second.items
-    .filter((x) => isTreasure(S, x))
+    .filter((x) => isTreasure(S, x) && !heldForTutorial(S, x) && !(x.reserved > S.t))
     .map((x) => ({ x, gain: valueOrig(S, x.item) - priceNow(S, x) }))
     .sort((a, b) => b.gain - a.gain)
     .map((v) => v.x);
@@ -600,11 +691,10 @@ function rivalAtSecond(S, rng, h) {
   }
 }
 
-/* ---------- Тимур ведёт первые часы ---------- */
+/* ---------- Тимур подсказывает после обучения ---------- */
 //
 // За раз приходит только один шаг — первый несработавший, у которого
-// выполнено условие. Поэтому игрок, который сразу побежал в секонд, не
-// получит сначала лекцию про шкаф, а все шаги не свалятся кучей.
+// выполнено условие, поэтому советы не свалятся кучей.
 
 function onboardingTick(S) {
   for (const step of ONBOARDING) {
@@ -645,6 +735,7 @@ function rivalHunt(S, rng) {
 
   if (engaged) {
     rivalTaunt(S, rng, 'intercept', { item: name, price });
+    fx('bad');
     notify(S, {
       route: 'tg/thread/rival',
       title: 'Мирон перехватил вещь',
@@ -683,7 +774,8 @@ function incomingTick(S, rng) {
     data: { listingId: listing.id, incoming: true },
   });
   listing.threadId = th.id;
-  say(S, th, 'them', greetingFor(listing));
+  // Фото он прикладывает к первому же сообщению: одно сообщение — одно.
+  say(S, th, 'them', greetingFor(listing), { photos: true });
   notify(S, {
     route: 'avito/thread/' + th.id,
     title: 'Несут вещь: ' + itemName(listing.item),
@@ -809,7 +901,8 @@ function generateBuyers(S, rng) {
 }
 
 function spawnBuyer(S, rng, item, platform) {
-  const base = item.sale.asOrig ? valueOrig(S, item) : valueFake(S, item);
+  const seen = listedItem(item);
+  const base = item.sale.asOrig ? valueOrig(S, seen) : valueFake(S, seen);
   const buyer = makeBuyer(S, rng, item, platform, base);
   const th = newThread(S, {
     kind: 'buyer',
@@ -822,12 +915,12 @@ function spawnBuyer(S, rng, item, platform) {
   // Фишинг: «я оплатил, перейдите по ссылке».
   if (platform === 'avito' && S.stats.sold >= 1 && rng.chance(0.06)) {
     buyer.phishing = true;
-    say(S, th, 'them', 'Здравствуйте! Беру за вашу цену. Я уже оплатил через Авитка Доставку 👍');
+    // Одно сообщение, как у всех клиентов: так требует бриф.
     say(
       S,
       th,
       'them',
-      'Чтобы получить деньги, перейдите по ссылке и введите данные карты: avitka-dostavka-pay.ru/get',
+      'Здравствуйте! Беру за вашу цену, уже оплатил через Авитка Доставку 👍 Чтобы получить деньги, перейдите по ссылке и введите данные карты: avitka-dostavka-pay.ru/get',
     );
     notify(S, {
       route: 'avito/thread/' + th.id,
@@ -854,7 +947,7 @@ function threadTimeouts(S, rng) {
     if (th.closed) continue;
     if (th.kind === 'buyer' && th.data.buyer) {
       const b = th.data.buyer;
-      if (b.phishing) continue;
+      if (b.phishing || b.tut) continue;
       if (!b.agreed && S.t > b.expiresAt) {
         say(S, th, 'them', 'Уже неактуально, нашёл другой вариант.');
         closeThread(S, th);
@@ -875,6 +968,7 @@ function threadTimeouts(S, rng) {
       const order = th.data.order;
       if (order.accepted && order.deposit) {
         // Брал предоплату и не успел — деньги приходится вернуть.
+        coverFromDeposit(S, order.deposit);
         const back = Math.min(order.deposit, Math.max(0, S.money));
         if (back > 0) pay(S, back, 'Возврат предоплаты: ' + MODELS[order.m].full);
         if (back < order.deposit) {
@@ -962,6 +1056,7 @@ function raffleTick(S, rng) {
       it.legitDone = true;
       S.items.push(it);
       bump(S, 'rafflesWon');
+      fx('level');
       notify(S, {
         route: 'wardrobe/item/' + it.id,
         title: 'Ты выиграл раффл! 🎉',
@@ -1202,7 +1297,21 @@ function lifeEvent(S, rng) {
   }
 }
 
+/**
+ * Перед микрозаймом и просрочкой банк сначала снимает со вклада: держать
+ * деньги на вкладе и при этом получать займ под 7,5% или коллекторов за
+ * просрочку — это наказание за то, чего игрок не делал.
+ */
+function coverFromDeposit(S, amount) {
+  if (S.money >= amount || S.deposit <= 0) return;
+  const take = Math.min(S.deposit, amount - S.money);
+  S.deposit -= take;
+  S.money += take;
+  logDay(S, 'Снято со вклада на обязательный платёж', take);
+}
+
 function mustPay(S, amount, reason) {
+  coverFromDeposit(S, amount);
   if (S.money < amount) {
     const need = Math.ceil((amount - S.money) / 500) * 500;
     microloan(S, need);
@@ -1211,7 +1320,7 @@ function mustPay(S, amount, reason) {
     notify(S, {
       route: 'bank',
       title: 'Микрозайм ' + rub(need),
-      text: 'Не хватило на «' + reason + '». 10% в неделю — верни поскорее',
+      text: `Не хватило на «${reason}». ${(MICROLOAN_RATE * 100).toFixed(1).replace('.', ',')}% в неделю — верни поскорее`,
     });
   }
   pay(S, amount, reason);
@@ -1221,6 +1330,7 @@ function mustPay(S, amount, reason) {
 function weeklyLoan(S, loan) {
   const interest = Math.round(loan.principal * loan.rate);
   const due = Math.min(loan.payment, Math.ceil(loan.principal + interest));
+  coverFromDeposit(S, due);
   if (S.money >= due) {
     pay(S, due, loan.name + ': платёж');
     loan.principal = Math.max(0, loan.principal + interest - due);
@@ -1249,17 +1359,15 @@ function weeklyLoan(S, loan) {
 function collectors(S, loan, need) {
   let got = 0;
   const taken = [];
-  const sorted = S.items.slice().sort((a, b) => valueOrig(S, b) - valueOrig(S, a));
+  // Коллекторы оценивают паль как паль: иначе мешок реплик гасил долг по
+  // цене оригиналов.
+  const worth = (it) => (passesAsOrig(it) ? valueOrig(S, it) : valueFake(S, it));
+  const sorted = S.items.slice().sort((a, b) => worth(b) - worth(a));
   for (const it of sorted) {
     if (got >= need) break;
-    got += Math.round((valueOrig(S, it) * 0.4) / 10) * 10;
+    got += Math.round((worth(it) * 0.4) / 10) * 10;
     taken.push(itemName(it));
-    S.items = S.items.filter((x) => x !== it);
-    for (const th of S.threads) {
-      if (th.kind === 'buyer' && !th.closed && th.data.buyer && th.data.buyer.item === it.id) {
-        closeThread(S, th, 'Вещь уже продана');
-      }
-    }
+    dropItem(S, it);
   }
   const fromCard = Math.min(S.money, Math.max(0, need - got));
   if (fromCard > 0) {
@@ -1317,6 +1425,7 @@ export function currentRank(S) {
 }
 
 export function onLevelUp(S, lvl) {
+  fx('level');
   notify(S, {
     route: 'shop',
     title: 'Уровень магазина ' + lvl,

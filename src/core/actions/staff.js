@@ -4,12 +4,12 @@
 // очередь в секонд. Делает он это хуже тебя — в этом весь смысл выбора:
 // руки освобождаются, маржа падает.
 
-import { clamp, rub, priceRound } from '../util.js';
+import { rub, priceRound } from '../util.js';
 import { MODELS } from '../data/models.js';
-import { itemName } from '../items.js';
+import { itemName, passesAsOrig } from '../items.js';
 import { STAFF_BY_ID, hired, canHire, chatsPerHour, HANDOFF_HOURS, blunderChance } from '../staff.js';
 import { valueOrig, valueFake, legitCost, daysHeld, buyersPerDay } from '../economy.js';
-import { rngOf, pay, notify, toast, touch, say, closeThread, mentorOnce, bump } from '../kernel.js';
+import { pay, notify, toast, touch, say, closeThread, mentorOnce, tutorialLock } from '../kernel.js';
 import { acceptOffer, counterToBuyer, declineBuyer, completeSale, answerAuth, listItem } from './selling.js';
 import { legitCheck, bumpListing } from './items.js';
 import { hourIndex } from '../time.js';
@@ -17,6 +17,7 @@ import { hourIndex } from '../time.js';
 /* ======================= НАЁМ ======================= */
 
 export function hire(S, id) {
+  if (tutorialLock(S)) return null;
   const check = canHire(S, id);
   if (!check.ok) {
     toast(S, check.why);
@@ -141,7 +142,7 @@ function closeByStaff(S, rng, def, th, item) {
 
   if (risky && !rng.chance(blunderChance(S, def))) {
     const cost = legitCost(S, item);
-    if (S.money >= cost) legitCheck(S, item);
+    if (S.money >= cost) legitCheck(S, item, { byStaff: true });
     if (item.verdict === 'fake') {
       // Проверил, честно сказал и перевыставил как реплику: так вещь
       // остаётся в обороте, а рейтинг — целым.
@@ -164,7 +165,7 @@ function closeByStaff(S, rng, def, th, item) {
     }
   }
 
-  const fakeAsOrig = !item.real && item.sale.asOrig;
+  const fakeAsOrig = !passesAsOrig(item) && item.sale.asOrig;
   const res = completeSale(S, th);
   if (!res) return;
   S.staff.sold++;

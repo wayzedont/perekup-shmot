@@ -5,12 +5,12 @@
 // настоящий прогресс — не уровень, а то, что ты реально понимаешь.
 
 import { esc, rub, num, plural } from '../../core/util.js';
-import { MODELS } from '../../core/data/models.js';
-import { TELLS, TIERS, CATS } from '../../core/data/catalog.js';
-import { dateLabel } from '../../core/time.js';
+
+import { TIERS } from '../../core/data/catalog.js';
+
 import { notebookRows, studiedCount } from '../../core/notebook.js';
 import { hypePct } from '../../core/economy.js';
-import { thumb, emptyState, sectionLabel, barRow } from '../components.js';
+import { emptyState, sectionLabel } from '../components.js';
 
 export const view = (S) => {
   const rows = notebookRows(S);

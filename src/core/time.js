@@ -15,7 +15,6 @@ export function dateAt(t) {
 }
 
 export const weekdayAt = (t) => dateAt(t).getDay();
-export const monthAt = (t) => dateAt(t).getMonth();
 
 /** «пн, 7 сен» */
 export function dateLabel(t) {
@@ -34,11 +33,6 @@ export function clockLabel(t, minutes) {
   const h = String(hourIndex(t)).padStart(2, '0');
   const m = String(minutes || 0).padStart(2, '0');
   return h + ':' + m;
-}
-
-/** «14:00» — только час, для будущих событий. */
-export function hourLabel(t) {
-  return String(hourIndex(t)).padStart(2, '0') + ':00';
 }
 
 /** «2 ч назад» */

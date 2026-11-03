@@ -421,8 +421,3 @@ export const MODELS = RAW.map((m, i) => {
 export const BRANDED = MODELS.filter((m) => !m.noname);
 
 export const BRANDS = [...new Set(BRANDED.map((m) => m.b))].sort((a, b) => a.localeCompare(b, 'ru'));
-
-export const modelById = (i) => MODELS[i];
-
-/** Модели, к которым применим этот признак. */
-export const modelsWithTell = (tell) => BRANDED.filter((m) => m.tells.includes(tell));

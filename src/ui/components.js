@@ -1,12 +1,12 @@
 // Общие куски разметки: карточки вещей, метки, панель осмотра.
 
-import { esc, rub, num, plural, dur } from '../core/util.js';
+import { esc, num, plural, dur } from '../core/util.js';
 import { MODELS } from '../core/data/models.js';
-import { TELLS, CONDS, TIERS, CATS } from '../core/data/catalog.js';
+import { TELLS, CONDS } from '../core/data/catalog.js';
 import { itemName, colorwayName, sizeLabel, shownCondition } from '../core/items.js';
-import { suspicionLabel, tellsFor, tellNote, inspectMinutes } from '../core/inspect.js';
-import { hypePct, itemHype } from '../core/economy.js';
-import { hintFor, sortedTells, knowledgeOf } from '../core/notebook.js';
+import { suspicionLabel, suspicion, tellsFor, tellNote, inspectMinutes } from '../core/inspect.js';
+import { itemHype } from '../core/economy.js';
+import { hintFor, sortedTells } from '../core/notebook.js';
 import { itemArt, artBackdrop } from './art.js';
 import { avatar, join } from './dom.js';
 
@@ -25,7 +25,7 @@ export function hypeTag(S, item) {
   if (h >= 80) return `<span class="tag good">Ликвид ${h}%</span>`;
   if (h >= 55) return `<span class="tag info">Ходовая ${h}%</span>`;
   if (h <= 25) return `<span class="tag">Неликвид ${h}%</span>`;
-  return `<span class="tag">${h}%</span>`;
+  return `<span class="tag">Спрос ${h}%</span>`;
 }
 
 export function defectTag(item) {
@@ -104,26 +104,35 @@ export function inspectPanel(S, item, { mode, act, ctx, title }) {
         </div>
         <div class="cost">${seen ? '' : dur(mins)}</div>`;
       return seen
-        ? `<div class="${cls}">${inner}</div>`
+        ? `<div class="${cls}" data-tellrow="${t}">${inner}</div>`
         : `<button class="${cls}" data-act="${act}" data-id="${ctx}" data-tell="${t}">${inner}</button>`;
     })
     .join('');
 
   const missing = mode === 'photo' ? '<div class="muted">По фото запах не проверить, а ошибиться проще. На встрече видно всё.</div>' : '';
+  // Зелёное читалось как «оригинал», а это только «палева не нашёл».
+  const s = item.verdict === 'unknown' ? suspicion(item) : null;
+  const caveat =
+    s !== null && s < 0.1
+      ? `<div class="muted">Зелёное — значит, ты не нашёл палева, а не что это оригинал. Хорошую копию глаз${
+          S.prog.skills.eye < 5 ? ' новичка' : ''
+        } пропускает. Наверняка скажет только легит-чек.</div>`
+      : '';
 
   return `<div class="card">
     <div class="row between"><h3>${esc(title || 'Осмотр')}</h3><span class="muted">${esc(suspicionLabel(item).n)}</span></div>
     ${hint ? `<div class="tell-hint">💡 ${esc(hint.text)}</div>` : ''}
     <div class="tell-grid">${rows}</div>
     ${missing}
-    ${conditionButton(S, item, act + 'Cond', ctx)}
+    ${caveat}
+    ${mode === 'photo' ? '' : conditionButton(S, item, act + 'Cond', ctx)}
   </div>`;
 }
 
 export function conditionButton(S, item, act, ctx) {
   if (item.condSeen) {
     if (!item.defects.length) return '<div class="muted">Состояние проверено: скрытых дефектов нет.</div>';
-    return `<div class="callout">Нашёл: ${esc(item.defects.map((d) => d.n.toLowerCase()).join(', '))}. Состояние на деле «${esc(CONDS[item.cond].short)}».</div>`;
+    return `<div class="callout" data-tut="cond-result">Нашёл: ${esc(item.defects.map((d) => d.n.toLowerCase()).join(', '))}. Состояние на деле «${esc(CONDS[item.cond].short)}».</div>`;
   }
   const mins = Math.max(4, Math.round(inspectMinutes(S) * 0.6));
   return `<button class="btn sec full split" data-act="${act}" data-id="${ctx}">
@@ -148,10 +157,6 @@ export function emptyState(text, action) {
 
 export function sectionLabel(text) {
   return `<div class="section-label">${esc(text)}</div>`;
-}
-
-export function moneyLine(label, value, cls) {
-  return `<div class="kv"><span>${esc(label)}</span><span class="${cls || ''}">${value}</span></div>`;
 }
 
 /** Компактный график капитала. */

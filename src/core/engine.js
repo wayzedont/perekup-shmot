@@ -1,7 +1,7 @@
 // Сборка движка: создание игры, первые минуты, сохранение и загрузка.
 
 import { newGame, migrate, fillDefaults, SAVE_KEY, SAVE_VERSION } from './state.js';
-import { rngOf, newThread, say, notify, touch } from './kernel.js';
+import { rngOf, newThread, say } from './kernel.js';
 import { resetIds, makeItem, hideDefects } from './items.js';
 import { generateListing, resetListingIds } from './market/avito.js';
 import { restock, resetSecondIds } from './market/second.js';
@@ -10,10 +10,34 @@ import { newRaffle } from './market/raffle.js';
 import { MODELS } from './data/models.js';
 import { netWorth } from './economy.js';
 import { applyUnlock } from './progression.js';
+import { runTutorialHeadless, finishTutorial, migrateTutorial } from './tutorial.js';
 
 /* ======================= СОЗДАНИЕ ИГРЫ ======================= */
 
-export function createGame(seed) {
+/**
+ * opts.tutorial:
+ *   'play' (по умолчанию) — игрок проходит обучение сам;
+ *   'skip' — главы обучения проходятся без экрана теми же действиями, каждая
+ *            в свой день: так стартуют боты, прогоны баланса и тесты, чтобы
+ *            мерить ту игру, в которую играет человек;
+ *   'none' — без обучения вовсе (новый сезон): все приложения уже стоят,
+ *            прежние 5 000 ₽ на старте.
+ */
+export function createGame(seed, opts = {}) {
+  const S = buildGame(seed);
+  const mode = opts.tutorial || 'play';
+  if (mode === 'skip') {
+    S.tut.auto = true;
+    runTutorialHeadless(S);
+  }
+  if (mode === 'none') {
+    finishTutorial(S);
+    S.money = 5000;
+  }
+  return S;
+}
+
+function buildGame(seed) {
   const S = newGame(seed);
   const rng = rngOf(S);
 
@@ -102,22 +126,9 @@ function seedMentor(S) {
     platform: 'tg',
     pinned: true,
   });
-  // Два сообщения, а не семь. Остальное Тимур скажет по ходу дела — см.
-  // data/onboarding.js: каждый следующий шаг ждёт, пока станет нужен.
-  say(S, th, 'them', 'О, здорово! Слышал, решил шмотом заняться. Смысл простой: берёшь дешевле, продаёшь дороже. Остальное по ходу расскажу.');
-  say(
-    S,
-    th,
-    'them',
-    'Начни с того, что уже есть. Брат тебе Теч Флис подарил? Открой шкаф и осмотри его — бирку, швы. Что-то он мутный 😏',
-  );
-  th.unread = 1;
-  notify(S, {
-    route: 'tg/thread/' + th.id,
-    title: 'Тимур',
-    text: 'Открой шкаф и осмотри Теч Флис от брата',
-    scope: 'client',
-  });
+  // Знакомство — это звонок (см. tutorial.js), а в чате остаётся запись
+  // всего, что Тимур сказал: перечитать можно в любой момент.
+  say(S, th, 'them', 'Брат, набрал тебе. Возьми трубку 📞');
 }
 
 /* ======================= СОХРАНЕНИЕ ======================= */
@@ -140,8 +151,9 @@ export function loadGame(storage) {
     const raw = store.getItem(SAVE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (parsed.v === SAVE_VERSION) return fillDefaults(parsed);
-    return migrate(parsed);
+    const S = parsed.v === SAVE_VERSION ? fillDefaults(parsed) : migrate(parsed);
+    if (S) migrateTutorial(S);
+    return S;
   } catch (e) {
     return null;
   }
@@ -167,7 +179,10 @@ export function restoreCounters(S) {
   };
   S.items.forEach(scan);
   for (const sh of S.shipments) sh.items.forEach(scan);
-  for (const l of S.listings) scan(l.item);
+  for (const l of S.listings) {
+    scan(l.item);
+    scan(l.photoItem);
+  }
   for (const x of S.second.items) scan(x.item);
   for (const th of S.threads) {
     if (th.data && th.data.lot) th.data.lot.items.forEach(scan);

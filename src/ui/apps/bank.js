@@ -1,18 +1,15 @@
 // Банк: карта, кредиты, вклад, история. Деньги показываются только здесь.
 
-import { esc, rub, num, plural } from '../../core/util.js';
+import { esc, rub, num } from '../../core/util.js';
 import { dateLabel, clockLabel } from '../../core/time.js';
 import {
   available,
-  creditLimit,
   levelCap,
-  debtTotal,
   annuity,
   weeksLeft,
   termsList,
 } from '../../core/bank.js';
-import { historyCap, LEVEL_LOAN_CAP } from '../../core/data/progress.js';
-import { emptyState } from '../components.js';
+import { historyCap } from '../../core/data/progress.js';
 
 export const view = (S) => {
   const pending = S.pending
@@ -53,6 +50,12 @@ export const view = (S) => {
     })
     .join('');
 
+  // Долг Тимуру — без процентов и графика: спишется сам с первой продажи.
+  const mentor = S.mentorDebt
+    ? `<div class="card tight"><div class="row between"><b>Долг Тимуру</b><span class="money" style="font-size:16px">${rub(S.mentorDebt)}</span></div>
+        <div class="muted">Без процентов. Вернётся сам, как только на карте будет с запасом на еду.</div></div>`
+    : '';
+
   const lvlCap = levelCap(S);
   const histCap = historyCap(S.credit);
   const bound = lvlCap <= histCap ? 'уровнем магазина' : 'кредитной историей';
@@ -69,7 +72,7 @@ export const view = (S) => {
             <input class="inp num" id="loanAmount" data-input="loanAmount" inputmode="numeric" value="${amount}" aria-label="Сумма кредита">
             <button class="btn sm sec" data-act="loanMax">Макс</button>
           </div>
-          <div class="chips">${termsList()
+          <div class="chips wrap">${termsList()
             .map(
               ([w, r]) => `<button class="chip ${w === term[0] ? 'on' : ''}" data-act="loanTerm" data-val="${w}">${w} нед · ${(r * 100).toFixed(1).replace('.', ',')}%</button>`,
             )
@@ -91,7 +94,7 @@ export const view = (S) => {
     </div>
   </div>`;
 
-  const history = `<div class="card"><h3>История</h3>
+  const history = `<div class="card" data-tut="history"><h3>История</h3>
     ${
       S.tx
         .slice(0, 30)
@@ -102,5 +105,7 @@ export const view = (S) => {
         .join('') || '<div class="muted">Пока пусто</div>'
     }</div>`;
 
-  return { title: 'Банк', body: hero + loans + credit + deposit + history };
+  // На обучении Тимур говорит «кредиты — потом», и экран это подтверждает.
+  if (S.tut && S.tut.active) return { title: 'Банк', body: hero + mentor + history };
+  return { title: 'Банк', body: hero + mentor + loans + credit + deposit + history };
 };

@@ -1,6 +1,6 @@
 // Магазин: уровень, навыки, склады, конкуренты, статистика, бренд.
 
-import { esc, rub, num, shortNum, plural } from '../../core/util.js';
+import { esc, rub, shortNum, plural } from '../../core/util.js';
 import { dateLabel } from '../../core/time.js';
 import { SKILLS, STORAGE, MAX_SKILL, xpToNext, statusOf, UNLOCKS } from '../../core/data/progress.js';
 import { CATS } from '../../core/data/catalog.js';
@@ -14,6 +14,7 @@ import {
   buyersPerDay,
 } from '../../core/economy.js';
 import { RIVAL_NAME } from '../../core/rival.js';
+import { chronicle, seasonTitle } from '../../core/season.js';
 import { STAFF, hired, HANDOFF_HOURS } from '../../core/staff.js';
 import {
   FITTINGS,
@@ -27,7 +28,6 @@ import {
   windowCooldown,
   canSetWindow,
   WINDOW_SLOTS,
-  WINDOW_WEIGHT,
 } from '../../core/showroom.js';
 import {
   BRAND_LEVEL,
@@ -46,12 +46,48 @@ import { partners, findPartner, canCollab, riskLabel, reachLabel } from '../../c
 import { seasonProgress, seasonDaysLeft } from '../../core/events.js';
 import { studiedCount } from '../../core/notebook.js';
 import { loyalCount } from '../../core/people/clients.js';
-import { sparkline, starsRow, emptyState, sectionLabel } from '../components.js';
+import { sparkline, starsRow, emptyState } from '../components.js';
 import { itemName } from '../../core/items.js';
+
+/* ======================= ХРОНИКА ======================= */
+
+function chronicleCard(S) {
+  const list = chronicle(S);
+  if (!list.length) return '';
+  const title = seasonTitle(S);
+  return `<button class="card full-btn" data-act="go" data-route="shop/chronicle">
+      <div class="row between"><h3>Хроника</h3><span class="tag vip">${esc(title.n)}</span></div>
+      ${list
+        .slice(0, 2)
+        .map((m) => `<div class="kv"><span>${esc(m.n)}<small>${esc(m.t)}</small></span></div>`)
+        .join('')}
+      <div class="muted">${list.length > 2 ? `Ещё ${list.length - 2} — открыть →` : 'Открыть →'}</div>
+    </button>`;
+}
+
+function chronicleView(S) {
+  const title = seasonTitle(S);
+  const list = chronicle(S);
+  return {
+    title: 'Хроника',
+    body: `<div class="hero" style="background:#3b2a6b">
+        <div class="label">Кто ты сейчас</div>
+        <div style="font-family:var(--f-disp);font-size:24px">${esc(title.n)}</div>
+        <div class="sub">${esc(title.d)}</div>
+      </div>
+      ${
+        list
+          .map((m) => `<div class="card tight"><h4>${esc(m.n)}</h4><div class="muted">${esc(m.t)}</div></div>`)
+          .join('') || emptyState('Истории ещё впереди. Первая продажа станет первой строчкой.')
+      }
+      <div class="muted" style="text-align:center">Звание меняется вместе с тем, как ты играешь, а не только с уровнем.</div>`,
+  };
+}
 
 export const view = (S) => {
   if (S.ui.view === 'showroom') return showroomView(S);
   if (S.ui.view === 'brand') return brandView(S);
+  if (S.ui.view === 'chronicle') return chronicleView(S);
   const need = xpToNext(S.prog.lvl);
   const nw = netWorth(S);
   const rating = ratingOf(S);
@@ -234,7 +270,7 @@ export const view = (S) => {
   return {
     title: 'Магазин',
     body:
-      hero + season + rivalCard + ratingCard + skills + storage + showroomCard + staffCard + unlocksCard + brand + chartCard + stats + deals,
+      hero + season + chronicleCard(S) + rivalCard + ratingCard + skills + storage + showroomCard + staffCard + unlocksCard + brand + chartCard + stats + deals,
   };
 };
 

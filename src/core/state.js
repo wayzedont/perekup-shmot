@@ -8,12 +8,17 @@ import { clamp } from './util.js';
 import { MODELS } from './data/models.js';
 import { SKILL_KEYS } from './data/progress.js';
 import { BACKGROUND_RIVALS } from './rival.js';
+import { SYSTEM_APPS, ALL_APPS } from './data/apps.js';
+import { NEWS_VERSION } from './data/news.js';
 
 export const SAVE_KEY = 'perekup_shmot_save';
 export const SAVE_VERSION = 1;
 
 /** Длина сезона: 7 сентября — 31 декабря. */
 export const SEASON_DAYS = 115;
+
+/** Версия раскладки шагов обучения: растёт, когда шаги внутри глав меняются. */
+export const STEPS_LAYOUT = 3;
 
 export function emptyStats() {
   return {
@@ -44,6 +49,8 @@ export function emptyStats() {
     meetings: 0,
     defectsFound: 0,
     clientsLoyal: 0,
+    grails: 0,
+    collections: 0,
   };
 }
 
@@ -78,9 +85,13 @@ export function newGame(seed) {
     min: 0,
     rev: 0,
 
-    money: 5000,
+    // Своих денег у героя нет: он ищет работу. Первые деньги — перевод
+    // Тимура на учебный заказ (tutorial.js), и после обучения на руках
+    // примерно столько же, сколько раньше давали на старте.
+    money: 0,
     deposit: 0,
     loans: [],
+    mentorDebt: 0,
     credit: { paidClean: 0, missed: 0 },
     tx: [],
 
@@ -112,6 +123,7 @@ export function newGame(seed) {
       posts: [],
       adRuns: [],
       proUntil: 0,
+      proGift: '',
     },
     clients: [],
     notebook: {},
@@ -149,8 +161,24 @@ export function newGame(seed) {
 
     stats: emptyStats(),
     goals: {},
+    // Pro-версии приложений из Апстора: id → когда куплено.
+    upgrades: {},
+    // Грааль недели (core/grail.js): текущая охота или null.
+    grail: null,
+    // Какую версию «Что нового» игрок уже видел. Новой игре показывать нечего.
+    news: NEWS_VERSION,
+    // Собранные коллекции (core/collections.js): модель → когда.
+    collections: {},
+    // Дела на день и серия (core/daily.js).
+    daily: { day: -1, tasks: [], streak: 0, best: 0, lastFull: -9, lost: 0, legitFree: 0 },
     flags: {},
     mentorQueue: [],
+    // Обучение по главам (tutorial.js): шаг, текущая глава, когда каждая
+    // кончилась, и id учебных объявлений и вещей. auto — главы проходятся
+    // сами, как только наступают (боты, прогоны, тесты).
+    tut: { v: 2, sv: STEPS_LAYOUT, active: true, step: 0, done: false, ids: {}, part: 'avito', ended: {}, mark: {}, auto: false },
+    // Что стоит на телефоне. На старте — только системные приложения.
+    apps: Object.fromEntries(SYSTEM_APPS.map((id) => [id, { at: 0 }])),
     history: [],
 
     staff: { id: null, since: 0, sold: 0, blunders: 0, reserved: null },
@@ -230,7 +258,31 @@ export function migrate(save) {
 
 /** Дозаполняет поля, которые могли не сохраниться. Дёшево и спасает от падений. */
 export function fillDefaults(S) {
+  // Раскладка шагов обучения поменялась (главы «Секонд» и «Пойзон» стали
+  // длиннее): номер шага из старого сейва внутри этих глав указывает не туда.
+  // Помечаем до дозаполнения — потом `sv` уже будет новым.
+  if (S.tut && S.tut.v === 2 && S.tut.sv !== STEPS_LAYOUT) S.tut.stale = true;
+  // Сейв из времени до «Что нового» — окно ему ещё не показывали.
+  if (S.news === undefined) S.news = 0;
   const fresh = newGame(S.seed || 1);
+  // Сейвы, начатые до обучения по главам (или вовсе до обучения), его не
+  // проходят: человек уже играет. Номер шага из старого сценария к новому
+  // не подходит, поэтому недоигранное обучение считается пройденным, а все
+  // приложения — уже скачанными.
+  if (!S.tut || S.tut.v !== 2) {
+    const ids = (S.tut && S.tut.ids) || {};
+    S.tut = { v: 2, active: false, step: 0, done: true, ids, part: null, ended: {}, mark: {}, auto: false };
+    for (const l of S.listings || []) {
+      if (!l.tutorial) continue;
+      if (l.seller) l.seller.patience = Math.min(l.seller.patience, 9);
+      l.noBuy = false;
+      l.buyFrom = null;
+      if (l.item) delete l.item.tut;
+    }
+    for (const it of S.items || []) delete it.tut;
+    for (const th of S.threads || []) if (th.data && th.data.buyer) delete th.data.buyer.tut;
+  }
+  if (!S.apps) S.apps = Object.fromEntries(ALL_APPS.map((id) => [id, { at: 0 }]));
   const walk = (target, source) => {
     for (const k of Object.keys(source)) {
       if (target[k] === undefined) {

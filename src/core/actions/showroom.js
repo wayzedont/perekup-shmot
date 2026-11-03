@@ -3,8 +3,8 @@
 // Заход с улицы — единственная продажа без переписки вообще. Человек
 // пришёл, померил, забрал. Денег чуть меньше, времени — ноль.
 
-import { rub, clamp } from '../util.js';
-import { MODELS } from '../data/models.js';
+import { rub } from '../util.js';
+
 import { itemName } from '../items.js';
 import {
   FITTING_BY_ID,
@@ -18,7 +18,7 @@ import {
   WINDOW_SLOTS,
   WINDOW_WEIGHT,
 } from '../showroom.js';
-import { rngOf, pay, notify, toast, touch, newThread, say, closeThread, mentorOnce } from '../kernel.js';
+import { pay, notify, toast, touch, newThread, say, closeThread, mentorOnce } from '../kernel.js';
 import { makeBuyer, buyerName } from '../people/buyers.js';
 import { completeSale } from './selling.js';
 

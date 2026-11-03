@@ -2,18 +2,19 @@
 // Осмотр стоит времени, а хорошее разбирают по часам — поэтому
 // «что смотреть» это главное решение утра понедельника.
 
-import { esc, rub, num, plural, dur } from '../../core/util.js';
+import { esc, rub, plural, dur } from '../../core/util.js';
 import { MODELS } from '../../core/data/models.js';
-import { TIERS, CONDS } from '../../core/data/catalog.js';
+import { TIERS } from '../../core/data/catalog.js';
 import { hourIndex, dayIndex, nextRestock, isSecondOpen, weekdayAt, SCHEDULE } from '../../core/time.js';
 import { RIVAL_NAME } from '../../core/rival.js';
-import { valueOrig, valueFake, freeSlots, hypePct } from '../../core/economy.js';
+import { valueOrig, valueFake, freeSlots, seenItem } from '../../core/economy.js';
 import { itemName, sizeLabel, shownCondition, colorwayName } from '../../core/items.js';
-import { findSlot, priceNow, discountK, assortmentLabel, secondPool } from '../../core/market/second.js';
+import { findSlot, priceNow, discountK, assortmentLabel } from '../../core/market/second.js';
 import { inspectMinutes } from '../../core/inspect.js';
 import { knowledgeOf } from '../../core/notebook.js';
+import { minutesToSecondOpen } from '../../core/actions/buying.js';
+import { upgraded } from '../../core/data/apps.js';
 import {
-  thumb,
   bigPhoto,
   itemRow,
   authTag,
@@ -21,7 +22,6 @@ import {
   defectTag,
   inspectPanel,
   emptyState,
-  sectionLabel,
 } from '../components.js';
 
 export const view = (S) => {
@@ -80,6 +80,7 @@ export const view = (S) => {
       const seen = Object.keys(it.seen || {}).length;
       const tags = [
         slot.reserved && slot.reserved > S.t ? '<span class="tag vip">отложено для тебя</span>' : '',
+        slot.rush ? '<span class="tag vip">из гардероба</span>' : '',
         m.noname ? '<span class="tag">Ноунейм</span>' : authTag(it),
         m.noname ? '' : hypeTag(S, it),
         defectTag(it),
@@ -87,19 +88,26 @@ export const view = (S) => {
       ].join('');
       return itemRow(it, {
         price: rub(priceNow(S, slot)),
-        meta: m.noname ? '' : `как ориг ~${rub(valueOrig(S, { ...it, cond: it.shownCond }))}`,
+        meta: m.noname ? '' : `как ориг ~${rub(valueOrig(S, seenItem(it)))}`,
         tags,
         route: `second/item/${slot.id}`,
       });
     })
     .join('');
 
+  // До открытия можно встать у дверей — и быть первым у полки.
+  const toOpen = minutesToSecondOpen(S);
+  const door = toOpen
+    ? `<button class="btn full split" data-act="waitSecondOpen"><span>Ждать открытия у дверей</span><span>${esc(dur(toOpen))}</span></button>`
+    : '';
+
   return {
     body:
       hero +
+      door +
       info +
       rival +
-      (open ? '' : '<div class="callout">Секонд закрыт. Работает с 10:00 до 21:00.</div>') +
+      (open || toOpen ? '' : '<div class="callout">Секонд закрыт. Работает с 10:00 до 21:00.</div>') +
       (rows || emptyState('Всё разобрали. Приходи к следующему завозу.')),
   };
 };
@@ -108,13 +116,13 @@ export const view = (S) => {
 
 function slotView(S, id) {
   const slot = findSlot(S, id);
-  if (!slot) return { title: 'Вещь', body: emptyState('Эту вещь уже забрали.') };
+  if (!slot) return { title: 'Вещь', body: emptyState('Эту вещь уже забрали.'), gone: true };
   const item = slot.item;
   const m = MODELS[item.m];
   const price = priceNow(S, slot);
-  const shown = { ...item, cond: item.shownCond };
+  const shown = seenItem(item);
   const asOrig = valueOrig(S, shown);
-  const asFake = valueFake(S, item);
+  const asFake = valueFake(S, shown);
   const open = isSecondOpen(S.t);
   const know = knowledgeOf(S, item.m);
 
@@ -147,11 +155,19 @@ function slotView(S, id) {
         : ''
     }`;
 
-  const foot = `<button class="btn full" data-act="buySecond" data-id="${slot.id}" ${open && freeSlots(S) > 0 ? '' : 'disabled'}>
+  // Мешок-клуб: раз в день отложить вещь, пока думаешь или копишь.
+  const held = slot.reserved && slot.reserved > S.t;
+  const canHold = upgraded(S, 'secondClub') && open && !held && S.second.reserveDay !== dayIndex(S.t);
+  const hold = held
+    ? '<div class="muted pos" style="text-align:center">Отложено для тебя — никто не возьмёт</div>'
+    : canHold
+      ? `<button class="btn sec full" data-act="reserveSlot" data-id="${slot.id}">Отложить на 3 часа · клуб</button>`
+      : '';
+  const foot = `${hold}<button class="btn full" data-act="buySecond" data-id="${slot.id}" ${open && (freeSlots(S) > 0 || slot.tut) ? '' : 'disabled'}>
       Купить за ${rub(price)}
     </button>
     <div class="muted" style="text-align:center">${
-      !open ? 'Секонд закрыт' : freeSlots(S) <= 0 ? 'Шкаф забит' : 'Ценник по бирке: продавщицы не отличают ориг от пали'
+      !open ? 'Секонд закрыт' : freeSlots(S) <= 0 && !slot.tut ? 'Шкаф забит' : 'Ценник по бирке: продавщицы не отличают ориг от пали'
     }</div>`;
 
   return { title: 'Секонд', body, foot };

@@ -49,7 +49,11 @@ export function generateEvent(S, rng, addRumor) {
     };
     addRumor(`👀 Инсайд: в закрытых чатах начали скупать ${m.b} ${m.n}. Если подтвердится — через пару дней будет хайп.`);
   } else if (r < 0.52) {
-    const m = rng.weighted(BRANDED, (x) => S.market.h[x.i] * S.market.h[x.i]);
+    // Модель на волне хайпа «задолбать» не может: иначе прогноз радара (и
+    // Тимура) оборачивается обманом через день после того, как сбылся.
+    const waving = (x) => S.events.some((w) => w.type === 'wave' && w.m === x.i && w.end > S.t);
+    const pool = BRANDED.filter((x) => !waving(x));
+    const m = rng.weighted(pool.length ? pool : BRANDED, (x) => S.market.h[x.i] * S.market.h[x.i]);
     e = {
       type: 'dead',
       m: m.i,

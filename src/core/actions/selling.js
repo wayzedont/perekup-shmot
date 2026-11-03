@@ -3,17 +3,15 @@
 
 import { clamp, priceRound, rub, num } from '../util.js';
 import { MODELS } from '../data/models.js';
-import { TIERS } from '../data/catalog.js';
-import { REVIEWS } from '../data/content.js';
 import {
   valueOrig,
   valueFake,
   detectChance,
   buyersPerDay,
-  ratingOf,
+  seenItem,
 } from '../economy.js';
-import { itemName, sizeLabel, makeSale, shownCondition } from '../items.js';
-import { recordTruth, recordDeal } from '../notebook.js';
+import { itemName, makeSale, passesAsOrig } from '../items.js';
+import { recordDeal } from '../notebook.js';
 import {
   counterOffer,
   reactToAuthAnswer,
@@ -23,8 +21,9 @@ import {
   fastReplyBonus,
   waitedTooLong,
   expectedStars,
+  reviewText,
 } from '../people/buyers.js';
-import { postItem, post as channelPost, scandal } from '../channel.js';
+import { postItem, scandal } from '../channel.js';
 import {
   rngOf,
   pay,
@@ -35,12 +34,15 @@ import {
   touch,
   bump,
   say,
-  findThread,
   closeThread,
   mentorOnce,
   mentorSay,
   addReview,
   schedule,
+  dropItem,
+  closeBuyersOf,
+  installed,
+  fx,
 } from '../kernel.js';
 import { checkBan, onLevelUp } from '../tick.js';
 import { checkGoals } from '../progression.js';
@@ -48,7 +50,8 @@ import { checkGoals } from '../progression.js';
 /* ======================= ОБЪЯВЛЕНИЕ ======================= */
 
 export function priceSuggestions(S, item, asOrig) {
-  const base = asOrig ? valueOrig(S, item) : valueFake(S, item);
+  const seen = seenItem(item);
+  const base = asOrig ? valueOrig(S, seen) : valueFake(S, seen);
   return {
     base,
     quick: priceRound(base * 0.86),
@@ -66,11 +69,18 @@ export function listItem(S, item, { price, asOrig, avito, tg }) {
     toast(S, 'Выбери хотя бы одну площадку');
     return null;
   }
-  if (avito && S.rep.banUntil > S.t) avito = false;
+  if (avito && (S.rep.banUntil > S.t || !installed(S, 'avito'))) avito = false;
   if (tg && !S.tg.has) tg = false;
+  if (!avito && !tg) {
+    toast(S, 'Выставить негде: Авитка заблокирована или не скачана, канала нет');
+    return null;
+  }
 
   const hadTg = item.sale && item.sale.tg;
   const oldPrice = item.sale ? item.sale.price : 0;
+  // Ориг стал репликой или наоборот — это другое объявление: договорённость
+  // о цене оригинала не может перейти на реплику.
+  if (item.sale && item.sale.asOrig !== asOrig) closeBuyersOf(S, item, null, 'Объявление изменено');
   if (item.sale) {
     item.sale.price = price;
     item.sale.asOrig = asOrig;
@@ -89,30 +99,24 @@ export function listItem(S, item, { price, asOrig, avito, tg }) {
     if (th.kind !== 'buyer' || th.closed || !th.data.buyer) continue;
     if (th.data.buyer.item !== item.id) continue;
     const gone = (th.platform === 'avito' && !avito) || (th.platform === 'tg' && !tg);
-    if (gone) closeThread(S, th, 'Объявление снято');
+    // Учебного покупателя не прогоняем, пока идёт глава: на нём держится сценарий.
+    const keep = th.data.buyer.tut && S.tut && S.tut.active;
+    if (gone && !keep) closeThread(S, th, 'Объявление снято');
     else if (!th.data.buyer.agreed && price < th.data.buyer.offer) th.data.buyer.offer = price;
   }
 
-  // Про саму цену рассказывает шаг ob_price из онбординга, поэтому здесь —
-  // только про ликвидность, и без второго «выставил?» подряд.
-  mentorOnce(
-    S,
-    'listTip',
-    'И ещё про ликвидность: горячая вещь по рынку уйдёт за пару дней, мёртвая будет висеть месяц и дешеветь прямо у тебя в шкафу. Смотри «Хайп-радар», прежде чем закупаться.',
-  );
   checkGoals(S);
   touch(S);
   return true;
 }
 
 export function unlist(S, item) {
-  item.sale = null;
-  for (const th of S.threads) {
-    if (th.kind === 'buyer' && !th.closed && th.data.buyer && th.data.buyer.item === item.id) {
-      closeThread(S, th, 'Объявление снято');
-    }
+  if (item.tut && S.tut && S.tut.active) {
+    toast(S, 'Тимур: не снимай — клиент уже ищет.');
+    return null;
   }
-  touch(S);
+  item.sale = null;
+  closeBuyersOf(S, item, null, 'Объявление снято');
   return true;
 }
 
@@ -125,8 +129,9 @@ export function repostToChannel(S, item) {
 
 /** Подсказка под ценой: сколько покупателей ждать и дорого ли это. */
 export function saleHint(S, item, price, asOrig, avito, tg) {
+  const seen = seenItem(item);
   const probe = {
-    ...item,
+    ...seen,
     sale: {
       price,
       asOrig,
@@ -142,7 +147,7 @@ export function saleHint(S, item, price, asOrig, avito, tg) {
     },
   };
   const perDay = buyersPerDay(S, probe);
-  const base = asOrig ? valueOrig(S, item) : valueFake(S, item);
+  const base = asOrig ? valueOrig(S, seen) : valueFake(S, seen);
   const ratio = price / Math.max(1, base);
   const verdict = ratio > 1.1 ? 'дорого' : ratio < 0.88 ? 'дёшево, уйдёт быстро' : 'в рынке';
   const days = perDay > 0.02 ? Math.round(1 / perDay) : null;
@@ -171,7 +176,10 @@ function buyerItem(S, th) {
 function checkLate(S, th) {
   const rng = rngOf(S);
   const b = th.data.buyer;
-  if (waitedTooLong(S, rng, b)) {
+  // Учебный покупатель дождётся, сколько бы игрок ни тянул. Бросок всё равно
+  // делаем, чтобы обучение не сдвигало случайности всей дальнейшей игры.
+  const late = waitedTooLong(S, rng, b);
+  if (late && !b.tut) {
     say(
       S,
       th,
@@ -195,7 +203,7 @@ function checkLate(S, th) {
 /** Нужно ли задать вопрос про подлинность перед сделкой. */
 function shouldAskAuth(S, rng, th, item) {
   const b = th.data.buyer;
-  if (b.asked.auth) return false;
+  if (b.asked.auth || b.noAuth) return false;
   if (!item.sale.asOrig) return false;
   const T = BUYER_TYPES[b.type];
   return rng.chance(T.askAuth);
@@ -268,6 +276,10 @@ export function counterToBuyer(S, th, amount) {
 }
 
 export function declineBuyer(S, th) {
+  if (th.data.buyer && th.data.buyer.tut && S.tut && S.tut.active) {
+    toast(S, 'Тимур: не отказывай, это мой клиент. Поторгуйся.');
+    return null;
+  }
   const rng = rngOf(S);
   say(S, th, 'me', 'Нет, спасибо');
   say(S, th, 'them', rng.pick(['Ну как хотите', 'Ок, удачи']));
@@ -348,6 +360,39 @@ export function answerAuth(S, th, key) {
   return { state: 'agreed', price };
 }
 
+/** Есть ли что прислать покупателю прямо сейчас, не дожидаясь вопроса. */
+export function canShowProof(S, th) {
+  const item = buyerItem(S, th);
+  const b = th.data.buyer;
+  if (!item || !item.sale || !item.sale.asOrig || !b || b.agreed || b.asked.auth) return false;
+  return item.legitDone && item.verdict === 'orig';
+}
+
+/**
+ * Прислать чек первым. Параноик спрашивает про чек в первом же сообщении,
+ * а кнопка с ним появлялась только после «согласен» — когда он задаёт
+ * вопрос второй раз. Чек, присланный заранее, снимает вопрос совсем.
+ */
+export function showProof(S, th) {
+  if (!canShowProof(S, th)) return null;
+  const rng = rngOf(S);
+  const b = th.data.buyer;
+  const item = buyerItem(S, th);
+  say(S, th, 'me', AUTH_ANSWERS.proof.said);
+  say(
+    S,
+    th,
+    'them',
+    rng.pick(['О, с чеком — другое дело.', 'Вижу проверку, вопросов нет.', 'Отлично, что проверено.']) +
+      ` ${rub(b.offer)} в силе.`,
+  );
+  b.asked.auth = true;
+  b.proofShown = true;
+  b.pressure = clamp(b.pressure + AUTH_ANSWERS.proof.pressure, -1, 1);
+  touch(S);
+  return true;
+}
+
 /* ======================= ЗАВЕРШЕНИЕ СДЕЛКИ ======================= */
 
 export function completeSale(S, th) {
@@ -364,7 +409,7 @@ export function completeSale(S, th) {
   const bonus = fastReplyBonus(S, b);
   const price = Math.round(b.price * bonus.priceK);
   const asOrig = item.sale.asOrig;
-  const fakeAsOrig = !item.real && asOrig;
+  const fakeAsOrig = !passesAsOrig(item) && asOrig;
   const hiddenDefect = item.defects.length > 0 && !item.condSeen;
 
   const deal = {
@@ -378,14 +423,23 @@ export function completeSale(S, th) {
     at: S.t,
     asOrig,
     real: item.real,
+    fakeAsOrig,
+    // Что игрок знал о вещи в момент продажи: экран итога не должен
+    // выдавать правду, которой у него не было.
+    knownFake: item.verdict === 'fake',
+    unchecked: item.verdict === 'unknown' && !m.noname,
+    src: item.src,
     buyer: th.name,
     tierKey: m.tier,
     itemSnapshot: JSON.parse(JSON.stringify({ ...item, sale: null })),
   };
   S.deals.unshift(deal);
   if (S.deals.length > 200) S.deals.length = 200;
+  // Первая продажа — начало истории в Хронике; список сделок со временем обрезается.
+  if (!S.firstDeal) S.firstDeal = { label: deal.label, price: deal.price, profit: deal.profit, at: deal.at };
 
   bump(S, 'sold');
+  fx('sale');
   S.stats.revenue += price;
   S.stats.profit += deal.profit;
   S.stats.bestDeal = Math.max(S.stats.bestDeal, deal.profit);
@@ -393,7 +447,7 @@ export function completeSale(S, th) {
   if (fakeAsOrig) bump(S, 'fakeAsOrig');
   recordDeal(S, item, deal.profit);
 
-  S.items = S.items.filter((x) => x !== item);
+  dropItem(S, item, th);
   say(
     S,
     th,
@@ -405,13 +459,6 @@ export function completeSale(S, th) {
         : `Покупатель перевёл ${rub(price)}. Отправлено СДЭКом.`,
   );
   closeThread(S, th);
-
-  for (const other of S.threads) {
-    if (other === th || other.kind !== 'buyer' || other.closed) continue;
-    if (other.data.buyer && other.data.buyer.item === item.id) {
-      closeThread(S, other, 'Вещь уже продана');
-    }
-  }
 
   const payoutAt = S.t + rng.int(20, 40);
   if (platform === 'avito') {
@@ -445,7 +492,7 @@ export function completeSale(S, th) {
     });
     schedule(S, after + rng.int(2, 20), 'review', {
       stars,
-      text: rng.pick(REVIEWS[stars]),
+      text: reviewText(rng, stars, { asReplica: !asOrig, hadDefectHidden: hiddenDefect }),
       platform,
       tierKey: m.tier,
     });

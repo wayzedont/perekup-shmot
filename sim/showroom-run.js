@@ -10,12 +10,12 @@
 import { createGame } from '../src/core/engine.js';
 import { advanceHours, sleep } from '../src/core/tick.js';
 import { dayIndex, hourIndex } from '../src/core/time.js';
-import { netWorth, valueOrig, ratingOf } from '../src/core/economy.js';
+import { valueOrig } from '../src/core/economy.js';
 import { makeItem } from '../src/core/items.js';
 import { MODELS } from '../src/core/data/models.js';
 import { Rng } from '../src/core/rng.js';
 import { rub } from '../src/core/util.js';
-import { FITTINGS, walkInRate, walkInPriceK, comfort } from '../src/core/showroom.js';
+import { FITTINGS, walkInRate } from '../src/core/showroom.js';
 import * as Showroom from '../src/core/actions/showroom.js';
 import { buyStorage } from '../src/core/actions/finance.js';
 import { listItem, acceptOffer, completeSale } from '../src/core/actions/selling.js';
@@ -25,7 +25,7 @@ const DAYS = +(process.argv[3] || 35);
 const CHATS_PER_DAY = 5;
 
 function shop(seed) {
-  const S = createGame(seed);
+  const S = createGame(seed, { tutorial: 'skip' });
   S.flags.started = 1;
   S.money = 900000;
   S.prog.lvl = 11;

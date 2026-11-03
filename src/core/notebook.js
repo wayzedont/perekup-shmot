@@ -8,10 +8,7 @@
 import { MODELS } from './data/models.js';
 import { TELLS } from './data/catalog.js';
 import { plural } from './util.js';
-
-export function emptyNotebook() {
-  return {};
-}
+import { installApp } from './kernel.js';
 
 function entry(S, mi) {
   let e = S.notebook[mi];
@@ -24,10 +21,14 @@ function entry(S, mi) {
 
 /** Запомнить подтверждённую правду о вещи. */
 export function recordTruth(S, item) {
+  // Первое подтверждённое знание ставит «Книжку».
+  installApp(S, 'notebook');
   const e = entry(S, item.m);
   e.checked++;
   e.lastAt = S.t;
-  if (!item.real) {
+  // Книжка помнит то, что показала проверка, а не скрытую правду: суперкопия,
+  // прошедшая чек, для игрока — оригинал.
+  if (item.verdict === 'fake' && !item.real) {
     e.fakes++;
     // Какие признаки у этой подделки реально были кривыми.
     for (const tell of Object.keys(item.flaws || {})) {

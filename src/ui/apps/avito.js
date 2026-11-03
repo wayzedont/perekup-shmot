@@ -2,17 +2,17 @@
 
 import { esc, rub, num, plural, priceRound } from '../../core/util.js';
 import { MODELS } from '../../core/data/models.js';
-import { CATS, TIERS, SIZE_SETS, sizesFor, CONDS } from '../../core/data/catalog.js';
+import { CATS, TIERS, sizesFor, SIZE_SETS } from '../../core/data/catalog.js';
 import { agoLabel, dateLabel } from '../../core/time.js';
-import { valueOrig, valueFake, ratingOf, isTrusted, legitCost } from '../../core/economy.js';
+import { ratingOf, isTrusted, legitCost } from '../../core/economy.js';
 import { itemName, sizeLabel, shownCondition, colorwayName } from '../../core/items.js';
 import { threadVisible } from '../../core/kernel.js';
-import { filterListings, findListing, deliveryFee, dealLevel } from '../../core/market/avito.js';
+import { filterListings, findListing, deliveryFee, dealLevel, photoSubject } from '../../core/market/avito.js';
 import { canPostAd, cooldownLeft, responderRange, pullLabel, fakeShare } from '../../core/market/buyad.js';
 import { SELLER_TYPES, SIGNALS } from '../../core/people/sellers.js';
 import { availableLevers } from '../../core/actions/buying.js';
-import { suspicionLabel, tellsFor } from '../../core/inspect.js';
-import { thumb, bigPhoto, itemRow, authTag, hypeTag, defectTag, inspectPanel, avatar, emptyState } from '../components.js';
+import { suspicionLabel } from '../../core/inspect.js';
+import { bigPhoto, itemRow, authTag, hypeTag, defectTag, inspectPanel, avatar, emptyState } from '../components.js';
 import { threadView, threadRow } from '../thread.js';
 
 export const view = (S) => {
@@ -105,12 +105,15 @@ function listingCard(S, l) {
         ? '<span class="tag">Только встреча</span>'
         : '<span class="tag info">Доставка</span>',
   );
+  if (l.grail) tags.push('<span class="tag vip">🏆 Грааль</span>');
   if (l.declared === 'fake') tags.push('<span class="tag bad">Реплика</span>');
   if (level === 'hot') tags.push('<span class="tag good">Сильно дешевле рынка</span>');
   else if (level === 'good') tags.push('<span class="tag good">Дёшево</span>');
   if (l.seller.type === 'shop' || l.seller.type === 'replica') tags.push('<span class="tag">Магазин</span>');
   if (l.threadId) tags.push('<span class="tag info">Чат</span>');
-  if (Object.keys(l.item.seen || {}).length || l.item.verdict !== 'unknown') tags.push(authTag(l.item));
+  // Чем знаешь о вещи до встречи — то и на карточке: на фото могла быть другая.
+  const known = l.item.verdict !== 'unknown' ? l.item : photoSubject(l);
+  if (Object.keys(known.seen || {}).length || known.verdict !== 'unknown') tags.push(authTag(known));
 
   return itemRow(l.item, {
     price: rub(l.seller.agreed ? l.seller.current : l.ask),
@@ -124,7 +127,7 @@ function listingCard(S, l) {
 
 function listingView(S, id) {
   const l = findListing(S, id);
-  if (!l) return { title: 'Объявление', body: emptyState('Объявление снято с публикации.') };
+  if (!l) return { title: 'Объявление', body: emptyState('Объявление снято с публикации.'), gone: true };
   const item = l.item;
   const m = MODELS[item.m];
   const price = l.seller.agreed ? l.seller.current : l.ask;
@@ -134,25 +137,23 @@ function listingView(S, id) {
 
   const stickers = [
     l.declared === 'fake' ? '<span class="tag bad">Реплика</span>' : '',
-    authTag(item),
+    authTag(item.verdict !== 'unknown' ? item : photoSubject(l)),
     defectTag(item),
   ].join('');
 
   const signalRows = l.signals.length
-    ? `<div class="card"><h3>На что обратить внимание</h3>
+    ? `<div class="card" data-tut="signals"><h3>На что обратить внимание</h3>
         ${l.signals.map((s) => `<div class="kv"><span>${esc(SIGNALS[s].n)}</span><span></span></div>`).join('')}
         <div class="muted">Каждый пункт по отдельности встречается и у честных продавцов. Опасно, когда их сразу несколько.</div></div>`
     : '';
 
-  const inspect = l.photosAsked
-    ? inspectPanel(S, item, { mode: 'photo', act: 'inspectListing', ctx: l.id, title: 'Осмотр по фото' })
-    : `<div class="card"><h3>Осмотр</h3>
-        <div class="muted">Чтобы что-то рассмотреть, попроси у продавца фото бирок и швов — или договорись о встрече.</div>
-        <button class="btn sec full" data-act="askSeller" data-id="${l.id}" data-q="photos">Попросить фото бирок</button></div>`;
+  // На объявлении про фото и осмотр — ничего: всё это только в переписке.
+  // Путь один: «Написать» → попросить фото → проверка под снимками.
+  const inspect = '';
 
   const body = `
     ${bigPhoto(item, stickers)}
-    <div class="card">
+    <div class="card" data-tut="price">
       <h3>${esc(itemName(item))}</h3>
       <div class="money" style="font-size:25px">${rub(price)}</div>
       ${l.seller.agreed ? `<div class="muted">Договорились · в объявлении было ${rub(l.ask)}</div>` : ''}
@@ -167,19 +168,16 @@ function listingView(S, id) {
       <div><span>Где</span>${l.mode === 'ship' ? esc(l.city) : 'м. ' + esc(l.metro)}</div>
       <div><span>Получение</span>${l.mode === 'ship' ? 'только доставка' : l.mode === 'meet' ? 'только встреча' : 'доставка или встреча'}</div>
     </div></div>
-    <div class="card"><h3>Описание</h3><p class="note">${esc(l.description)}</p>
+    <div class="card" data-tut="desc"><h3>Описание</h3><p class="note">${esc(l.description)}</p>
       ${l.photoNote ? `<div class="muted">📷 ${esc(l.photoNote)}</div>` : ''}
-      ${l.photoLegit ? `<div class="callout ${item.verdict === 'orig' ? 'ok' : 'danger'}">Легит-чек по фото: <b>${item.verdict === 'orig' ? 'оригинал' : 'паль'}</b></div>` : ''}
     </div>
-    <div class="card person">
+    <div class="card person" data-tut="seller">
       ${avatar(l.seller.name, l.id)}
       <div class="grow"><b>${esc(l.seller.name)}</b>
         <div class="muted">${esc(SELLER_TYPES[l.seller.type].n)} · на Авитке с ${esc(l.seller.since)} · ${l.seller.reviews} ${plural(l.seller.reviews, 'отзыв', 'отзыва', 'отзывов')}</div></div>
     </div>
     ${signalRows}
-    ${inspect}
-    ${l.photosAsked && !l.photoLegit && !m.noname ? `<button class="btn sec full split" data-act="legitListing" data-id="${l.id}">
-      <span>Легит-чек по фото · 20 мин</span><span>${rub(legitCost(S, item))}</span></button>` : ''}`;
+    ${inspect}`;
 
   const foot = `<div class="row">
       <button class="btn sec grow" data-act="openSellerChat" data-id="${l.id}">Написать</button>
@@ -193,6 +191,16 @@ function listingView(S, id) {
     }</div>`;
 
   return { title: 'Объявление', body, foot };
+}
+
+/** Что сказал чек по фото — и чего он не гарантирует. */
+export function photoVerdictNote(l) {
+  if (!l.photoVerdict) return '';
+  if (l.photoVerdict === 'fake') {
+    return '<div class="callout danger">Легит-чек по фото: <b>паль</b>. Тут сомнений нет.</div>';
+  }
+  return `<div class="callout ok">Легит-чек по фото: <b>на фото оригинал</b>.
+    <div class="muted">Проверены снимки, а не то, что приедет. Пришла посылка — проверь вещь ещё раз, пока идут сутки защиты.</div></div>`;
 }
 
 /* ======================= «СКУПАЮ ШМОТ» ======================= */
@@ -263,9 +271,9 @@ function meetingView(S, id) {
     </div>
     ${inspectPanel(S, item, { mode: 'hand', act: 'inspectMeet', ctx: l.id, title: 'Осмотр вживую' })}
     ${
-      !l.photoLegit && !m.noname
+      !l.handLegit && !m.noname && item.verdict !== 'fake'
         ? `<button class="btn sec full split" data-act="legitMeet" data-id="${l.id}">
-            <span>Легит-чек по фото · 20 мин</span><span>${rub(legitCost(S, item))}</span></button>`
+            <span>Легит-чек вживую · 20 мин<br><small class="muted">вещь в руках — ответ точный</small></span><span>${rub(legitCost(S, item))}</span></button>`
         : ''
     }
     ${

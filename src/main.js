@@ -1,31 +1,27 @@
 // Запуск игры: сборка состояния, действия интерфейса и игровой цикл.
 
-import { esc, rub, num, plural, parseNum, priceRound, dur } from './core/util.js';
+import { esc, rub, num, plural, parseNum } from './core/util.js';
 import { MODELS, BRANDED } from './core/data/models.js';
-import { CONDS, TIERS } from './core/data/catalog.js';
 import { COST_ROOM_WEEK, COST_FOOD_DAY } from './core/data/progress.js';
-import { SEASON_MODIFIERS, isSeasonOver, seasonDaysLeft } from './core/events.js';
+import { SEASON_MODIFIERS, seasonDaysLeft } from './core/events.js';
 import { seasonTitle, seasonMoments, seasonCarry, seasonLose } from './core/season.js';
 import { RIVAL_NAME } from './core/rival.js';
 import { dateLabel, dateLabelFull, clockLabel, hourIndex, nextRestock, SCHEDULE } from './core/time.js';
 import {
   netWorth,
-  capacity,
-  usedSlots,
-  freeSlots,
   valueOrig,
-  valueFake,
   pawnPrice,
   bookValue,
   hypePct,
   rhythmLabel,
   fastReplyBadge,
+  seenItem,
 } from './core/economy.js';
 import { itemName, sizeLabel, shownCondition } from './core/items.js';
 import { createGame, saveGame, loadGame, clearSave, restoreCounters } from './core/engine.js';
-import { touch, findThread, closeThread, say, toast as coreToast } from './core/kernel.js';
-import { advanceHours, advanceMinutes, sleep as sleepNight, onLevelUp } from './core/tick.js';
-import { checkGoals, applyUnlock } from './core/progression.js';
+import { touch, findThread, say, installed, installApp as installAppCore } from './core/kernel.js';
+import { advanceHours, advanceMinutes, sleep as sleepNight } from './core/tick.js';
+import { applyUnlock } from './core/progression.js';
 import { findListing } from './core/market/avito.js';
 import { findSlot } from './core/market/second.js';
 import { SUPPLIERS } from './core/market/suppliers.js';
@@ -40,6 +36,9 @@ import * as Staff from './core/actions/staff.js';
 import * as Showroom from './core/actions/showroom.js';
 import * as Brand from './core/actions/brand.js';
 import { fairPrice } from './core/brand.js';
+import * as Tutorial from './core/tutorial.js';
+import { tutorialActive, tutorialNext, tutorialSync, runTutorialHeadless, currentStep } from './core/tutorial.js';
+import { initCoach, updateCoach, coachAfterClick } from './ui/coach.js';
 
 import {
   UI,
@@ -60,10 +59,9 @@ import {
   updateClock,
   fillNotifCenter,
   isNotifOpen,
-  closeNotifCenter,
+  hideBanner,
 } from './ui/shell.js';
 import { $ } from './ui/dom.js';
-import { thumb, bigPhoto, emptyState } from './ui/components.js';
 
 import * as AvitoApp from './ui/apps/avito.js';
 import * as TgApp from './ui/apps/tg.js';
@@ -74,6 +72,12 @@ import * as BankApp from './ui/apps/bank.js';
 import * as ShopApp from './ui/apps/shop.js';
 import * as NotebookApp from './ui/apps/notebook.js';
 import { parcels, goals, job, settings } from './ui/apps/misc.js';
+import * as StoreApp from './ui/apps/store.js';
+import { startDownload, finishDownload, unlocked, DOWNLOAD_MS } from './ui/apps/store.js';
+import { dailyLabel } from './core/daily.js';
+import { upcomingCall } from './core/tutorial.js';
+import { NEWS, NEWS_VERSION } from './core/data/news.js';
+import { initSfx, setPref } from './ui/sfx.js';
 
 /* ======================= СОСТОЯНИЕ ======================= */
 
@@ -101,12 +105,32 @@ registerApp('parcels', parcels);
 registerApp('goals', goals);
 registerApp('job', job);
 registerApp('settings', settings);
+registerApp('store', StoreApp);
 
 /* ======================= ПОМОЩНИКИ ======================= */
 
 function after() {
+  // Общая страховка для всех действий, а не только тех, где не забыли
+  // afterTimeJump: если действие довело до полуночи — спать; если сезон
+  // кончился или пришло банкротство, а экран итогов чем-то перекрыли —
+  // вернуть его. Иначе часы стояли, а играть можно было дальше в никуда.
+  if (S.flags.started && hourIndex(S.t) === SCHEDULE.sleepHour && !S.flags.seasonEnd && !S.flags.bankrupt) {
+    doSleep(true);
+    return;
+  }
+  const wasTut = tutorialActive(S);
+  const wasPart = S.tut.part;
+  tutorialSync(S);
   saveGame(S);
   scheduleRender();
+  ensureBlockingSheet();
+  if (wasTut && !tutorialActive(S)) partDoneSheet(wasPart, false);
+  setTimeout(updateCoach, 0);
+}
+
+function ensureBlockingSheet() {
+  if (S.flags.bankrupt && !document.querySelector('#sheet [data-act="resetOk"]')) bankruptSheet();
+  else if (S.flags.seasonEnd && !S.flags.bankrupt && !document.querySelector('#sheet [data-act="newSeason"]')) seasonEndSheet();
 }
 
 function inputValue(id) {
@@ -125,12 +149,63 @@ function afterTimeJump() {
 
 /* ======================= ОКНА ======================= */
 
-function introSheet() {
-  sheet(`<h2>Перекуп шмота</h2>
-    <p>Понедельник, 7 сентября, 8 утра. На карте 5 000 ₽, в шкафу три поношенные вещи. Комната стоит ${rub(COST_ROOM_WEEK)} в неделю, еда и проезд — ${rub(COST_FOOD_DAY)} в день. Первый раз за комнату платить через семь дней.</p>
-    <p>Правила простые: бери дешевле, проверяй, продавай дороже. Сложность в том, что половина рынка — подделки, а посмотреть на вещь стоит времени, которого всегда не хватает.</p>
-    <p>Сезон идёт до Нового года. Начать проще всего с того, что уже лежит в шкафу, — Тимур написал в Телегу, с чего именно.</p>
-    <button class="btn full" style="background:#7a46d6" data-act="startGame">Погнали</button>`);
+/** Что каждая глава обучения дала игроку — для итогового окна. */
+const PART_DONE = {
+  avito: {
+    played: 'Худи продано в плюс, Самбы проверены в руках. А дальше ты уже сам выбрал вещь под заказ и поймал подмену по фото — деньги вернул через спор.',
+    skipped: 'Тимур всё сделал за тебя: купил и продал худи, взял трендовые Самбы и закрыл два заказа клиентов — один с подменой и возвратом через спор.',
+    learned: ['Фильтры и поиск на Авитке', 'Паль: признаки и легит-чек', 'Встреча, дефекты и торг', 'Объявление, цена и переписка', 'Доставка: чек в руках и спор за 24 часа'],
+    next: () =>
+      `Вечером выстави на Авитку старые вещи из шкафа. Завтра в 9:00 позвонит Тимур — покажет Телегу. Комната — ${rub(COST_ROOM_WEEK)} в понедельник, еда — ${rub(COST_FOOD_DAY)} в день.`,
+  },
+  tg: {
+    played: 'Свой канал заведён, первая продажа в нём — деньги сразу на карте. Хайп-радар прочитан, а первый заказ подписчика ты сам нашёл и отдал с прибылью.',
+    skipped: 'Тимур завёл тебе канал, продал подписчику вещь из него и закрыл для тебя первый заказ.',
+    learned: ['Свой канал и витрина', 'Подписчики: репост, реклама, розыгрыши', 'Продажа в канале', 'Хайп-радар', 'Заказ подписчика: от предоплаты до передачи'],
+    next: () => 'Пиши в канал, отвечай подписчикам, бери заказы. Продай что-нибудь сам — и в день завоза Тимур расскажет про секонд.',
+  },
+  second: {
+    played: 'Ты был у дверей к открытию и выбрал раньше Мирона. Брендовое в секонде — пятьдесят на пятьдесят паль: решает главный признак, а паль продают честно.',
+    skipped: 'Тимур сходил в «Мешок» к открытию, взял ориг и выставил его. Секонд теперь на телефоне.',
+    learned: ['Завоз по пн и чт, открытие в 10:00', 'Осмотр на скорость: главный признак', 'Мирон у полки к открытию', 'Паль — честно как реплику'],
+    next: () => 'Следующий завоз — будь у дверей к десяти. А через день-два Тимур покажет Пойзон.',
+  },
+  poizon: {
+    played: 'Две посылки в пути: шапка Норс — ставка до хайпа по старой цене Пойзона, и Вансы 46-го — под заказ Стаса, такого размера нигде больше нет.',
+    skipped: 'Тимур заказал за тебя шапку Норс до хайпа и Вансы 46-го под заказ Стаса — обе посылки в пути. Пойзон теперь на телефоне.',
+    learned: ['Срок доставки у каждой вещи', 'Цена Пойзона отстаёт от хайпа', 'Ставка заранее по прогнозу', 'Любой размер — под заказ подписчика'],
+    next: () => 'Посылки придут через 8–14 дней — Тимур напишет, а Вансы отдашь Стасу в переписке. А пока ты сам: расти канал, качай уровень, иди в топ перекупов Москвы.',
+  },
+};
+
+/** Дела Тимура на сегодня — в утренней сводке, чтобы день начинался с плана. */
+function dailyBlock(S) {
+  const D = S.daily;
+  if (!D || D.day !== Math.floor(S.t / 24) || !D.tasks.length) return '';
+  return `<div class="card tight daily">
+      <div class="row between"><h4>Дела Тимура</h4><span class="streak ${D.streak ? 'on' : ''}">🔥 ${D.streak}</span></div>
+      ${D.tasks.map((t) => `<div class="goal"><div class="mark"></div><div class="gn">${esc(dailyLabel(S, t))}</div><span></span></div>`).join('')}
+      <div class="muted">${D.lost ? `Серия в ${D.lost} дн. сгорела — начинай заново. ` : ''}Все три до полуночи — серия +1.</div>
+    </div>`;
+}
+
+/** Глава обучения кончилась: что умеешь, какие главы позади и что дальше. */
+function partDoneSheet(part, skipped) {
+  const P = PART_DONE[part];
+  if (!P) return;
+  const parts = Tutorial.PARTS.map((p) => {
+    const done = S.tut.ended[p.id] !== undefined;
+    return `<span class="part-chip${done ? ' done' : ''}${p.id === part ? ' now' : ''}">${done ? '✓ ' : ''}${esc(p.n)}</span>`;
+  }).join('');
+  const last = part === 'poizon';
+  sheet(`<h2>${last ? 'Ты в деле 🔥' : `Глава «${esc(Tutorial.PARTS.find((p) => p.id === part).n)}» ${skipped ? 'пропущена' : 'пройдена'}`}</h2>
+    <div class="part-chips">${parts}</div>
+    <p>${esc(skipped ? P.skipped : P.played)}</p>
+    <div class="card tight">${P.learned.map((x) => `<div class="kv"><span>${esc(x)}</span><span class="pos">✓</span></div>`).join('')}</div>
+    <div class="callout info"><b>Что дальше</b><br>${P.next(S)}${
+      part === 'avito' ? ' Время снова идёт: секунда — минута.' : ''
+    }</div>
+    <button class="btn full" data-act="closeSheet">${last ? 'Погнали' : 'Понял'}</button>`);
 }
 
 function timeSheet() {
@@ -179,7 +254,7 @@ function morningSheet(log) {
   // Что сегодня.
   const today = [];
   const restock = nextRestock(S.t);
-  if (restock.label === 'сегодня в 10:00') {
+  if (restock.label === 'сегодня в 10:00' && installed(S, 'second')) {
     today.push(restock.big ? 'В 10:00 большой завоз в секонде' : 'В 10:00 подвоз в секонде');
   }
   const dw = new Date(2026, 8, 7 + Math.floor(S.t / 24)).getDay();
@@ -191,7 +266,10 @@ function morningSheet(log) {
       rhythmLabel(S).n.slice(1) +
       (dw === 5 || dw === 6 ? ': зарплата и выходные' : dw === 1 || dw === 2 ? ' — зато на рынке есть что взять' : ''),
   );
-  if (S.raffle && !S.raffle.done && S.raffle.resultAt - S.t < 24) today.push('Сегодня итоги раффла');
+  if (installed(S, 'tg') && S.raffle && S.raffle.entered && !S.raffle.done && S.raffle.resultAt - S.t < 24) today.push('Сегодня итоги раффла');
+  // Звонок Тимура сегодня — первым делом в план дня.
+  const call = upcomingCall(S);
+  if (call && call.text.startsWith('Сегодня')) today.unshift(call.text);
   if (fastReplyBadge(S)) today.push(`Значок «отвечает быстро» держится ${S.streak.days} ${plural(S.streak.days, 'день', 'дня', 'дней')} подряд`);
   if (S.rep.banUntil > S.t) today.push('Авитка заблокирована — работай через канал');
   const arriving = S.shipments.filter((sh) => sh.eta - S.t < 24).length;
@@ -210,7 +288,7 @@ function morningSheet(log) {
   else if (orders.some((t) => t.data.order.deadline - S.t < 48)) nudge = 'У заказа горит срок. Клиенты помнят, кто подвёл.';
   else if (unlisted) nudge = `В шкафу ${unlisted} ${plural(unlisted, 'вещь', 'вещи', 'вещей')} без объявления. Деньги в них не работают.`;
   else if (stale) nudge = `${stale} ${plural(stale, 'вещь залежалась', 'вещи залежались', 'вещей залежались')}. Сбрось цену или сдай в скупку.`;
-  else if (restock.label === 'сегодня в 10:00') nudge = 'Завоз в десять. Приличное разберут за несколько часов — думай быстро.';
+  else if (restock.label === 'сегодня в 10:00' && installed(S, 'second')) nudge = 'Завоз в десять. Приличное разберут за несколько часов — думай быстро.';
   else nudge = 'Посмотри, что в ликвиде, и реши, во что вкладываться.';
 
   sheet(`<h2>Доброе утро</h2>
@@ -222,6 +300,7 @@ function morningSheet(log) {
         : ''
     }
     ${today.length ? `<div class="callout"><b>Сегодня</b><br>${today.map(esc).join('<br>')}</div>` : ''}
+    ${dailyBlock(S)}
     <div class="card tight">
       <h4>Сейчас в ликвиде</h4>
       ${hot.map((x) => `<div class="kv"><span>${esc(x.m.full)}</span><span>${x.h}%</span></div>`).join('')}
@@ -310,7 +389,7 @@ function sellSheet(itemId) {
     ${
       m.noname
         ? ''
-        : `<div class="seg">
+        : `<div class="seg" data-tut="sell-kind">
             <button class="${sm.asOrig ? 'on' : ''}" data-act="sellSet" data-key="asOrig" data-val="1">Оригинал</button>
             <button class="${!sm.asOrig ? 'on' : ''}" data-act="sellSet" data-key="asOrig" data-val="0">Реплика</button>
           </div>`
@@ -319,7 +398,7 @@ function sellSheet(itemId) {
     <div class="muted">Рынок ${sm.asOrig ? 'оригиналов' : 'реплик'} сейчас: ~${rub(prices.base)}</div>
     <div class="row wrap">
       <button class="chip" data-act="sellPrice" data-val="${prices.quick}">Быстро · ${rub(prices.quick)}</button>
-      <button class="chip" data-act="sellPrice" data-val="${prices.market}">Рынок · ${rub(prices.market)}</button>
+      <button class="chip ${sm.price === prices.market ? 'on' : ''}" data-tut="market" data-act="sellPrice" data-val="${prices.market}">Рынок · ${rub(prices.market)}</button>
       <button class="chip" data-act="sellPrice" data-val="${prices.greedy}">Жадно · ${rub(prices.greedy)}</button>
     </div>
     <input class="inp num" id="sellPriceInput" data-input="sellPrice" inputmode="numeric" value="${sm.price}" aria-label="Цена">
@@ -347,8 +426,23 @@ A.back = () => {
   after();
 };
 A.openApp = (d) => {
+  // Первое открытие гасит синюю точку «новое» у иконки.
+  const a = S.apps && S.apps[d.app];
+  if (a && a.fresh) delete a.fresh;
   go(d.app, 'main');
   after();
+};
+/** «Загрузить» в Апсторе: кольцо загрузки, потом приложение на телефоне. */
+A.installApp = (d) => {
+  const id = d.app;
+  if (installed(S, id) || !unlocked(S, id)) return;
+  startDownload(id);
+  scheduleRender();
+  setTimeout(() => {
+    finishDownload(id);
+    installAppCore(S, id);
+    after();
+  }, DOWNLOAD_MS);
 };
 A.go = (d) => {
   goRoute(d.route);
@@ -381,9 +475,70 @@ A.showMore = () => {
   touch(S);
   after();
 };
+/** «Что нового» — один раз для тех, кто играл до обновления. */
+function newsSheet() {
+  S.news = NEWS_VERSION;
+  touch(S);
+  sheet(`<h2>Что нового</h2>
+    <p class="muted">Пока тебя не было, в игре появилось:</p>
+    ${NEWS.map(
+      (x) => `<button class="card tight full-btn" data-act="newsGo" data-app="${x.where}">
+        <div class="row"><span style="font-size:22px">${x.icon}</span><b>${esc(x.n)}</b></div>
+        <div class="muted">${esc(x.t)}</div></button>`,
+    ).join('')}
+    <button class="btn full" data-act="closeSheet">Понял, играть</button>`);
+}
+
+A.newsGo = (d) => {
+  closeSheet();
+  go(d.app);
+  after();
+};
+
 A.closeSheet = () => {
   closeSheet();
 };
+A.refresh = () => {
+  touch(S);
+  after();
+};
+
+/* --- обучение --- */
+A.tutNext = () => {
+  const was = tutorialActive(S);
+  const part = S.tut.part;
+  tutorialNext(S);
+  after();
+  if (was && !tutorialActive(S)) partDoneSheet(part, false);
+};
+/** Пауза кончилась — шаг ожидания делает своё (покупатель пишет). */
+A.tutWait = () => {
+  const step = currentStep(S);
+  if (step && step.kind === 'wait' && step.auto) step.auto(S);
+  after();
+};
+/** «Пропустить» — эту главу. Следующие придут своим звонком. */
+A.tutSkip = () => {
+  if (!tutorialActive(S)) return;
+  const part = S.tut.part;
+  closeSheet();
+  // Тимур доигрывает главу без экрана. Его уведомления за это время уходят
+  // только в шторку — иначе после пропуска пачка старых баннеров («Перевод
+  // от Тимура», «Покупатель пишет»…) ехала бы поверх итогового окна.
+  const onNotify = S.onNotify;
+  S.onNotify = null;
+  runTutorialHeadless(S);
+  S.onNotify = onNotify;
+  UI.queue = [];
+  hideBanner();
+  go(null);
+  saveGame(S);
+  scheduleRender();
+  partDoneSheet(part, true);
+  setTimeout(updateCoach, 0);
+};
+/** Открыть окно продажи заново, не сбрасывая то, что игрок уже выбрал. */
+A.sellSheetKeep = (d) => sellSheet(d.id);
 
 /* --- фильтры --- */
 A.search = () => {
@@ -467,6 +622,21 @@ A.sleep = () => {
   doSleep(false);
 };
 A.timeSheet = () => timeSheet();
+A.buyUpgrade = (d) => {
+  if (Finance.buyUpgrade(S, d.id)) toast('Подключено ✓');
+  after();
+};
+
+A.reserveSlot = (d) => {
+  Finance.reserveSlot(S, S.second.items.find((x) => x.id === +d.id));
+  after();
+};
+
+A.setPref = (d) => {
+  setPref(d.key, d.val === '1');
+  render();
+};
+
 A.setSpeed = (d) => {
   S.ui.speed = +d.val;
   touch(S);
@@ -592,8 +762,15 @@ A.inspectMeetCond = (d) => {
 A.legitMeet = (d) => {
   const l = findListing(S, d.id);
   if (!l) return;
-  const res = Buying.meetLegit(S, l);
-  if (res) toast(res.verdict === 'orig' ? 'Легит-чек: оригинал' : 'Легит-чек: ПАЛЬ');
+  const res = Buying.handLegit(S, l);
+  if (res) {
+    sheet(`<h2>Легит-чек вживую</h2>
+      <div class="verdict-big ${res.verdict === 'orig' ? 'pos' : 'neg'}">${res.verdict === 'orig' ? 'ОРИГИНАЛ ✓' : 'ПАЛЬ ✗'}</div>
+      <p>${esc(itemName(l.item))}. Вещь у тебя в руках — подменить её уже нельзя, ответ точный.${
+        res.verdict === 'orig' ? ' Чек остаётся у вещи: его можно показать покупателю.' : ''
+      }</p>
+      <button class="btn full" data-act="closeSheet">Понятно</button>`);
+  }
   if (afterTimeJump()) return;
   after();
 };
@@ -631,7 +808,7 @@ A.payScam = (d) => {
 A.inspectListing = (d) => {
   const l = findListing(S, d.id);
   if (!l) return;
-  Items.inspectTell(S, l.item, d.tell, 'photo');
+  Buying.photoInspect(S, l, d.tell);
   if (afterTimeJump()) return;
   after();
 };
@@ -641,11 +818,15 @@ A.inspectListingCond = () => {
 A.legitListing = (d) => {
   const l = findListing(S, d.id);
   if (!l) return;
-  const res = Buying.meetLegit(S, l);
+  const res = Buying.photoLegit(S, l);
   if (res) {
     sheet(`<h2>Легит-чек по фото</h2>
-      <div class="verdict-big ${res.verdict === 'orig' ? 'pos' : 'neg'}">${res.verdict === 'orig' ? 'ОРИГИНАЛ ✓' : 'ПАЛЬ ✗'}</div>
-      <p>${esc(itemName(l.item))}. По фотографиям точность около 93% — суперкопии иногда проходят.</p>
+      <div class="verdict-big ${res.verdict === 'orig' ? 'pos' : 'neg'}">${res.verdict === 'orig' ? 'НА ФОТО ОРИГИНАЛ' : 'ПАЛЬ ✗'}</div>
+      <p>${
+        res.verdict === 'orig'
+          ? 'Сервис проверил снимки, а не вещь. Бывает, присылают фото чужого оригинала, а отправляют паль, — и хорошая копия на фото тоже иногда проходит. Пришла посылка — проверь её ещё раз в шкафу, пока идут сутки защиты.'
+          : 'Сервис нашёл паль на снимках. Тут ошибки нет: паль на фото — паль и в посылке.'
+      }</p>
       <button class="btn full" data-act="closeSheet">Понятно</button>`);
   }
   if (afterTimeJump()) return;
@@ -671,6 +852,15 @@ A.buySecond = (d) => {
     toast('Куплено');
     go('second', 'main');
   }
+  after();
+};
+A.waitSecondOpen = () => {
+  const res = Buying.waitSecondOpen(S);
+  if (res && res.slept) {
+    doSleep(true);
+    return;
+  }
+  if (res) toast('Открылись! Ты у полки первым');
   after();
 };
 
@@ -718,7 +908,7 @@ A.legitCheck = (d) => {
   if (res) {
     sheet(`<h2>Легит-чек</h2>
       <div class="verdict-big ${res.verdict === 'orig' ? 'pos' : 'neg'}">${res.verdict === 'orig' ? 'ОРИГИНАЛ ✓' : 'ПАЛЬ ✗'}</div>
-      <p>${esc(itemName(item))} · ${esc(sizeLabel(item))}. Сервис смотрит бирки, швы и коды. Точность около 97%.</p>
+      <p>${esc(itemName(item))} · ${esc(sizeLabel(item))}. Вещь у сервиса в руках: бирки, швы, коды — ответ точный.</p>
       ${res.canDispute ? '<div class="callout danger">Продавец писал «оригинал». Можно открыть спор и вернуть деньги — но только пока идут 24 часа защиты.</div>' : ''}
       <div class="callout ok">Записал в книжку: теперь ты знаешь, чего ждать от этой модели.</div>
       <button class="btn full" data-act="closeSheet">Понятно</button>`);
@@ -786,7 +976,7 @@ A.pawnSheet = (d) => {
     <p>Скупщик осмотрел ${esc(itemName(item))}.${item.verdict === 'fake' ? ' «Это паль, брат. Больше не дам.»' : ''}</p>
     <div class="kv"><span>Предлагает</span><span>${rub(price)}</span></div>
     <div class="kv"><span>Ты вложил</span><span>${rub(item.cost)}</span></div>
-    <div class="kv"><span>Рынок</span><span>~${rub(valueOrig(S, item))}</span></div>
+    <div class="kv"><span>Рынок</span><span>~${rub(valueOrig(S, seenItem(item)))}</span></div>
     <p class="muted">Быстрые деньги вместо ожидания. Иногда это разумно: место в шкафу тоже стоит денег.</p>
     <button class="btn full" data-act="pawnOk" data-id="${item.id}">Сдать за ${rub(price)}</button>
     <button class="btn sec full" data-act="closeSheet">Не надо</button>`);
@@ -863,9 +1053,13 @@ A.giveawayOk = (d) => {
 A.closeThread = (d) => {
   const th = findThread(S, d.id);
   if (!th) return;
+  if (!th.closed && th.data.buyer && th.data.buyer.tut && tutorialActive(S)) {
+    toast('Тимур: не закрывай — это мой клиент.');
+    return;
+  }
   if (!th.closed) {
+    if (th.kind === 'order' && !Social.declineOrder(S, th)) return;
     if (th.kind === 'lot') say(S, th, 'me', 'Не интересно.');
-    if (th.kind === 'order') Social.declineOrder(S, th);
     if (th.kind === 'buyer' && th.data.buyer && th.data.buyer.agreed) say(S, th, 'me', 'Извините, передумал.');
   }
   th.closed = true;
@@ -898,6 +1092,12 @@ A.answerAuth = (d) => {
   Selling.answerAuth(S, th, d.key);
   after();
 };
+A.showProof = (d) => {
+  const th = findThread(S, d.id);
+  if (!th) return;
+  Selling.showProof(S, th);
+  after();
+};
 A.completeSale = (d) => {
   const th = findThread(S, d.id);
   if (!th) return;
@@ -910,7 +1110,13 @@ A.completeSale = (d) => {
       <div class="kv"><span>Себестоимость</span><span>${rub(deal.cost)}</span></div>
       <div class="kv"><span>Прибыль</span><span class="${deal.profit >= 0 ? 'pos' : 'neg'}">${deal.profit >= 0 ? '+' : ''}${rub(deal.profit)}</span></div>
       ${deal.platform === 'avito' ? '<div class="muted">Деньги придут через день-два, когда покупатель заберёт посылку.</div>' : ''}
-      ${!deal.real && deal.asOrig ? '<div class="callout danger">Это была паль под видом оригинала. Если покупатель проверит — прилетит.</div>' : ''}
+      ${
+        deal.asOrig && deal.knownFake
+          ? '<div class="callout danger">Ты продал паль под видом оригинала. Если покупатель проверит — прилетит.</div>'
+          : deal.asOrig && deal.unchecked
+            ? '<div class="callout">Вещь ушла как оригинал без легит-чека. Если это была паль и покупатель проверит — прилетит.</div>'
+            : ''
+      }
       <button class="btn full" data-act="closeSheet">Отлично</button>`);
   }
   after();
@@ -1021,7 +1227,7 @@ A.refuseClaim = (d) => {
 A.createChannelSheet = () => {
   const suggestion = CHANNEL_NAME_SUGGESTIONS[Math.floor(Math.random() * CHANNEL_NAME_SUGGESTIONS.length)];
   sheet(`<h2>Свой канал</h2>
-    <p>Канал — это твоя витрина без комиссии и, главное, источник заказов. Подписчики начнут писать: «ищу такие-то, размер такой-то, плачу столько». Это лучшие деньги в игре.</p>
+    <p>Канал — это твоя витрина для своих: платят сразу, а главное — пишут заказы. Подписчики начнут писать: «ищу такие-то, размер такой-то, плачу столько». Это лучшие деньги в игре.</p>
     <input class="inp" id="channelName" maxlength="28" value="${esc(suggestion)}" aria-label="Название канала">
     <button class="btn full" style="background:#2a9fd6" data-act="createChannelOk">Создать</button>
     <button class="btn ghost" data-act="closeSheet">Потом</button>`);
@@ -1230,11 +1436,6 @@ A.clearNotif = () => {
     fillNotifCenter();
   }, items.length * 35 + 220);
 };
-A.startGame = () => {
-  S.flags.started = 1;
-  closeSheet();
-  after();
-};
 A.resetAsk = () =>
   sheet(`<h2>Начать заново?</h2>
     <p>Весь прогресс удалится: деньги, вещи, канал, рейтинг, клиенты и записная книжка.</p>
@@ -1253,7 +1454,7 @@ A.resetOk = () => {
 };
 A.newSeason = (d) => {
   const next = Finance.startNewSeason(S, d.id);
-  const seeded = createGame(next.seed);
+  const seeded = createGame(next.seed, { tutorial: 'none' });
   // Переносим то, что должно пережить сезон.
   seeded.season = next.season;
   seeded.notebook = next.notebook;
@@ -1264,6 +1465,8 @@ A.newSeason = (d) => {
   seeded.rep = next.rep;
   seeded.tg = { ...seeded.tg, ...next.tg };
   seeded.rival.heat = next.rival.heat;
+  seeded.upgrades = next.upgrades;
+  seeded.daily = next.daily;
   for (const key of Object.keys(seeded.prog.unlocks)) applyUnlock(seeded, key);
   seeded.flags.started = 1;
   S = seeded;
@@ -1295,6 +1498,7 @@ document.addEventListener('click', (e) => {
   e.preventDefault();
   try {
     fn(el.dataset, el);
+    coachAfterClick(el);
   } catch (err) {
     console.error('Ошибка в действии ' + el.dataset.act, err);
     toast('Что-то пошло не так');
@@ -1312,6 +1516,9 @@ document.addEventListener('change', (e) => {
   else if (key === 'pzTier') S.ui.poizon.tier = v;
   else if (key === 'pzSort') S.ui.poizon.sort = v;
   else return;
+  // Выбор сделан — список закрыт. Снимаем фокус, иначе перерисовка ждёт, пока
+  // игрок коснётся чего-то ещё, и выдача на экране остаётся старой.
+  if (e.target.tagName === 'SELECT') e.target.blur();
   S.ui.limit = 24;
   touch(S);
   after();
@@ -1360,9 +1567,14 @@ bindInputGuards();
 
 let lastRev = -1;
 setInterval(() => {
-  if (!S || !S.flags.started || S.flags.bankrupt || S.flags.seasonEnd) return;
+  if (!S || !S.flags.started) return;
+  if (S.flags.bankrupt || S.flags.seasonEnd) {
+    if (!isNotifOpen()) ensureBlockingSheet();
+    return;
+  }
   if (document.hidden) return;
-  if (isSheetOpen() || isNotifOpen()) {
+  // Пока идёт обучение, часы стоят: время двигают только сами действия.
+  if (isSheetOpen() || isNotifOpen() || tutorialActive(S)) {
     updateClock();
     return;
   }
@@ -1389,12 +1601,49 @@ setInterval(() => {
   }
 }, 120);
 
+/* ======================= ОБНОВЛЕНИЕ ======================= */
+// Игра — одна страница и сама не перезагружается, поэтому после правок
+// телефон продолжал показывать старую версию. Сервер разработки отдаёт
+// версию файлов; изменилась — предлагаем обновиться. На другом сервере
+// адреса нет, и проверка просто молчит.
+
+let gameVersion = null;
+async function checkVersion() {
+  try {
+    const r = await fetch('/__version', { cache: 'no-store' });
+    if (!r.ok) return;
+    const v = (await r.text()).trim();
+    if (gameVersion === null) gameVersion = v;
+    else if (v !== gameVersion) showUpdatePill();
+  } catch (e) {
+    /* нет сети или другой сервер — не мешаем играть */
+  }
+}
+
+function showUpdatePill() {
+  if ($('#updatePill')) return;
+  const el = document.createElement('button');
+  el.id = 'updatePill';
+  el.textContent = 'Новая версия — обновить';
+  el.addEventListener('click', () => {
+    saveGame(S);
+    location.reload();
+  });
+  $('#phone').appendChild(el);
+}
+
+checkVersion();
+setInterval(checkVersion, 20000);
+
 /* ======================= СТАРТ ======================= */
 
 render();
-if (!S.flags.started) introSheet();
+initCoach(A);
+initSfx();
+if (tutorialActive(S)) updateCoach();
 else if (S.flags.bankrupt) bankruptSheet();
 else if (S.flags.seasonEnd) seasonEndSheet();
+else if ((S.news || 0) < NEWS_VERSION) newsSheet();
 
 window.__game = {
   get S() {
@@ -1402,6 +1651,7 @@ window.__game = {
   },
   actions: A,
   core: { Buying, Selling, Items, Social, Finance },
+  tutorial: Tutorial,
   netWorth,
   render,
 };

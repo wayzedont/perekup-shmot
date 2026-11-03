@@ -1,8 +1,6 @@
 // Действия с вещами: осмотр по признакам, легит-чек, чистка, скупка, спор.
 
-import { rub, num } from '../util.js';
 import { MODELS } from '../data/models.js';
-import { TELLS } from '../data/catalog.js';
 import {
   legitCost,
   legitMinutes,
@@ -12,20 +10,22 @@ import {
   photoCost,
   bumpCost,
   pawnPrice,
+  seenItem,
 } from '../economy.js';
 import {
   observeTell,
   inspectMinutes,
   tellsFor,
   tellNote,
-  legitVerdict,
-  suspicionLabel,
+  handVerdict,
 } from '../inspect.js';
 import { revealCondition, cleanItem, itemName, shownCondition } from '../items.js';
 import { recordTruth } from '../notebook.js';
-import { rngOf, pay, earn, canPay, notify, toast, touch, bump, closeThread, mentorOnce } from '../kernel.js';
+import { rngOf, pay, earn, canPay, toast, touch, bump, dropItem, tutorialLock, fx } from '../kernel.js';
 import { advanceMinutes } from '../tick.js';
+import { tutorialTopUp } from '../tutorial.js';
 import { checkGoals } from '../progression.js';
+import { useLegitTicket } from '../daily.js';
 
 export const findItem = (S, id) => S.items.find((i) => i.id === +id);
 
@@ -66,33 +66,40 @@ export function inspectCondition(S, item) {
 
 /* ======================= ЛЕГИТ-ЧЕК ======================= */
 
-export function legitCheck(S, item) {
+/**
+ * byStaff: проверку отправил помощник. Тогда час уходит у него, а не у
+ * игрока, — и время не двигается изнутри часового такта: раньше это
+ * прокручивало мир на час посреди обработки предыдущего часа.
+ */
+export function legitCheck(S, item, { byStaff } = {}) {
   if (!item || item.legitDone) return null;
   const m = MODELS[item.m];
   if (m.noname) {
     toast(S, 'Ноунейм никто не подделывает — проверять нечего');
     return null;
   }
-  const cost = legitCost(S, item);
+  if (S.tut && S.tut.active && !item.tut && !byStaff) {
+    // Деньги на карте сейчас — деньги клиентов Тимура.
+    toast(S, 'Тимур: свои вещи проверишь потом — сейчас деньги клиента.');
+    return null;
+  }
+  // Талон за серию дел Тимура — чек бесплатно.
+  const ticket = !item.tut && !byStaff && useLegitTicket(S);
+  const cost = ticket ? 0 : legitCost(S, item);
+  if (item.tut) tutorialTopUp(S, cost);
   if (!canPay(S, cost)) return null;
-  pay(S, cost, 'Легит-чек: ' + itemName(item));
-  const rng = rngOf(S);
-  const verdict = legitVerdict(rng, item, 0.97);
+  if (cost) pay(S, cost, 'Легит-чек: ' + itemName(item));
+  // Вещь в руках у сервиса — ответ точный.
+  const verdict = handVerdict(item);
   item.verdict = verdict;
   item.legitDone = true;
   bump(S, 'legitChecks');
+  if (!byStaff) fx(verdict === 'fake' ? 'bad' : 'ok');
   // Книжка запоминает, по чему палилась эта модель.
   recordTruth(S, item);
-  advanceMinutes(S, legitMinutes(S));
+  if (!byStaff) advanceMinutes(S, legitMinutes(S));
   checkGoals(S);
   touch(S);
-
-  mentorOnce(
-    S,
-    'legitTip',
-    'Легит-чек почти не ошибается, но стоит денег. На дешёвых вещах он съедает всю прибыль — там придётся полагаться на глаз и на книжку.',
-  );
-
   return {
     verdict,
     cost,
@@ -107,7 +114,7 @@ export function openDispute(S, item) {
   if (item.verdict !== 'fake' || item.protect.declared !== 'orig') return null;
   const amount = item.protect.paid;
   earn(S, amount, 'Авитка: возврат по спору');
-  S.items = S.items.filter((x) => x !== item);
+  dropItem(S, item);
   bump(S, 'disputesWon');
   checkGoals(S);
   touch(S);
@@ -117,6 +124,7 @@ export function openDispute(S, item) {
 /* ======================= УХОД ЗА ВЕЩЬЮ ======================= */
 
 export function cleanUp(S, item) {
+  if (tutorialLock(S)) return null;
   const cost = cleanCost(S, item);
   if (!canPay(S, cost)) return null;
   pay(S, cost, 'Чистка: ' + itemName(item));
@@ -128,6 +136,7 @@ export function cleanUp(S, item) {
 }
 
 export function photoshoot(S, item) {
+  if (tutorialLock(S)) return null;
   const cost = photoCost();
   if (item.photo) return null;
   if (!canPay(S, cost)) return null;
@@ -151,25 +160,27 @@ export function writeDescription(S, item) {
 /* ======================= СКУПКА ======================= */
 
 export function pawn(S, item) {
+  // Пока идёт глава обучения, в скупку ничего не сдаём: на вещах из шкафа
+  // держится сценарий (в Телеге — вещь для канала).
+  if (item.tut && S.tut && S.tut.active) {
+    toast(S, 'Тимур: эту не сдавай — она для дела.');
+    return null;
+  }
+  if (tutorialLock(S)) return null;
   const price = pawnPrice(S, item);
   earn(S, price, 'Скупка: ' + itemName(item));
   S.stats.profit += price - item.cost;
-  for (const th of S.threads) {
-    if (th.kind === 'buyer' && !th.closed && th.data.buyer && th.data.buyer.item === item.id) {
-      closeThread(S, th, 'Вещь уже продана');
-    }
-  }
-  S.items = S.items.filter((x) => x !== item);
-  touch(S);
+  dropItem(S, item);
   return { price };
 }
 
 /* ======================= ОБЪЯВЛЕНИЕ ======================= */
 
 export function bumpListing(S, item) {
+  if (tutorialLock(S)) return null;
   if (!item.sale || !item.sale.avito) return null;
   if (item.sale.boostUntil > S.t) return null;
-  const cost = bumpCost(item);
+  const cost = bumpCost(item, S);
   if (!canPay(S, cost)) return null;
   pay(S, cost, 'Поднятие объявления');
   item.sale.boostUntil = S.t + 24;
@@ -180,17 +191,10 @@ export function bumpListing(S, item) {
 
 /* ======================= ПОДСКАЗКИ ======================= */
 
-export function tellLabel(tell) {
-  return TELLS[tell] ? TELLS[tell].n : tell;
-}
-
-export function itemVerdictLabel(item) {
-  return suspicionLabel(item);
-}
-
 export function estimateFor(S, item) {
+  const seen = seenItem(item);
   return {
-    orig: valueOrig(S, item),
-    fake: valueFake(S, item),
+    orig: valueOrig(S, seen),
+    fake: valueFake(S, seen),
   };
 }

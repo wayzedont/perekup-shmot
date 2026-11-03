@@ -10,7 +10,7 @@ const key = process.argv[2] || 'careful';
 const n = +(process.argv[3] || 24);
 const rows = [];
 for (let i = 0; i < n; i++) {
-  const S = createGame(1000 + i * 7919);
+  const S = createGame(1000 + i * 7919, { tutorial: 'skip' });
   S.flags.started = 1;
   runBot(S, key, 60);
   rows.push({

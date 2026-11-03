@@ -8,7 +8,8 @@
 import { clamp, priceRound } from './util.js';
 import { CATS, CONDS, TIERS, seasonK, sizeDemand } from './data/catalog.js';
 import { MODELS } from './data/models.js';
-import { MAX_SKILL, STORAGE, BASE_CAPACITY } from './data/progress.js';
+import { STORAGE, BASE_CAPACITY } from './data/progress.js';
+import { upgraded } from './data/apps.js';
 
 const STORAGE_BY_ID = Object.fromEntries(STORAGE.map((s) => [s.id, s]));
 
@@ -44,9 +45,6 @@ export const TUNE = {
 };
 
 /* ======================= ВРЕМЯ И РЫНОК ======================= */
-
-export const dayOf = (S) => Math.floor(S.t / 24);
-export const hourOf = (S) => S.t % 24;
 
 /** Текущая ликвидность модели 0..1. */
 export const hypeOf = (S, mi) => S.market.h[mi];
@@ -94,6 +92,28 @@ export function itemHype(S, item) {
   return item.limitedAt ? Math.max(h, 0.92) : h;
 }
 
+/**
+ * Вещь такой, какой её видно в объявлении: состояние — заявленное, пока
+ * его не проверили. Так её оценивает покупатель; скрытый дефект он
+ * обнаружит уже у себя и напишет об этом в отзыве.
+ */
+export function listedItem(item) {
+  if (item.condSeen || typeof item.shownCond !== 'number' || item.shownCond === item.cond) return item;
+  return { ...item, cond: item.shownCond };
+}
+
+/**
+ * Вещь такой, какой её знает игрок: для подсказок и оценок на экране.
+ * Качество копии известно, только когда известно, что это копия. Иначе
+ * оценка «если паль» у копии отличалась от оценки у оригинала, и палёную
+ * вещь можно было вычислить по цене, ничего не осматривая.
+ */
+export function seenItem(item) {
+  const v = listedItem(item);
+  if (item.verdict === 'fake' || !item.q) return v;
+  return { ...v, q: 0 };
+}
+
 /** Рыночная цена оригинала. */
 export function valueOrig(S, item) {
   const m = MODELS[item.m];
@@ -114,11 +134,6 @@ export function valueFake(S, item) {
   const season = 1 - TUNE.seasonPriceK + TUNE.seasonPriceK * seasonK(m.cat, monthOf(S));
   const base = m.rt * cond * (TUNE.fakeBase + TUNE.fakeQualityK * q) * (0.65 + 0.45 * h) * season;
   return priceRound(Math.max(250, base * staleK(S, item)));
-}
-
-/** Цена, по которой вещь имеет смысл выставлять, с учётом того, что игрок о ней знает. */
-export function marketValue(S, item) {
-  return item.verdict === 'fake' ? valueFake(S, item) : valueOrig(S, item);
 }
 
 /**
@@ -259,7 +274,8 @@ export function buyerRate(S, item, platform) {
   const sale = item.sale;
   if (!sale) return 0;
   const m = MODELS[item.m];
-  const base = sale.asOrig ? valueOrig(S, item) : valueFake(S, item);
+  const seen = listedItem(item);
+  const base = sale.asOrig ? valueOrig(S, seen) : valueFake(S, seen);
   if (base <= 0) return 0;
 
   const h = itemHype(S, item);
@@ -282,6 +298,7 @@ export function buyerRate(S, item, platform) {
     const fresh = 0.34 + 0.66 * Math.exp(-(S.t - bumped) / 96);
     rate *= ratingFactor(S) * fresh * TUNE.avitoShare * replyFactor(S);
     if (isTrusted(S)) rate *= 1.22;
+    if (upgraded(S, 'avitoPro')) rate *= 1.1;
     if (sale.boostUntil > S.t) rate *= 2.1;
     if (!sale.asOrig && hasEvent(S, 'avitoPurge')) rate *= 0.4;
   } else {
@@ -353,6 +370,7 @@ export function netWorth(S) {
     if (S.prog.storage[id] && def && def.price) v += def.price * 0.5;
   }
   for (const l of S.loans) v -= l.principal;
+  v -= S.mentorDebt || 0;
   return v;
 }
 
@@ -363,6 +381,17 @@ export function legitCost(S, item) {
   let c = TIERS[m.tier].legit * (1 - 0.045 * S.prog.skills.eye);
   if (S.prog.unlocks.legitDiscount) c *= 0.75;
   return Math.round(c / 10) * 10;
+}
+
+/**
+ * Чек по фото продавца — дешевле чека в руках. Он слабее: проверяет снимки,
+ * а не вещь, которая приедет, поэтому «оригинал» по фото — не гарантия.
+ * Если бы он стоил дороже, за худший результат пришлось бы платить больше,
+ * и при защите покупателя на Авитке его просто никто бы не брал. Дешевле —
+ * это настоящий выбор: сэкономить сейчас или заплатить за уверенность.
+ */
+export function photoLegitCost(S, item) {
+  return Math.max(150, Math.round((legitCost(S, item) * 0.6) / 10) * 10);
 }
 
 export function legitMinutes(S) {
@@ -383,7 +412,8 @@ export function poizonPrice(S, mi, size) {
 
 export function poizonEta(S) {
   const k = 1 - 0.035 * S.prog.skills.logist;
-  return [Math.max(5, Math.round(8 * k)), Math.max(7, Math.round(14 * k))];
+  const fast = upgraded(S, 'poizonPlus') ? 2 : 0;
+  return [Math.max(4, Math.round(8 * k) - fast), Math.max(6, Math.round(14 * k) - fast)];
 }
 
 export function poizonShip(S, mi, qty) {
@@ -391,6 +421,7 @@ export function poizonShip(S, mi, qty) {
   const w = CATS[m.cat].w;
   let s = (320 + 680 * w) * (1 - 0.055 * S.prog.skills.logist);
   if (qty >= 5 && S.prog.lvl >= 4) s *= 0.7;
+  if (upgraded(S, 'poizonPlus')) s *= 0.8;
   return Math.round(s / 10) * 10;
 }
 
@@ -402,10 +433,6 @@ export function cargoShip(S, mi) {
 
 /* ======================= ПРОЧЕЕ ======================= */
 
-export function skillK(S, key, per) {
-  return 1 + per * (S.prog.skills[key] / MAX_SKILL);
-}
-
 export function cleanCost(S, item) {
   const cat = MODELS[item.m].cat;
   return cat === 'shoes' ? 900 : cat === 'puffer' ? 1500 : 700;
@@ -415,13 +442,14 @@ export function photoCost() {
   return 500;
 }
 
-export function bumpCost(item) {
-  return Math.round(clamp(99 + item.sale.price * 0.012, 99, 1800) / 10) * 10;
+export function bumpCost(item, S) {
+  const pro = S && upgraded(S, 'avitoPro') ? 0.6 : 1;
+  return Math.round((clamp(99 + item.sale.price * 0.012, 99, 1800) * pro) / 10) * 10;
 }
 
 /** Цена, по которой скупщик заберёт вещь прямо сейчас. */
 export function pawnPrice(S, item) {
-  const real = item.real;
+  const real = item.real || (item.legitDone && item.verdict === 'orig');
   const v = real ? valueOrig(S, item) * 0.44 : valueFake(S, item) * 0.36;
   return Math.round(Math.max(100, v) / 10) * 10;
 }
